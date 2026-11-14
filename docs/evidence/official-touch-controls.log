@@ -1,0 +1,16 @@
+Original SDK touch controls / local offline verified package cache / 900x430 phone viewport
+{"core_scripts":"ready","error":null,"network":false,"packages":"original-rook-on-demand","version":"version-7062aec9dbe74b14"}
+Original touch widgets: moved=23.438 studs jump=6.684 studs stopped_drift=0.000; simultaneous contacts and cancellation verified
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Warning] Logger:20: [UIBlox - Warning] - Font cannot be measured, falling back to frame size
+[Cliente Output] RookScript:12: Original control layout OriginalJumpPoint 805, 282 70, 70 0, 58
+[Cliente Output] RookScript:12: Original control layout OriginalStickPoint 0, 124 360, 248 0, 58
+touch=true server_scripts=0 client_scripts=25 errors=0
+Official packages, CoreScripts, Stop and offline reuse verified

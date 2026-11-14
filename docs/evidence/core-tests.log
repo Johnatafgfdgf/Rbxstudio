@@ -1,0 +1,52 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test rook_head_is_the_original_rounded_mesh_with_valid_normals_and_uvs ... ok
+test invalid_local_archive_does_not_destroy_a_working_cached_resource ... ok
+test local_spawn_wins_over_old_cache_without_fetching_authenticated_substitute ... ok
+test original_apk_reader_handles_content_extra_content_case_and_traversal ... ok
+test multiple_local_packages_and_atomic_replacement_are_observed_without_restart ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 14 tests
+test importing_a_multi_root_model_keeps_cross_references_and_existing_place ... ok
+test original_template_is_a_real_studio_sized_place ... ok
+test malformed_import_does_not_replace_or_damage_the_document ... ok
+test original_scale_dragger_keeps_the_opposite_face_fixed ... ok
+test a_drag_gesture_is_one_original_history_entry ... ok
+test moving_preserves_the_stored_rotation_exactly ... ok
+test duplicate_uses_original_luau_clone_and_keeps_references_valid ... ok
+test transforms_properties_and_original_history_round_trip ... ok
+test scripts_compile_execute_and_mutate_the_original_datamodel ... ok
+test save_reopen_keeps_script_whitespace_unknown_properties_and_references ... ok
+test rook_actually_steps_a_falling_part_and_editor_snapshot_stays_intact ... ok
+test original_rook_contacts_and_frame_signals_reach_the_original_luau_vm ... ok
+test new_parts_created_during_play_enter_rook_physics ... ok
+test rook_r6_walks_jumps_and_stop_restores_the_exact_editor_document ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 7 tests
+test runtime_color_size_tweens_and_camera_reach_original_renderer_properties_without_full_copy ... ok
+test implicit_rook_mesh_and_part_defaults_reach_the_real_render_extractor ... ok
+test original_client_gui_click_and_key_events_reach_luau_after_projection ... ok
+test original_session_runs_both_sides_and_round_trips_remote_events ... ok
+test imported_keyframes_use_original_animator_and_rook_joint_physics ... ok
+test actual_rook_vm_interrupts_non_yielding_scripts ... ok
+test original_session_respawns_and_stop_keeps_unknown_editor_data ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+   Compiling rbx_android_core v0.1.0 (/workspace/scratch/114c3c451705/native-port/core)
+    Finished `test` profile [optimized] target(s) in 5.96s
+     Running unittests src/lib.rs (target/debug/deps/rbx_android_core-aba5d5d6655070f8)
+     Running tests/content.rs (target/debug/deps/content-515c73159b5f51b2)
+     Running tests/port.rs (target/debug/deps/port-389b0fb0510d5b20)
+     Running tests/runtime.rs (target/debug/deps/runtime-75cb72bb0d8d9683)

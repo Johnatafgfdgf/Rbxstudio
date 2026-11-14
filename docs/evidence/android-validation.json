@@ -1,0 +1,584 @@
+{
+  "dirty": false,
+  "fps": 0,
+  "frame_limit": 60,
+  "idle": true,
+  "local": false,
+  "logs": [
+    "rbxasset:\/\/textures\/SpawnLocation.png: fetching asset 6891610111 failed: asset 6891610111 requires authentication and no API key is configured",
+    "JNI Luau OK",
+    "[Servidor Output] Script:2: JNI Luau OK",
+    "[Cliente Output] LocalScript:1: Android GUI click OK"
+  ],
+  "player": null,
+  "playing": false,
+  "presented_frames": 27,
+  "properties": [
+    {
+      "category": "Part",
+      "editable": true,
+      "name": "Anchored",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Behavior",
+      "editable": true,
+      "name": "Archivable",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Assembly",
+      "editable": false,
+      "name": "AssemblyCenterOfMass",
+      "text": null,
+      "value": "(4, 12, 0)"
+    },
+    {
+      "category": "Assembly",
+      "editable": false,
+      "name": "AssemblyMass",
+      "text": null,
+      "value": "inf"
+    },
+    {
+      "category": "Assembly",
+      "editable": false,
+      "name": "AssemblyRootPart",
+      "text": null,
+      "value": "AndroidValidation"
+    },
+    {
+      "category": "Collision",
+      "editable": true,
+      "name": "AudioCanCollide",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "BackSurface",
+      "text": "0 (Smooth)",
+      "value": "0 (Smooth)"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "BottomSurface",
+      "text": "4 (Inlet)",
+      "value": "4 (Inlet)"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "BrickColor",
+      "text": "Medium stone grey",
+      "value": "Medium stone grey"
+    },
+    {
+      "category": "Transform",
+      "editable": true,
+      "name": "CFrame",
+      "text": "4, 12, 0, 0, 30.000002, 0",
+      "value": "pos=(4, 12, 0) rot=[0.8660254, 0.0, 0.5, 0.0, 1.0, 0.0, -0.5, 0.0, 0.8660254]"
+    },
+    {
+      "category": "Collision",
+      "editable": true,
+      "name": "CanCollide",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Collision",
+      "editable": true,
+      "name": "CanQuery",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Collision",
+      "editable": true,
+      "name": "CanTouch",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Permissions",
+      "editable": false,
+      "name": "Capabilities",
+      "text": null,
+      "value": "SecurityCapabilities(0x0)"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "CastShadow",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Part",
+      "editable": false,
+      "name": "CenterOfMass",
+      "text": null,
+      "value": "(0, 0, 0)"
+    },
+    {
+      "category": "Data",
+      "editable": false,
+      "name": "ClassName",
+      "text": null,
+      "value": "\"Part\""
+    },
+    {
+      "category": "Collision",
+      "editable": true,
+      "name": "CollisionGroup",
+      "text": "\"Default\"",
+      "value": "\"Default\""
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "Color",
+      "text": "(163, 162, 165)",
+      "value": "(163, 162, 165)"
+    },
+    {
+      "category": "Part",
+      "editable": false,
+      "name": "CurrentPhysicalProperties",
+      "text": null,
+      "value": "Custom(0.7, 0.3, 0.5, 1, 1)"
+    },
+    {
+      "category": "Part",
+      "editable": true,
+      "name": "CustomPhysicalProperties",
+      "text": "Default",
+      "value": "Default"
+    },
+    {
+      "category": "Behavior",
+      "editable": true,
+      "name": "EnableFluidForces",
+      "text": "true",
+      "value": "true"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "FrontSurface",
+      "text": "0 (Smooth)",
+      "value": "0 (Smooth)"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "LeftSurface",
+      "text": "0 (Smooth)",
+      "value": "0 (Smooth)"
+    },
+    {
+      "category": "Data",
+      "editable": true,
+      "name": "Locked",
+      "text": "false",
+      "value": "false"
+    },
+    {
+      "category": "Part",
+      "editable": false,
+      "name": "Mass",
+      "text": null,
+      "value": "53.76"
+    },
+    {
+      "category": "Part",
+      "editable": true,
+      "name": "Massless",
+      "text": "false",
+      "value": "false"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "Material",
+      "text": "256",
+      "value": "256 (Plastic)"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "MaterialVariant",
+      "text": "\"\"",
+      "value": "\"\""
+    },
+    {
+      "category": "Data",
+      "editable": true,
+      "name": "Name",
+      "text": "AndroidValidation",
+      "value": "\"AndroidValidation\""
+    },
+    {
+      "category": "Transform",
+      "editable": true,
+      "name": "Origin",
+      "text": "pos=(4, 12, 0) rot=[0.8660254, 0.0, 0.5, 0.0, 1.0, 0.0, -0.5, 0.0, 0.8660254]",
+      "value": "pos=(4, 12, 0) rot=[0.8660254, 0.0, 0.5, 0.0, 1.0, 0.0, -0.5, 0.0, 0.8660254]"
+    },
+    {
+      "category": "Data",
+      "editable": false,
+      "name": "Parent",
+      "text": null,
+      "value": "Workspace"
+    },
+    {
+      "category": "Pivot",
+      "editable": true,
+      "name": "PivotOffset",
+      "text": "pos=(0, 0, 0) rot=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]",
+      "value": "pos=(0, 0, 0) rot=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "Reflectance",
+      "text": "0",
+      "value": "0"
+    },
+    {
+      "category": "Data",
+      "editable": false,
+      "name": "ResizeIncrement",
+      "text": null,
+      "value": "1"
+    },
+    {
+      "category": "Data",
+      "editable": false,
+      "name": "ResizeableFaces",
+      "text": null,
+      "value": "Faces(Front|Bottom|Left|Back|Top|Right)"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "RightSurface",
+      "text": "0 (Smooth)",
+      "value": "0 (Smooth)"
+    },
+    {
+      "category": "Part",
+      "editable": true,
+      "name": "RootPriority",
+      "text": "0",
+      "value": "0"
+    },
+    {
+      "category": "Permissions",
+      "editable": true,
+      "name": "Sandboxed",
+      "text": "false",
+      "value": "false"
+    },
+    {
+      "category": "Part",
+      "editable": true,
+      "name": "Shape",
+      "text": "1 (Block)",
+      "value": "1 (Block)"
+    },
+    {
+      "category": "Transform",
+      "editable": true,
+      "name": "Size",
+      "text": "(6, 3.2, 4)",
+      "value": "(6, 3.2, 4)"
+    },
+    {
+      "category": "Surface",
+      "editable": true,
+      "name": "TopSurface",
+      "text": "3 (Studs)",
+      "value": "3 (Studs)"
+    },
+    {
+      "category": "Appearance",
+      "editable": true,
+      "name": "Transparency",
+      "text": "0",
+      "value": "0"
+    }
+  ],
+  "quality": 10,
+  "render_cap": 640,
+  "render_ms": 112.074911,
+  "resolution": [
+    640,
+    233
+  ],
+  "revision": 10,
+  "runtime": null,
+  "selection": 8,
+  "snap": 1,
+  "source": null,
+  "status": "Edição restaurada",
+  "surface_builds": 1,
+  "tool": "move",
+  "tree": [
+    {
+      "class": "Workspace",
+      "depth": 0,
+      "id": 1,
+      "name": "Workspace",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Camera",
+      "depth": 1,
+      "id": 2,
+      "name": "Camera",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Terrain",
+      "depth": 1,
+      "id": 3,
+      "name": "Terrain",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 1,
+      "id": 4,
+      "name": "Baseplate",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Texture",
+      "depth": 2,
+      "id": 5,
+      "name": "Texture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SpawnLocation",
+      "depth": 1,
+      "id": 6,
+      "name": "SpawnLocation",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Decal",
+      "depth": 2,
+      "id": 7,
+      "name": "Decal",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 1,
+      "id": 8,
+      "name": "AndroidValidation",
+      "script": false,
+      "selected": true
+    },
+    {
+      "class": "Players",
+      "depth": 0,
+      "id": 9,
+      "name": "Players",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Lighting",
+      "depth": 0,
+      "id": 10,
+      "name": "Lighting",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Sky",
+      "depth": 1,
+      "id": 11,
+      "name": "Sky",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SunRaysEffect",
+      "depth": 1,
+      "id": 12,
+      "name": "SunRays",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Atmosphere",
+      "depth": 1,
+      "id": 13,
+      "name": "Atmosphere",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "BloomEffect",
+      "depth": 1,
+      "id": 14,
+      "name": "Bloom",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "DepthOfFieldEffect",
+      "depth": 1,
+      "id": 15,
+      "name": "DepthOfField",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ReplicatedFirst",
+      "depth": 0,
+      "id": 16,
+      "name": "ReplicatedFirst",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ReplicatedStorage",
+      "depth": 0,
+      "id": 17,
+      "name": "ReplicatedStorage",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ServerScriptService",
+      "depth": 0,
+      "id": 18,
+      "name": "ServerScriptService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Script",
+      "depth": 1,
+      "id": 19,
+      "name": "Script",
+      "script": true,
+      "selected": false
+    },
+    {
+      "class": "ServerStorage",
+      "depth": 0,
+      "id": 20,
+      "name": "ServerStorage",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterGui",
+      "depth": 0,
+      "id": 21,
+      "name": "StarterGui",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ScreenGui",
+      "depth": 1,
+      "id": 22,
+      "name": "AndroidGuiFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextButton",
+      "depth": 2,
+      "id": 23,
+      "name": "AndroidClickFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "LocalScript",
+      "depth": 3,
+      "id": 24,
+      "name": "LocalScript",
+      "script": true,
+      "selected": false
+    },
+    {
+      "class": "StarterPack",
+      "depth": 0,
+      "id": 25,
+      "name": "StarterPack",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Teams",
+      "depth": 0,
+      "id": 26,
+      "name": "Teams",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SoundService",
+      "depth": 0,
+      "id": 27,
+      "name": "SoundService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextChatService",
+      "depth": 0,
+      "id": 28,
+      "name": "TextChatService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterPlayer",
+      "depth": 0,
+      "id": 29,
+      "name": "StarterPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterPlayerScripts",
+      "depth": 1,
+      "id": 30,
+      "name": "StarterPlayerScripts",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterCharacterScripts",
+      "depth": 1,
+      "id": 31,
+      "name": "StarterCharacterScripts",
+      "script": false,
+      "selected": false
+    }
+  ]
+}

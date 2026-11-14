@@ -1,0 +1,777 @@
+{
+  "dirty": false,
+  "fps": 0.31515454774047597,
+  "frame_limit": 60,
+  "idle": false,
+  "local": false,
+  "logs": [
+    "rbxasset:\/\/textures\/SpawnLocation.png: fetching asset 6891610111 failed: asset 6891610111 requires authentication and no API key is configured",
+    "JNI Luau OK",
+    "[Servidor Output] Script:2: JNI Luau OK",
+    "[Cliente Output] LocalScript:1: Android GUI click OK"
+  ],
+  "player": {
+    "position": [
+      4.697715759277344,
+      4.000002861022949,
+      -1.9529261589050293
+    ],
+    "root": 68,
+    "state": "Running"
+  },
+  "playing": true,
+  "presented_frames": 20,
+  "properties": [],
+  "quality": 10,
+  "render_cap": 640,
+  "render_ms": 1395.192729,
+  "resolution": [
+    640,
+    233
+  ],
+  "revision": 10,
+  "runtime": {
+    "full_projection_syncs": 2,
+    "host": "rook-engine::Session",
+    "started_scripts": [
+      1,
+      1
+    ]
+  },
+  "selection": null,
+  "snap": 1,
+  "source": null,
+  "status": "Play local · servidor + cliente Rook",
+  "surface_builds": 1,
+  "tool": "move",
+  "tree": [
+    {
+      "class": "Workspace",
+      "depth": 0,
+      "id": 1,
+      "name": "Workspace",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Camera",
+      "depth": 1,
+      "id": 2,
+      "name": "Camera",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Terrain",
+      "depth": 1,
+      "id": 3,
+      "name": "Terrain",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 1,
+      "id": 4,
+      "name": "Baseplate",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Texture",
+      "depth": 2,
+      "id": 5,
+      "name": "Texture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Snap",
+      "depth": 2,
+      "id": 32,
+      "name": "Snap",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SpawnLocation",
+      "depth": 1,
+      "id": 6,
+      "name": "SpawnLocation",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Decal",
+      "depth": 2,
+      "id": 7,
+      "name": "Decal",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 1,
+      "id": 8,
+      "name": "AndroidValidation",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Model",
+      "depth": 1,
+      "id": 33,
+      "name": "LocalPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 34,
+      "name": "Head",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SpecialMesh",
+      "depth": 3,
+      "id": 35,
+      "name": "Mesh",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Decal",
+      "depth": 3,
+      "id": 36,
+      "name": "face",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 37,
+      "name": "HairAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 38,
+      "name": "HatAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 39,
+      "name": "FaceFrontAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 40,
+      "name": "FaceCenterAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 41,
+      "name": "Torso",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Decal",
+      "depth": 3,
+      "id": 42,
+      "name": "roblox",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 43,
+      "name": "NeckAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 44,
+      "name": "BodyFrontAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 45,
+      "name": "BodyBackAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 46,
+      "name": "LeftCollarAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 47,
+      "name": "RightCollarAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 48,
+      "name": "WaistFrontAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 49,
+      "name": "WaistCenterAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 50,
+      "name": "WaistBackAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 51,
+      "name": "Right Shoulder",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 52,
+      "name": "Left Shoulder",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 53,
+      "name": "Right Hip",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 54,
+      "name": "Left Hip",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 55,
+      "name": "Neck",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 56,
+      "name": "Left Arm",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 57,
+      "name": "LeftShoulderAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 58,
+      "name": "LeftGripAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 59,
+      "name": "Right Arm",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 60,
+      "name": "RightShoulderAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 61,
+      "name": "RightGripAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 62,
+      "name": "Left Leg",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 63,
+      "name": "LeftFootAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 64,
+      "name": "Right Leg",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Attachment",
+      "depth": 3,
+      "id": 65,
+      "name": "RightFootAttachment",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Humanoid",
+      "depth": 2,
+      "id": 66,
+      "name": "Humanoid",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "HumanoidDescription",
+      "depth": 3,
+      "id": 67,
+      "name": "HumanoidDescription",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Part",
+      "depth": 2,
+      "id": 68,
+      "name": "HumanoidRootPart",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Motor6D",
+      "depth": 3,
+      "id": 69,
+      "name": "RootJoint",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "BodyColors",
+      "depth": 2,
+      "id": 70,
+      "name": "Body Colors",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ForceField",
+      "depth": 2,
+      "id": 71,
+      "name": "ForceField",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Players",
+      "depth": 0,
+      "id": 9,
+      "name": "Players",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Player",
+      "depth": 1,
+      "id": 72,
+      "name": "LocalPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Backpack",
+      "depth": 2,
+      "id": 73,
+      "name": "Backpack",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "PlayerGui",
+      "depth": 2,
+      "id": 74,
+      "name": "PlayerGui",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ScreenGui",
+      "depth": 3,
+      "id": 75,
+      "name": "AndroidGuiFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextButton",
+      "depth": 4,
+      "id": 76,
+      "name": "AndroidClickFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "LocalScript",
+      "depth": 5,
+      "id": 77,
+      "name": "LocalScript",
+      "script": true,
+      "selected": false
+    },
+    {
+      "class": "PlayerScripts",
+      "depth": 2,
+      "id": 78,
+      "name": "PlayerScripts",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Lighting",
+      "depth": 0,
+      "id": 10,
+      "name": "Lighting",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Sky",
+      "depth": 1,
+      "id": 11,
+      "name": "Sky",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SunRaysEffect",
+      "depth": 1,
+      "id": 12,
+      "name": "SunRays",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Atmosphere",
+      "depth": 1,
+      "id": 13,
+      "name": "Atmosphere",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "BloomEffect",
+      "depth": 1,
+      "id": 14,
+      "name": "Bloom",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "DepthOfFieldEffect",
+      "depth": 1,
+      "id": 15,
+      "name": "DepthOfField",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ReplicatedFirst",
+      "depth": 0,
+      "id": 16,
+      "name": "ReplicatedFirst",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ReplicatedStorage",
+      "depth": 0,
+      "id": 17,
+      "name": "ReplicatedStorage",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ServerScriptService",
+      "depth": 0,
+      "id": 18,
+      "name": "ServerScriptService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ServerStorage",
+      "depth": 0,
+      "id": 20,
+      "name": "ServerStorage",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterGui",
+      "depth": 0,
+      "id": 21,
+      "name": "StarterGui",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ScreenGui",
+      "depth": 1,
+      "id": 22,
+      "name": "AndroidGuiFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextButton",
+      "depth": 2,
+      "id": 23,
+      "name": "AndroidClickFixture",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "LocalScript",
+      "depth": 3,
+      "id": 24,
+      "name": "LocalScript",
+      "script": true,
+      "selected": false
+    },
+    {
+      "class": "StarterPack",
+      "depth": 0,
+      "id": 25,
+      "name": "StarterPack",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterPlayer",
+      "depth": 0,
+      "id": 29,
+      "name": "StarterPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterPlayerScripts",
+      "depth": 1,
+      "id": 30,
+      "name": "StarterPlayerScripts",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "StarterCharacterScripts",
+      "depth": 1,
+      "id": 31,
+      "name": "StarterCharacterScripts",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Teams",
+      "depth": 0,
+      "id": 26,
+      "name": "Teams",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "SoundService",
+      "depth": 0,
+      "id": 27,
+      "name": "SoundService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Chat",
+      "depth": 0,
+      "id": 79,
+      "name": "Chat",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "RunService",
+      "depth": 0,
+      "id": 80,
+      "name": "RunService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Debris",
+      "depth": 0,
+      "id": 81,
+      "name": "Debris",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "NetworkClient",
+      "depth": 0,
+      "id": 82,
+      "name": "NetworkClient",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextChatService",
+      "depth": 0,
+      "id": 28,
+      "name": "TextChatService",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ChatWindowConfiguration",
+      "depth": 1,
+      "id": 83,
+      "name": "ChatWindowConfiguration",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ChatInputBarConfiguration",
+      "depth": 1,
+      "id": 84,
+      "name": "ChatInputBarConfiguration",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "BubbleChatConfiguration",
+      "depth": 1,
+      "id": 85,
+      "name": "BubbleChatConfiguration",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "ChannelTabsConfiguration",
+      "depth": 1,
+      "id": 86,
+      "name": "ChannelTabsConfiguration",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "Folder",
+      "depth": 1,
+      "id": 87,
+      "name": "TextChannels",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextChannel",
+      "depth": 2,
+      "id": 88,
+      "name": "RBXGeneral",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextSource",
+      "depth": 3,
+      "id": 89,
+      "name": "LocalPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextChannel",
+      "depth": 2,
+      "id": 90,
+      "name": "RBXSystem",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "TextSource",
+      "depth": 3,
+      "id": 91,
+      "name": "LocalPlayer",
+      "script": false,
+      "selected": false
+    },
+    {
+      "class": "UserInputService",
+      "depth": 0,
+      "id": 92,
+      "name": "UserInputService",
+      "script": false,
+      "selected": false
+    }
+  ]
+}

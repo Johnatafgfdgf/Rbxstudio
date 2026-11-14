@@ -1,0 +1,15 @@
+Run: 41460550732
+Code: c585d09f3c1b4f53f006151df0f4ef7f4b0bbf85
+Packages are downloaded only during validation; no downloaded Roblox scripts/assets are included in this repository.
+
+2026-11-02T14:22:21.2941353Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-02T14:22:21.2999262Z test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-02T14:22:21.5712495Z test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+2026-11-02T14:22:21.5806200Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-02T14:22:21.5848824Z test offline_core_patch_preparation_cannot_enter_the_global_online_fallback ... ok
+2026-11-02T14:22:21.5851584Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-02T14:22:21.7636946Z test original_rook_emote_collections_keep_state_clones_and_signal_payloads ... ok
+2026-11-02T14:22:22.4978801Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+2026-11-02T14:22:26.0713284Z {"core_scripts":"ready","error":null,"network":true,"packages":"original-rook-on-demand","version":"version-7062aec9dbe74b14"}
+2026-11-02T14:22:43.0701959Z server_scripts=0 client_scripts=24 errors=0
+2026-11-02T14:22:43.7188489Z Official packages, CoreScripts, Stop and offline reuse verified

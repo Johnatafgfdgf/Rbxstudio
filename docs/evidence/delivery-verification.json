@@ -1,0 +1,66 @@
+{
+  "apk": "rbx-native-android-0.3-arm64-v8a-debug.apk",
+  "name": "rbx-native-android-0.3-arm64-v8a-debug.apk",
+  "bytes": 18416486,
+  "sha256": "491583748dbfe2966b9f2348d787382c1f27378240d3453606da1993eca574df",
+  "ci_apk_sha256": "703e89f443bd7f915318488faf39e22a35f1069d0555d1ee02ff73a011f9a85b",
+  "certificate_sha256": "0b36c4e4587b40ecc16dbdca22fcaa20149432532567cc9acf44355c5b83711c",
+  "unchanged_contents_after_signing": true,
+  "dependency_license_sections": 397,
+  "elfs": [
+    {
+      "file": "lib/arm64-v8a/libc++_shared.so",
+      "sha256": "ab4e6c71b96b851de45a8a9bd86369e7dbc2130a44b3b4520564be94847910f2",
+      "load_segments": [
+        {
+          "offset": 0,
+          "virtual_address": 0,
+          "alignment": 16384
+        },
+        {
+          "offset": 624800,
+          "virtual_address": 641184,
+          "alignment": 16384
+        },
+        {
+          "offset": 1210520,
+          "virtual_address": 1243288,
+          "alignment": 16384
+        },
+        {
+          "offset": 1250352,
+          "virtual_address": 1299504,
+          "alignment": 16384
+        }
+      ]
+    },
+    {
+      "file": "lib/arm64-v8a/librbx_android.so",
+      "sha256": "826fc70460482724a8c8da41797f830dab0968971f907c97436d3b22683a4e04",
+      "load_segments": [
+        {
+          "offset": 0,
+          "virtual_address": 0,
+          "alignment": 16384
+        },
+        {
+          "offset": 16398912,
+          "virtual_address": 16415296,
+          "alignment": 16384
+        },
+        {
+          "offset": 39016800,
+          "virtual_address": 39049568,
+          "alignment": 16384
+        },
+        {
+          "offset": 40066176,
+          "virtual_address": 40115328,
+          "alignment": 16384
+        }
+      ]
+    }
+  ],
+  "signing_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): false\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=rbx-native Android Debug, O=Development, C=BR\nSigner #1 certificate SHA-256 digest: 0b36c4e4587b40ecc16dbdca22fcaa20149432532567cc9acf44355c5b83711c\nSigner #1 certificate SHA-1 digest: b4d9c47b0a6076eb02c71a4d105fbbbd2d531d6c\nSigner #1 certificate MD5 digest: 8b2bba620b88d6a9deeb71f9e244fdd4\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 2048\nSigner #1 public key SHA-256 digest: d6338db4b2d27ccafac38e999f88700536b0e976a52a064912141cbc1acdf5ac\nSigner #1 public key SHA-1 digest: 127c050822bc92bc85d0865126f42f0da66ba41e\nSigner #1 public key MD5 digest: 4760fb7c67bcd6d1380d878ae8fb7450\n",
+  "manifest_badging": "package: name='com.rbxnative.androidport' versionCode='3' versionName='0.3-native-runtime' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'\nsdkVersion:'29'\ntargetSdkVersion:'35'\nuses-permission: name='android.permission.INTERNET'\napplication: label='' icon=''\napplication-debuggable\nlaunchable-activity: name='com.rbxnative.androidport.MainActivity'  label='' icon=''\nfeature-group: label=''\n  uses-gl-es: '0x30001'\n  uses-feature: name='android.hardware.faketouch'\n  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'\n  uses-feature: name='android.hardware.screen.landscape'\n  uses-implied-feature: name='android.hardware.screen.landscape' reason='one or more activities have specified a landscape orientation'\nmain\nsupports-screens: 'small' 'normal' 'large' 'xlarge'\nsupports-any-density: 'true'\nlocales:\ndensities:\nnative-code: 'arm64-v8a'\n"
+}

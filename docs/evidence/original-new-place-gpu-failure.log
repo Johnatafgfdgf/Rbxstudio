@@ -1,0 +1,7 @@
+Android 35 / actual a86 native payload / f9f7a9fe Java and 60-second New place smoke
+Run 41525824406, artifact 13178844776, ZIP SHA256 46af8cd6526396590ae24af3259d32ddde2ddce45da3ef2e66660d0aee6ded4e
+11-02 21:13:10.987  2340  2378 I RbxStudio: gpui_wgpu::wgpu_context: Selected GPU adapter: "SwiftShader Device (Subzero)" (Vulkan)
+11-02 21:13:51.258  2340  2377 I RustStdoutStderr: rbxview: SwiftShader Device (Subzero) on Vulkan (Cpu)
+11-02 21:14:03.259  2340  2378 E RbxStudio: gpui_wgpu::wgpu_context: wgpu device lost: reason=Unknown, message=Unexpected error variant (driver implementation is at fault)
+11-02 21:14:03.264  2340  2378 E RbxStudio: gpui_wgpu::wgpu_renderer: GPU error during frame (failure 1 of 10): Surface texture validation error
+No 3D editor or Play presentation is certified by this failing run.

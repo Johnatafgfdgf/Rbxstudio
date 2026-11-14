@@ -1,0 +1,11 @@
+   Compiling rook-content v0.3.0 (/workspace/scratch/114c3c451705/native-port/upstream/rook/crates/rook-content)
+   Compiling rook-gui v0.3.0 (/workspace/scratch/114c3c451705/native-port/upstream/rook/crates/rook-gui)
+   Compiling rook-audio v0.3.0 (/workspace/scratch/114c3c451705/native-port/upstream/rook/crates/rook-audio)
+   Compiling rook-lua v0.3.0 (/workspace/scratch/114c3c451705/native-port/upstream/rook/crates/rook-lua)
+   Compiling rook-engine v0.3.0 (/workspace/scratch/114c3c451705/native-port/upstream/rook/crates/rook-engine)
+   Compiling rbx_android_core v0.1.0 (/workspace/scratch/114c3c451705/native-port/core)
+    Finished `dev` profile [optimized] target(s) in 1m 24s
+     Running `target/debug/examples/play_capture /workspace/scratch/114c3c451705/render-qa --gui-check`
+rbxview: llvmpipe (LLVM 20.1.2, 256 bits) on Vulkan (Cpu)
+Play entry renderer patch: Rebuilt(Sky)
+Original Rook R6 rendered at Some(Vec3(4.6977158, 4.000003, -1.9529262))

@@ -1,0 +1,2 @@
+INSTRUMENTATION_RESULT: result=JNI, GPU, panels without renderer reset, edit, Luau, Rook Session, physical GUI click at internal render resolution, real R6 touch movement, Play/Stop and save/reopen passed
+INSTRUMENTATION_CODE: -1

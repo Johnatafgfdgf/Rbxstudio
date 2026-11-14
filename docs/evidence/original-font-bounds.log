@@ -1,0 +1,11 @@
+Original SDK font measurement integration / cached manifest-verified fonts / 900x430 phone viewport
+Version: version-7062aec9dbe74b14
+GetTextBoundsAsync uses the original shaper, FontFace selection, rich-text parser and content/scheduler bridge.
+Assertions passed: SourceSansPro with Portuguese accents, width 40 wraps into more lines, rich text size 36, infinite width, initial negative padded width, invalid instance rejected.
+OriginalFontBounds readiness attribute verified.
+Original touch widgets: moved=23.438 studs jump=6.684 studs stopped_drift=0.000
+touch=true server_scripts=0 client_scripts=25 errors=0
+Font/frame-size fallback warnings: 0 (explicit failure gate).
+Exact Stop restoration and offline CorePatch/font reuse passed.
+Delayed remote family+face delivery fixture passed through the original resolver/HTTP workers and scheduler: 4 HTTP requests, 45 responsive frames, exact cached metrics, no refetch and exact Stop restoration.
+The fixture serves original official font bytes in memory over loopback; it publishes no font files and does not claim physical-phone network validation.

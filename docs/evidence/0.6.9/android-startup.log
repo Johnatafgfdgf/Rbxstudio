@@ -1,0 +1,66 @@
+# Trechos da execução Android do RBX-Mobile
+# AVD Android 11 API 30 x86_64 com tradução ARM64, 960 × 432 px, 160 dpi, sem KVM.
+# APK 0.6.9 SHA-256 356e3ec62bb7d87d6bb38f454c1c1ef6bff320f1f70a9b174cf7658b696a43cb.
+
+# dumpsys package após instalar 0.6.9
+    primaryCpuAbi=arm64-v8a
+    versionCode=15 minSdk=29 targetSdk=35
+    versionName=0.6.9
+# Estado final da sessão no Package Manager: mFinalStatus=1 mFinalMessage=null.
+
+# 0.6.9, Android 11, Lavapipe e ANGLE
+11-13 19:30:08.462  5712  5908 I RbxStudio: gpui_wgpu::wgpu_context: Found 1 GPU adapter(s):
+11-13 19:30:08.552  5712  5908 I RbxStudio: gpui_wgpu::wgpu_context:   - Android Emulator OpenGL ES Translator (ANGLE (Google, Vulkan 1.2.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)) (vendor=0x0000, device=0x0000, backend=Gl, type=Cpu)
+11-13 19:30:27.061   355   662 E BufferQueueProducer: [com.rbxnative.androidport/dev.gpui.mobile.GpuiActivity#0](id:1630000000a,api:1,p:5712,c:355) connect: already connected (cur=1 req=1)
+11-13 19:30:27.062  5712  5908 E libEGL  : eglCreateWindowSurface: native_window_api_connect (win=0x7bb1630148e0) failed (0xffffffea) (already connected to another API?)
+11-13 19:30:27.062  5712  5908 E libEGL  : eglCreateWindowSurfaceTmpl:725 error 3003 (EGL_BAD_ALLOC)
+11-13 19:30:28.494  5712  5908 I RbxStudio:     Invalid surface
+11-13 19:30:29.626  5712  5908 E RbxStudio: gpui_mobile::android::jni: failed to open window: failed to create gpui_wgpu renderer: No GPU adapter found that can configure the display surface
+
+# 0.6.9, Android 11, nova abertura com Lavapipe e ANGLE
+11-13 19:34:27.611  8032  8157 I RbxStudio: gpui_mobile::android::jni: InitWindow: 960×432
+11-13 19:34:36.306  8032  8157 I RbxStudio: gpui_wgpu::wgpu_context: Found 1 GPU adapter(s):
+11-13 19:34:36.396  8032  8157 I RbxStudio: gpui_wgpu::wgpu_context:   - Android Emulator OpenGL ES Translator (ANGLE (Google, Vulkan 1.2.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)) (vendor=0x0000, device=0x0000, backend=Gl, type=Cpu)
+11-13 19:34:53.270   355  1395 E BufferQueueProducer: [com.rbxnative.androidport/dev.gpui.mobile.GpuiActivity#0](id:1630000000e,api:1,p:8032,c:355) connect: already connected (cur=1 req=1)
+11-13 19:34:53.271  8032  8157 E libEGL  : eglCreateWindowSurface: native_window_api_connect (win=0x7bb1630148e0) failed (0xffffffea) (already connected to another API?)
+11-13 19:34:53.271  8032  8157 E libEGL  : eglCreateWindowSurfaceTmpl:725 error 3003 (EGL_BAD_ALLOC)
+11-13 19:34:54.832  8032  8157 I RbxStudio:     Invalid surface
+11-13 19:34:56.194  8032  8157 E RbxStudio: gpui_mobile::android::jni: failed to open window: failed to create gpui_wgpu renderer: No GPU adapter found that can configure the display surface
+
+# 0.6.9, Android 11, SwiftShader e opção -feature -Vulkan
+11-13 19:39:58.932  2438  2693 I RbxStudio: gpui_mobile::android::jni: InitWindow: 960×432
+11-13 19:40:07.954  2438  2693 I RbxStudio: gpui_wgpu::wgpu_context: Found 1 GPU adapter(s):
+11-13 19:40:08.027  2438  2693 I RbxStudio: gpui_wgpu::wgpu_context:   - Android Emulator OpenGL ES Translator (Google SwiftShader) (vendor=0x0000, device=0x0000, backend=Gl, type=Cpu)
+11-13 19:40:08.508  2438  2693 I RbxStudio: gpui_wgpu::wgpu_context:   Adapter Android Emulator OpenGL ES Translator (Google SwiftShader) (Gl) failed: Failed to create wgpu device: Limit 'max_compute_workgroups_per_dimension' value 65535 is better than allowed 0, trying next...
+11-13 19:40:09.927  2438  2693 E RbxStudio: gpui_mobile::android::jni: failed to open window: failed to create gpui_wgpu renderer: No GPU adapter found that can configure the display surface
+
+# 0.6.9, Android 11, ANGLE/SwiftShader e opção -feature -Vulkan
+11-13 19:44:45.995  1959  2190 I RbxStudio: gpui_mobile::android::jni: InitWindow: 960×432
+11-13 19:45:15.775   362   402 E BufferQueueProducer: [com.rbxnative.androidport/dev.gpui.mobile.GpuiActivity#0](id:16a00000006,api:1,p:1959,c:362) connect: already connected (cur=1 req=1)
+11-13 19:45:15.778  1959  2190 E libEGL  : eglCreateWindowSurface: native_window_api_connect (win=0x752da8eedd00) failed (0xffffffea) (already connected to another API?)
+11-13 19:45:15.778  1959  2190 E libEGL  : eglCreateWindowSurfaceTmpl:725 error 3003 (EGL_BAD_ALLOC)
+11-13 19:45:17.266  1959  2190 I RbxStudio:     Invalid surface
+11-13 19:45:18.331  1959  2190 E RbxStudio: gpui_mobile::android::jni: failed to open window: failed to create gpui_wgpu renderer: No GPU adapter found that can configure the display surface
+
+# 0.6.8, controle no mesmo Android 11 com ANGLE/SwiftShader
+11-13 19:48:18.804  3654  3768 I RbxStudio: gpui_mobile::android::jni: InitWindow: 960×432
+11-13 19:48:27.196  3654  3768 I RbxStudio: gpui_wgpu::wgpu_context: Found 1 GPU adapter(s):
+11-13 19:48:27.261  3654  3768 I RbxStudio: gpui_wgpu::wgpu_context:   - Android Emulator OpenGL ES Translator (ANGLE (Google, Vulkan 1.2.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)) (vendor=0x0000, device=0x0000, backend=Gl, type=Cpu)
+11-13 19:48:44.448   362   402 E BufferQueueProducer: [com.rbxnative.androidport/dev.gpui.mobile.GpuiActivity#0](id:16a0000000a,api:1,p:3654,c:362) connect: already connected (cur=1 req=1)
+11-13 19:48:44.449  3654  3768 E libEGL  : eglCreateWindowSurface: native_window_api_connect (win=0x752da8eedd00) failed (0xffffffea) (already connected to another API?)
+11-13 19:48:44.449  3654  3768 E libEGL  : eglCreateWindowSurfaceTmpl:725 error 3003 (EGL_BAD_ALLOC)
+11-13 19:48:45.992  3654  3768 I RbxStudio:     Invalid surface
+11-13 19:48:46.798  3654  3768 E RbxStudio: gpui_mobile::android::jni: failed to open window: failed to create gpui_wgpu renderer: No GPU adapter found that can configure the display surface
+
+# dumpsys package após instalar 0.6.8
+    primaryCpuAbi=arm64-v8a
+    versionCode=14 minSdk=29 targetSdk=35
+    versionName=0.6.8
+
+# Atualização com adb install --no-streaming -r, da 0.6.8 para a 0.6.9
+Success
+    primaryCpuAbi=arm64-v8a
+    versionCode=15 minSdk=29 targetSdk=35
+    versionName=0.6.9
+    firstInstallTime=2026-11-13 19:47:14
+    lastUpdateTime=2026-11-13 19:50:40

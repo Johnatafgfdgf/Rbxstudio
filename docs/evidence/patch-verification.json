@@ -1,0 +1,141 @@
+{
+  "preparation_passes": 2,
+  "verified_files": [
+    {
+      "path": "rbx-native/crates/rbx_assets/Cargo.toml",
+      "sha256": "3c0645bd211ba11c0c6306f9a47a73617075e98253e266b6a5e8a6413909cea6"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/error.rs",
+      "sha256": "fb1676881644dca1b6c27e5f9ac6d7ee46265017589f1bd17660eb10ddaf516d"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/lib.rs",
+      "sha256": "f31c08e24cefd6a14509029a8f5201c37bc770f013c9fe8794a3ba099e0e9572"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/native.rs",
+      "sha256": "2be7a73eb1be6b4123389b0aea1e00e84c39c8561e074c120b0d9f2816afac0d"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/resolver.rs",
+      "sha256": "0a8436020a2607eb7ac4df478ef58423859cbf2a297491e56b6d4218e544a45f"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/sober.rs",
+      "sha256": "4dbe83cf8df2a735753c20214e356fef6806c812fde25400055fe312d7cc13bf"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/sober/apk.rs",
+      "sha256": "768d372e0e9d29f2cbbfc0a640e6277401541f412526a264c999d37d515534af"
+    },
+    {
+      "path": "rbx-native/crates/rbx_lua/src/runtime.rs",
+      "sha256": "5ebb1315c5ede40f09fbf9f7f1b621953ff2943884fa97e10cf4ea338783888d"
+    },
+    {
+      "path": "rbx-native/crates/rbx_lua/src/runtime/host.rs",
+      "sha256": "8ea854f6f381fed3dd7f6714d6ff07e72eddab496629e54b09955ce15e966edf"
+    },
+    {
+      "path": "rbx-native/crates/rbx_lua/src/runtime/resume.rs",
+      "sha256": "e751ef7526893c17547e10c5a9591af0eac48f9bd757d7633f82dd1ab2b3c16e"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/Cargo.toml",
+      "sha256": "74e4f82ab4b5cc32b79e949027e8d036ec5891d93306ad068dc470f6bf632289"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/assets.rs",
+      "sha256": "5376e0ee71d93512a50abb8a033557dfa21aca6c76b12340be70f43764b170bc"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/capture.rs",
+      "sha256": "e48c2151134ca2d6b59775c8d336e218e788de5144dd290b1f264170577cf311"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/gpu.rs",
+      "sha256": "e79191f3fbd3227b85b36958a177ca692ecd8d2645bbc613d60d2f9e3bd5d535"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/headless.rs",
+      "sha256": "357656b90eaf0df84f67a8b6cb0e2d64a8ea7396e2a029d7241c83ecb2926007"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/load/resident.rs",
+      "sha256": "80ee5aeb4c54f29bdd665d56624c59dae46e5d960e2511622310fa425e050f9f"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/renderer/switch.rs",
+      "sha256": "7ac6c76a18292ea0d1e51afd025c53841654661ce046f57e461cd6e61c6f74d2"
+    },
+    {
+      "path": "rbx-native/crates/rbx_viewer/src/scene/gui/plan/starter.rs",
+      "sha256": "004411c882284a48f881daba1a4973dc5c650c17e4d74027c5ee4238913d3101"
+    },
+    {
+      "path": "rbx-native/crates/rbx_assets/src/android_content.rs",
+      "sha256": "1a4c3ca2228c195c078f0cc2ed0609274c0bed08c7e38097cc1fe4e6f8997f7a"
+    },
+    {
+      "path": "rook/crates/rook-content/Cargo.toml",
+      "sha256": "516c89c4c6fa84767873dd3c9dec0ace5dd60992d769ab320eac1e9a5f076521"
+    },
+    {
+      "path": "rook/crates/rook-content/src/decode/image/blocks.rs",
+      "sha256": "cb8b9eaf57a26162dd9ef070c560667121b0b054e92ff3dcf5a8b2b9358833f0"
+    },
+    {
+      "path": "rook/crates/rook-content/src/resolver.rs",
+      "sha256": "ba083531eee20925770c717a2aba14e9fdb8f49d8425fe8a85db465d58bbfe8a"
+    },
+    {
+      "path": "rook/crates/rook-content/src/resolver/config.rs",
+      "sha256": "ee08fc67a745de2c93bdc55228fe0b466b1b3d34e871ca3773ac7c7b69a4d01d"
+    },
+    {
+      "path": "rook/crates/rook-engine/src/lib.rs",
+      "sha256": "242e5d0e0607077cabc288f91be8e50cf03c57c96c4dab982db36c3e46415f3f"
+    },
+    {
+      "path": "rook/crates/rook-engine/src/settings.rs",
+      "sha256": "bc807abc93ca9162a8d5afb3299f231b900c31a2d1029717abba42565f6b5b58"
+    },
+    {
+      "path": "rook/crates/rook-formats/src/convert.rs",
+      "sha256": "17793d2359f6ab08c039d587860deabbbaad00e6b10028fb558705eef581c987"
+    },
+    {
+      "path": "rook/crates/rook-formats/src/lib.rs",
+      "sha256": "e04e70aed3ab31ad048a338974197ad5747d5cdcb40a813525c705f519f3e124"
+    },
+    {
+      "path": "rook/crates/rook-physics/src/shape/terrain.rs",
+      "sha256": "e37d890cf75693d531d1c36aa198b9dbece44cf71d1963ef72e2ed6074c06073"
+    },
+    {
+      "path": "rook/crates/rook-platform/Cargo.toml",
+      "sha256": "7dc142ac051484ca2ec96ffe9efef1af322a4374aac24834f398a25ddf357172"
+    },
+    {
+      "path": "rook/crates/rook-platform/src/files.rs",
+      "sha256": "9bc00a8d796ed9d4cd75ad155181c319af514ce28429bcb9beb78889d754492e"
+    },
+    {
+      "path": "rook/crates/rook-platform/src/lib.rs",
+      "sha256": "10095274ff5b14da70957837f21a967b51f75ea283284f9b9c662b1488e02d7c"
+    },
+    {
+      "path": "rook/crates/rook-platform/src/network.rs",
+      "sha256": "174dde752b8019b5559da4e5dfb7f9449391fac2f25407d264567992262726dd"
+    },
+    {
+      "path": "rook/crates/rook-platform/src/parallel.rs",
+      "sha256": "7234b8df28072a896d98a5811bf6b0723e44dd69543a98ab04f6b1c2285ba3f6"
+    },
+    {
+      "path": "rook/crates/rook-platform/src/threads.rs",
+      "sha256": "cb6b253147a931cab717216f50ba8109fed1b8920400214ef73f11e9a9638a9e"
+    }
+  ]
+}
