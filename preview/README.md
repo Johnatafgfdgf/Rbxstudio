@@ -8,6 +8,10 @@ operam sobre esse exemplo. Arquivos, Vulkan, Toolbox on-line e Roblox requerem o
 A página em `preview/mobile-ui.html` acompanha o trabalho atual. A de
 `preview/index.html` é a prévia histórica de antes dessa edição.
 
+Com Playwright e Chromium disponíveis, execute
+`node preview/check-mobile-ui.mjs` na raiz para verificar a navegação,
+as gavetas, as categorias e os tamanhos da prévia atual.
+
 Abra `preview/index.html` no navegador ou use um serviço de visualização de HTML hospedado no GitHub. Não há dependências externas ou necessidade de instalar APK.
 
 ## Objetivo

@@ -35,6 +35,7 @@
     outputFilter: "All", outputContext: "All Contexts", outputQuery: "", outputCollapsed: false,
     outputEntries: [["Info", "Edit", "Baseplate aberta na prévia."], ["Warnings", "Edit", "Catálogo de exemplo."]],
     terrainTab: "Create", terrainTool: "", switches: {}, examples: {},
+    settingsWindow: null, settingsCategory: null, settingsDirty: false, settingsFields: {},
   };
   let toastTimer;
   let nextId = 0;
@@ -359,6 +360,9 @@
 
   function renderDrawer() {
     if (!state.panel) return;
+    const samePanel = drawer.getAttribute("aria-label") === state.panel;
+    const previousScroll = samePanel ? drawerBody.querySelector(".sample-scroll")?.scrollTop ?? 0 : 0;
+    const tabScroll = samePanel ? drawer.querySelector(".drawer-tabs").scrollLeft : 0;
     const expand = drawer.querySelector("[data-action='expand-panel']");
     drawer.dataset.expanded = String(state.expanded);
     drawer.dataset.bottom = String(state.panel === "Output");
@@ -377,6 +381,9 @@
     drawerBody.replaceChildren();
     if (state.panel !== "Explorer") {
       renderNamedPanel(state.panel);
+      drawer.querySelector(".drawer-tabs").scrollLeft = tabScroll;
+      const bodyScroll = drawerBody.querySelector(".sample-scroll");
+      if (bodyScroll) bodyScroll.scrollTop = previousScroll;
       return;
     }
     const settings = element("div", "drawer-actions");
@@ -499,11 +506,29 @@
     return field;
   }
 
+  function sampleSelect(label, options, value, update) {
+    const field = element("label", "sample-field");
+    const input = element("select");
+    input.setAttribute("aria-label", label);
+    for (const option of options) {
+      const row = element("option", "", option);
+      row.value = option;
+      input.append(row);
+    }
+    input.value = value;
+    input.addEventListener("change", () => update(input.value));
+    field.append(element("span", "", label), input);
+    return field;
+  }
+
   function sampleSwitch(label, checked = false) {
     const row = element("label", "sample-switch");
     const input = element("input");
     input.type = "checkbox"; input.checked = checked;
-    input.addEventListener("change", () => { state.switches[label] = input.checked; });
+    input.addEventListener("change", () => {
+      state.switches[label] = input.checked;
+      if (label === "Reduce motion") state.reduced = input.checked;
+    });
     row.append(element("span", "", label), input);
     return row;
   }
@@ -634,6 +659,8 @@
   }
 
   function renderViewport(list) {
+    list.append(sampleSection("Rendering", sampleSelect("Graphics quality", ["Automatic", "Low", "Medium", "High"],
+      state.examples.quality ?? "Automatic", value => { state.examples.quality = value; })));
     for (const [group, labels] of Object.entries(data.viewportGroups)) {
       list.append(sampleSection(group, ...labels.map(label => sampleSwitch(label, state.switches[label] ?? label === "Orientation Indicator"))));
     }
@@ -784,6 +811,7 @@
   }
 
   function showDialog(title, message, buttons) {
+    state.settingsWindow = null;
     dialogReturn = document.activeElement;
     byId("dialog-title").textContent = title;
     byId("dialog-message").textContent = message;
@@ -799,6 +827,95 @@
     homeScreen.inert = false; editorScreen.inert = false;
     dialogReturn?.focus({ preventScroll: true });
     dialogReturn = null;
+  }
+
+  const dedicated = ["Studio Settings", "Game Settings", "Data Stores", "Script Editor", "UI Editor", "Animation Editor"];
+
+  function openWindow(name) {
+    const source = state.sheet === "menu" ? "menu" : state.sheet === "tools" ? "tools" : null;
+    dialogReturn = source ? root.querySelector('[data-action="' + source + '"]') : document.activeElement;
+    closePopup(false);
+    closeSheet();
+    state.settingsWindow = name;
+    state.settingsCategory = null;
+    state.settingsDirty = false;
+    renderWindow();
+    homeScreen.inert = true;
+    editorScreen.inert = true;
+    motion(byId("window-shade"), true, "y", data.motion.sheetShift);
+    byId("window-shade").querySelector("button").focus({ preventScroll: true });
+  }
+
+  function closeWindow() {
+    state.settingsWindow = null;
+    motion(byId("window-shade"), false, "y", data.motion.sheetShift);
+    homeScreen.inert = false;
+    editorScreen.inert = false;
+    dialogReturn?.focus({ preventScroll: true });
+    dialogReturn = null;
+  }
+
+  function renderWindow() {
+    const name = state.settingsWindow;
+    const box = byId("window-shade").querySelector(".settings-window");
+    const focused = box.contains(document.activeElement) ? document.activeElement.dataset.action : null;
+    const title = element("h2", "", name);
+    title.id = "rbx-window-title";
+    const header = element("header", "settings-header");
+    header.append(title, button("Close", "window-close", "x", "control icon-only", { iconOnly: true }));
+    const nav = element("nav", "sample-strip settings-tabs");
+    nav.setAttribute("aria-label", "Categorias");
+    const body = element("div", "sample-scroll settings-body");
+    const tabs = ({
+      "Studio Settings": data.studioSettings,
+      "Game Settings": data.gameSettings,
+      "Data Stores": ["Data Stores", "Ordered Data Stores", "Memory Store"],
+      "UI Editor": ["Canvas", "Stylesheet"],
+      "Animation Editor": ["Dope Sheet", "Curves", "Graph"],
+    })[name] ?? [];
+    const current = state.settingsCategory ?? tabs[0];
+    nav.append(...tabs.map(tab => button(tab, "window-page:" + tab, null, "control", { pressed: tab === current })));
+    const footer = element("footer", "settings-footer");
+    if (name === "Game Settings") {
+      const save = button("Save", "settings-save", null, "control primary", { disabled: !state.settingsDirty });
+      if (current === "Basic Info") {
+        const field = sampleField("Name", state.settingsFields.Name ?? state.project);
+        field.lastElementChild.addEventListener("input", event => {
+          state.settingsFields.Name = event.target.value;
+          state.settingsDirty = true;
+          save.disabled = !event.target.value.trim();
+        });
+        body.append(sampleSection("Basic Info", field));
+      } else if (current === "Places") {
+        body.append(sampleSection("Places", element("p", "drawer-notice", "Projeto de exemplo, sem destino Roblox.")));
+      } else {
+        body.append(element("h3", "", current));
+      }
+      footer.append(button("Cancel", "settings-cancel"), save);
+    } else if (name === "Studio Settings") {
+      if (current === "Accessibility") body.append(sampleSection(current, sampleSwitch("Reduce motion", state.reduced)));
+      else if (current === "Appearance") body.append(sampleSection(current, element("p", "drawer-notice", "Default")));
+      else body.append(element("h3", "", current));
+    } else if (name === "Script Editor") {
+      const editor = element("textarea", "sample-editor");
+      editor.setAttribute("aria-label", "Código Luau");
+      editor.spellcheck = false;
+      editor.value = state.examples.code ?? 'print("Olá, Roblox!")\n';
+      editor.addEventListener("input", () => { state.examples.code = editor.value; });
+      body.append(editor);
+    } else if (name === "Data Stores") {
+      body.append(sampleSection(current, element("p", "drawer-notice", "Selecione uma experiência no aplicativo Android."),
+        button("Change experience…", "sample:Change experience…"), button("Refresh", "sample:Refresh")));
+    } else {
+      body.append(element("p", "drawer-notice", current));
+    }
+    const offset = box.querySelector(".settings-tabs")?.scrollLeft ?? 0;
+    box.replaceChildren(header, ...(tabs.length ? [nav] : []), body, ...(footer.children.length ? [footer] : []));
+    nav.scrollLeft = offset;
+    if (focused) {
+      const target = [...box.querySelectorAll("button:not(:disabled)")].find(button => button.dataset.action === focused);
+      (target ?? header.querySelector("button")).focus({ preventScroll: true });
+    }
   }
 
   function fileCommand(command) {
@@ -829,7 +946,9 @@
       },
     };
     closePopup();
-    if (same[command]) same[command]();
+    const task = command.replace(/…$/, "");
+    if (dedicated.includes(task)) openWindow(task);
+    else if (same[command]) same[command]();
     else if (panelNames.includes(command)) setPanel(command);
     else if (["Insert Part", "Insert Folder", "Insert Script", "Insert LocalScript", "Insert ModuleScript", "Insert ModuleScript (Class)"].includes(command)) {
       addObject(command.replace("Insert ", "").replace(" (Class)", ""));
@@ -871,6 +990,7 @@
         if (options) { openPopup("insert:" + value, trigger, 220,
           options.map(([label, icon, className]) => button(label, "insert:" + (className || label), icon, "menu-row", { disabled: className === false }))); return; }
         if (panelNames.includes(value)) { setPanel(value); return; }
+        if (dedicated.includes(value)) { openWindow(value); return; }
         if (value === "Play") { dispatch("play", trigger); return; }
         announce("Prévia: " + value); return;
       }
@@ -985,6 +1105,10 @@
         return;
       case "play-create": case "play-existing": case "play-dashboard": announce("Disponível no aplicativo Android."); return;
       case "close-dialog": closeDialog(); return;
+      case "window-close": closeWindow(); return;
+      case "window-page": state.settingsCategory = value; renderWindow(); return;
+      case "settings-save": state.settingsDirty = false; renderWindow(); announce("Alteração salva no exemplo."); return;
+      case "settings-cancel": state.settingsDirty = false; state.settingsFields = {}; renderWindow(); return;
       case "active-tool":
         openPopup("active-tool", trigger, 220, transforms.map(([label, icon, tool]) =>
           button(label, "tool:" + tool, icon, "menu-row", { checked: state.tool === tool })));
@@ -1002,7 +1126,7 @@
         return;
       case "axes": state.localAxes = !state.localAxes; closePopup(); return;
       case "stick": state.stick = !state.stick; closePopup(); return;
-      case "script-editor": announce("A edição de scripts fica no aplicativo Android."); return;
+      case "script-editor": openWindow("Script Editor"); return;
       case "sample": announce("Prévia: " + value); return;
     }
   }
@@ -1027,7 +1151,8 @@
   });
   root.addEventListener("keydown", event => {
     if (event.key === "Escape") {
-      if (!dialogShade.hidden && !dialogShade.inert) closeDialog();
+      if (state.settingsWindow) closeWindow();
+      else if (!dialogShade.hidden && !dialogShade.inert) closeDialog();
       else if (state.popup) closePopup();
       else if (state.sheet) closeSheet();
       else if (state.panel) setPanel(state.panel);

@@ -241,6 +241,18 @@
 #rbx-mobile-review .dialog h2 { margin: 0 0 7px; font-size: 16px; }
 #rbx-mobile-review .dialog p { margin: 0; color: var(--rbx-muted); }
 #rbx-mobile-review .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; margin-top: 12px; }
+#rbx-mobile-review .window-shade {
+  position: absolute; inset: 0; z-index: 10; display: flex; padding: 4px; background: var(--rbx-background);
+}
+#rbx-mobile-review .settings-window { display: flex; flex: 1; min-width: 0; flex-direction: column; overflow: hidden; }
+#rbx-mobile-review .settings-header, #rbx-mobile-review .settings-footer {
+  display: flex; flex: none; align-items: center; justify-content: space-between;
+  gap: 6px; padding: 4px 8px; background: var(--rbx-background);
+}
+#rbx-mobile-review .settings-header h2 { margin: 0; font-size: 16px; }
+#rbx-mobile-review .settings-footer { justify-content: flex-end; border-top: 1px solid var(--rbx-border); }
+#rbx-mobile-review .settings-body { display: flex; flex-direction: column; }
+#rbx-mobile-review .sample-editor { flex: 1; min-height: 76px; padding: 10px; resize: none; font: 14px/1.4 monospace; }
 #rbx-mobile-review .toast {
   position: absolute; z-index: 11; pointer-events: none; bottom: 12px; left: 50%; transform: translateX(-50%);
   max-width: calc(100% - 30px); padding: 8px 13px; border-radius: 12px;

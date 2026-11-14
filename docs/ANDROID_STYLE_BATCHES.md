@@ -12,7 +12,7 @@ especializados fazem parte da revisão como componentes das superfícies.
 | 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Estilo Android aplicado. |
 | 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Estilo Android aplicado. |
 | 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Estilo Android aplicado. Todas as 21 gavetas usam a mesma transição. |
-| 6 | Studio Settings, Game Settings | Pendente. Inclui revisão das superfícies secundárias. |
+| 6 | Studio Settings, Game Settings | Estilo Android aplicado. Revisão adicional de Data Stores, editores e menus compartilhados. |
 
 ## Lote 1
 
@@ -79,3 +79,34 @@ Android. O botão de reprodução em Playtests continua dedicado a gravações l
 | Loren | Link do framework, listas Server e Client empilhadas. Estado vazio aponta para o modelo já disponível | `loren_body`, `loren_row_clicked` |
 | Avatar Settings | Abas General, Body, Clothing, Accessories e Movement em faixa rolável | `set_avatar_tab`, `apply_avatar_writes`, `sidebar_hidden` |
 | Localization | Modos Overflow e Strings, controles roláveis na mesma barra | `set_pseudo_locale`, `write_localization_table`, `localization.tab` |
+
+## Lote 6
+
+| Superfície | Controle e posição | Handler ou estado |
+| --- | --- | --- |
+| Studio Settings | Busca e dez páginas. No compacto, categorias e atalhos em faixa rolável | `settings_window::{nav,kit,search}`; as alterações continuam aplicadas pelos setters existentes. |
+| Game Settings | Oito categorias na faixa superior do Android. Save e Cancel no rodapé | `GameSettingsWindow::{save,revert}`; os mesmos cálculos de permissões e campos inválidos comandam a disponibilidade. |
+| Data Stores | Seletor de experiência e Refresh no cabeçalho. Guias Data Stores, Ordered Data Stores e Memory Store abaixo | `DataStoresWindow::{pick_experience,refresh,set_section}`; a lista padrão permite rolagem horizontal se as colunas não couberem. |
+| Editor de Scripts | Abas e fundo padronizados, acesso pelo Explorer, foco e teclado existentes | `script_panel::script_editor`, `activate_script`, `focus_script` |
+| Editor de UI e Animation Editor | Abas de documento e faixa de ferramentas com o mesmo tema | `set_ui_tab`, `animation_strip`, `anim.mode` |
+| Menus do editor | As 55 famílias de `MenuId` passam pela apresentação móvel. Inclui seletores de inserção, material, dispositivo, campos de animação, Wally, Argon e abas de documento | `shell/menu.rs`, `gpui-base/src/{popover,popup}.rs`; as listas de comandos e seus handlers continuam vindo dos módulos existentes. |
+| Outras janelas | Botões e diálogos que usam `launcher::ui`, menu de Recentes e componentes que usam o tema padrão do toolkit | `launcher/ui.rs`, `launcher/home_window/view/recent_menu.rs`, `theme/apply.rs` |
+
+## Verificação
+
+- Chromium exercitou os quatro menus principais, sete abas da faixa de ferramentas,
+  abertura das 21 gavetas, 19 ações de contexto do Explorer e as 18 categorias
+  de configurações. Foram usados sete tamanhos de 320 a 960 px, incluindo 904 × 407
+  e 960 × 432, alternância de painel, redução de movimento e reabertura durante
+  o fechamento. A prévia também exercitou a sequência de seleção, inserção,
+  corte e desfazer com uma cópia do projeto de exemplo.
+- Na verificação da prévia, a troca de categoria em Game Settings fazia Esc
+  perder o alvo. O botão ativo recupera o foco após a troca e o teste de
+  fechamento por Esc passa.
+- O patch consolidado foi aplicado a uma cópia limpa do rbx-native fixado
+  pelo submódulo e reproduziu os arquivos editados. A análise sintática dos
+  arquivos Rust não encontrou erros novos em relação à base.
+- Execução nativa, compilação, Android IME, gestos 3D, serviços externos,
+  autenticação e publicação ficam para a validação com APK. Transições de
+  fechamento dos diálogos gerenciados separadamente ainda dependem do
+  fechamento da janela ou overlay existente. A prévia usa dados de exemplo.

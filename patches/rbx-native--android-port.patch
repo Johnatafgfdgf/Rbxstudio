@@ -1442,7 +1442,7 @@ index 9fd59e08..8a8df5b5 100644
              .ok_or_else(|| "no config directory to create the place in".to_string())
              .and_then(|path| template.create(&path).map(|()| path));
 diff --git a/crates/rbx_studio/src/launcher/home_window/view.rs b/crates/rbx_studio/src/launcher/home_window/view.rs
-index 7a9fec14..a2cbdfcb 100644
+index 7a9fec14..758d7f0c 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view.rs
 @@ -25,7 +25,7 @@ use rbx_cloud::Visibility;
@@ -1500,7 +1500,8 @@ index 7a9fec14..a2cbdfcb 100644
              Page::MyGames => self.games_page(&grid, cx),
          };
          let dialog = self.dialog_view(cx);
-         let menu = self.recent_menu_view(cx);
+-        let menu = self.recent_menu_view(cx);
++        let menu = self.recent_menu_view(window, cx);
 +        if compact {
 +            // Render the real GPUI launcher as a mobile screen. No desktop
 +            // title bar, side rail, or independent HTML clone is involved.
@@ -1958,6 +1959,50 @@ index fb324e94..0007f0cd 100644
              ))
              .into_any_element()
      }
+diff --git a/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs b/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
+index 38fefdf2..e40012b1 100644
+--- a/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
++++ b/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
+@@ -8,10 +8,10 @@ use crate::home::RecentPlace;
+ use crate::launcher::home_window::recent_actions::RecentAction;
+ use crate::launcher::home_window::{file_name, HomeWindow};
+ use crate::launcher::ui::{self, Weight};
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ impl HomeWindow {
+-    pub(super) fn recent_menu_view(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
++    pub(super) fn recent_menu_view(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+         let menu = self.recent_menu.as_ref()?;
+         let signed_in = self.session.is_some();
+         let rows = RecentAction::menu(self.place_archived(&menu.place)).map(|action| {
+@@ -24,6 +24,7 @@ impl HomeWindow {
+                 .rounded(px(5.))
+                 .text_size(px(12.5))
+                 .line_height(px(17.))
++                .when(cfg!(target_os = "android"), |row| row.h(px(48.)).rounded(px(style::ROW_RADIUS)))
+                 .map(|this| match why {
+                     None => this
+                         .cursor_pointer()
+@@ -49,6 +50,9 @@ impl HomeWindow {
+             .border_color(tokens::border2())
+             .bg(ui::panel())
+             .shadow(tokens::elevation())
++            .when(cfg!(target_os = "android"), |menu| menu
++                .max_h((window.viewport_size().height - px(16.)).max(px(48.)))
++                .overflow_y_scroll().map(style::surface))
+             .occlude()
+             .track_focus(&menu.focus)
+             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+@@ -77,7 +81,7 @@ impl HomeWindow {
+                         anchored()
+                             .position(menu.at)
+                             .snap_to_window_with_margin(px(8.))
+-                            .child(card),
++                            .child(style::appear(card, "home-recent-menu-appear")),
+                     ),
+             )
+             .with_priority(1)
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/recovered.rs b/crates/rbx_studio/src/launcher/home_window/view/recovered.rs
 index aa53ab02..2b1ebac5 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/recovered.rs
@@ -2152,6 +2197,96 @@ index 58f53066..d412703b 100644
                              )),
                      )
                      .child(self.status_card(cx))
+diff --git a/crates/rbx_studio/src/launcher/ui.rs b/crates/rbx_studio/src/launcher/ui.rs
+index a669dbc8..54cf5fad 100644
+--- a/crates/rbx_studio/src/launcher/ui.rs
++++ b/crates/rbx_studio/src/launcher/ui.rs
+@@ -7,7 +7,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
+ use gpui_kit::prelude::FluentBuilder;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ pub(crate) fn panel() -> Rgba {
+     tokens::dock()
+@@ -158,7 +158,7 @@ fn button_frame(id: impl Into<ElementId>, weight: Weight, small: bool) -> Statef
+         .line_height(px(line))
+         .cursor_pointer()
+         .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())));
+-    match weight {
++    let button = match weight {
+         // The filled weights carry Secondary's 1px border in their own fill,
+         // so all three lay out to the same box for the same label.
+         Weight::Primary => base
+@@ -190,7 +190,12 @@ fn button_frame(id: impl Into<ElementId>, weight: Weight, small: bool) -> Statef
+             .text_color(tokens::text2())
+             .font_weight(FontWeight::SEMIBOLD)
+             .hover(|this| tokens::hover_fx(this).bg(wash()).text_color(tokens::text())),
+-    }
++    };
++    button.when(cfg!(target_os = "android"), |button| match weight {
++        Weight::Primary => button.map(style::control).map(style::primary),
++        Weight::Secondary => button.map(style::control).text_color(style::text()),
++        Weight::Ghost | Weight::Danger => button.rounded(px(style::CONTROL_RADIUS)),
++    })
+ }
+ 
+ /// A primary button that cannot be pressed yet: `panel2`, hairline, text3.
+@@ -209,6 +214,7 @@ pub(crate) fn disabled_button(
+         .border_1()
+         .border_color(tokens::border())
+         .bg(panel2())
++        .when(cfg!(target_os = "android"), style::field)
+         .text_color(tokens::text3())
+         .text_size(px(12.5))
+         .line_height(px(17.))
+@@ -310,15 +316,17 @@ pub(crate) fn dialog(
+         .absolute()
+         .left_0()
+         .right_0()
+-        .top(tokens::topbar_height())
++        .top(if cfg!(target_os = "android") { px(56.) } else { tokens::topbar_height() })
+         .bottom_0()
+         .bg(tokens::veil())
+         .flex()
+         .items_center()
+         .justify_center()
+         .occlude()
++        .when(cfg!(target_os = "android"), |veil| veil.p(px(8.)))
+         .child(
+-            v_flex()
++            style::appear(v_flex()
++                .id("launcher-dialog-card")
+                 .w(px(width))
+                 .border_1()
+                 .border_color(tokens::border2())
+@@ -332,8 +340,12 @@ pub(crate) fn dialog(
+                     inset: false,
+                 }])
+                 .overflow_hidden()
++                .when(cfg!(target_os = "android"), |card| card
++                    .max_w(relative(1.)).max_h(relative(1.))
++                    .overflow_y_scroll().map(style::surface).shadow(Vec::<BoxShadow>::new()))
+                 .child(
+                     h_flex()
++                        .id("launcher-dialog-footer")
+                         .items_start()
+                         .gap(px(14.))
+                         .pt(px(20.))
+@@ -369,8 +381,11 @@ pub(crate) fn dialog(
+                         .border_t_1()
+                         .border_color(tokens::border())
+                         .bg(panel2())
++                        .when(cfg!(target_os = "android"), |footer| footer
++                            .flex_none().w_full().px(px(10.))
++                            .justify_start().overflow_x_scroll())
+                         .children(footer),
+-                ),
++                ), "launcher-dialog-appear"),
+         )
+         .child(gpui_base::occlusion::probe())
+ }
 diff --git a/crates/rbx_studio/src/launcher/wizard.rs b/crates/rbx_studio/src/launcher/wizard.rs
 index 63813da5..3a66fd53 100644
 --- a/crates/rbx_studio/src/launcher/wizard.rs
@@ -2858,10 +2993,10 @@ index 2f850492..43d10be5 100644
  }
 diff --git a/crates/rbx_studio/src/mobile_style.rs b/crates/rbx_studio/src/mobile_style.rs
 new file mode 100644
-index 00000000..fda7c403
+index 00000000..d79ea996
 --- /dev/null
 +++ b/crates/rbx_studio/src/mobile_style.rs
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,192 @@
 +//! Shared Android chrome for the launcher and editor. The preview reads these
 +//! same constants so changes to color, shape or motion stay visible there.
 +use std::time::{Duration, Instant};
@@ -2977,6 +3112,22 @@ index 00000000..fda7c403
 +pub(crate) fn field<T: Styled>(element: T) -> T {
 +    element.rounded(px(CONTROL_RADIUS)).border_1().border_color(border())
 +        .bg(if default_dark() { rgb(FIELD) } else { tokens::field_select() })
++}
++
++pub(crate) fn appear<T: IntoElement + Styled + 'static>(
++    element: T,
++    id: impl Into<ElementId>,
++) -> AnyElement {
++    if !cfg!(target_os = "android") || tokens::reduced_motion() {
++        return element.into_any_element();
++    }
++    element
++        .with_animation(
++            id,
++            Animation::new(Duration::from_millis(OPEN_MS)).with_easing(tokens::easing_soft),
++            |element, amount| element.opacity(amount),
++        )
++        .into_any_element()
 +}
 +
 +/// Keeps a surface around just long enough to animate its departure. The
@@ -3389,6 +3540,19 @@ index 8bedd347..e1cfb3ed 100644
              .children(self.close_place_dialog(cx))
              .children(self.rig_dialog_overlay(cx))
              .children(self.animation_publish_overlay(cx))
+diff --git a/crates/rbx_studio/src/shell/animation/view.rs b/crates/rbx_studio/src/shell/animation/view.rs
+index 3abd2037..96d33b3f 100644
+--- a/crates/rbx_studio/src/shell/animation/view.rs
++++ b/crates/rbx_studio/src/shell/animation/view.rs
+@@ -75,7 +75,7 @@ impl Shell {
+         v_flex()
+             .id("animation-editor")
+             .size_full()
+-            .bg(tokens::dock())
++            .bg(if cfg!(target_os = "android") { crate::mobile_style::background() } else { tokens::dock() })
+             .child(strip)
+             .child(
+                 h_flex()
 diff --git a/crates/rbx_studio/src/shell/argon_dock.rs b/crates/rbx_studio/src/shell/argon_dock.rs
 index 259dd588..c92da21c 100644
 --- a/crates/rbx_studio/src/shell/argon_dock.rs
@@ -3555,7 +3719,7 @@ index bedf574e..16c8b6d3 100644
              .child(entry(Tab::Body, IconName::PersonStanding, cx))
              .child(entry(Tab::Clothing, IconName::Shirt, cx))
 diff --git a/crates/rbx_studio/src/shell/chrome.rs b/crates/rbx_studio/src/shell/chrome.rs
-index c3419fab..58d5b3e4 100644
+index c3419fab..e07c5a55 100644
 --- a/crates/rbx_studio/src/shell/chrome.rs
 +++ b/crates/rbx_studio/src/shell/chrome.rs
 @@ -4,7 +4,7 @@
@@ -3651,7 +3815,16 @@ index c3419fab..58d5b3e4 100644
  /// centred on the window, and the drag stretch that moves it (double-click
  /// maximises). The caller adds the window buttons at the right.
  pub(crate) fn topbar_frame(title: SharedString) -> Div {
-@@ -452,13 +464,7 @@ pub(crate) fn topbar_frame(title: SharedString) -> Div {
+@@ -445,6 +457,8 @@ pub(crate) fn topbar_frame(title: SharedString) -> Div {
+         .bg(tokens::black())
+         .border_b(px(1.))
+         .border_color(tokens::border())
++        .when(cfg!(target_os = "android"), |bar| bar.h(px(52.))
++            .gap(px(4.)).px(px(4.)).bg(crate::mobile_style::background()))
+         .child(super::tooltip::rehover_on_scroll())
+         .child(
+             h_flex()
+@@ -452,13 +466,8 @@ pub(crate) fn topbar_frame(title: SharedString) -> Div {
                  .w(WINDOW_ACTIONS_WIDTH)
                  .items_center()
                  .pl(px(12.))
@@ -3662,20 +3835,45 @@ index c3419fab..58d5b3e4 100644
 -                        .h(px(17.))
 -                        .text_color(tokens::text_full()),
 -                ),
++                .when(cfg!(target_os = "android"), |brand| brand.w(px(46.)).pl(px(4.)))
 +                .child(logo(17.)),
          )
          // Only this middle stretch moves the window: the logo block and
          // the buttons flanking it are not drag targets, so a click that
-@@ -503,7 +509,7 @@ pub(crate) fn topbar_frame(title: SharedString) -> Div {
-                 .child(
-                     div()
+@@ -500,12 +509,10 @@ pub(crate) fn topbar_frame(title: SharedString) -> Div {
+                         window.zoom_window();
+                     }
+                 })
+-                .child(
+-                    div()
++                .when(!cfg!(target_os = "android"), |caption| caption.child(div()
                          .font_weight(tokens::WEIGHT_SEMIBOLD)
 -                        .child("RbxNative"),
-+                        .child("Rbx Studio"),
-                 )
-                 .child(div().w(px(1.)).h(px(12.)).bg(tokens::border2()))
+-                )
+-                .child(div().w(px(1.)).h(px(12.)).bg(tokens::border2()))
++                        .child("Rbx Studio"))
++                    .child(div().w(px(1.)).h(px(12.)).bg(tokens::border2())))
                  .child(div().truncate().child(title)),
-@@ -635,13 +641,7 @@ pub(crate) fn panel_topbar(
+         )
+ }
+@@ -524,6 +531,7 @@ pub(crate) fn window_topbar(
+             .w(WINDOW_ACTIONS_WIDTH)
+             .h_full()
+             .justify_end()
++            .when(cfg!(target_os = "android"), |bar| bar.w_auto().gap(px(3.)).py(px(2.)))
+             .child(titlebar_button(
+                 None,
+                 "window-minimize",
+@@ -598,6 +606,8 @@ fn titlebar_button(
+                 .text_color(tokens::text_full())
+         })
+         .active(|this| this.bg(tokens::ribbon_tab_active()))
++        .when(cfg!(target_os = "android"), |button| button
++            .w(px(48.)).map(crate::mobile_style::control).role(Role::Button).aria_label(label))
+         .tooltip(move |window, cx| super::tooltip::text(label, window, cx))
+         .on_click(on_click)
+         .child(Icon::new(icon).size(tokens::text_md()))
+@@ -635,13 +645,7 @@ pub(crate) fn panel_topbar(
                  .w(WINDOW_ACTIONS_WIDTH / 3.)
                  .items_center()
                  .pl(px(12.))
@@ -3690,7 +3888,17 @@ index c3419fab..58d5b3e4 100644
          )
          .child(
              h_flex()
-@@ -777,6 +777,8 @@ pub(super) fn dock_strip(
+@@ -765,6 +769,9 @@ pub(super) fn tab_pill(
+             }
+         })
+         .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
++        .when(cfg!(target_os = "android"), |tab| tab.h(px(48.))
++            .map(crate::mobile_style::control).when(selected, crate::mobile_style::selected)
++            .aria_selected(selected))
+         .child(div().truncate().child(title))
+ }
+ 
+@@ -777,12 +784,16 @@ pub(super) fn dock_strip(
      toolbar: bool,
  ) -> impl IntoElement {
      h_flex()
@@ -3699,7 +3907,15 @@ index c3419fab..58d5b3e4 100644
          .w_full()
          .h(tokens::dock_tabs_height())
          .flex_none()
-@@ -819,6 +821,9 @@ pub(super) fn dock_strip(
+         .items_center()
+         .p(px(5.))
+         .gap(px(4.))
++        .when(cfg!(target_os = "android"), |strip| strip
++            .h(px(54.)).p(px(3.)).map(crate::mobile_style::field))
+         // The reference's Output toolbar row closes with a hairline; a strip
+         // that is only tabs draws none, the same as its Properties header.
+         .when(toolbar, |this| {
+@@ -819,6 +830,9 @@ pub(super) fn dock_strip(
  /// A dock's body: the frame's 5px inset around whatever the panel draws.
  pub(super) fn dock_content(content: impl IntoElement) -> Div {
      v_flex()
@@ -3709,7 +3925,7 @@ index c3419fab..58d5b3e4 100644
          .flex_1()
          .overflow_hidden()
          .p(px(5.))
-@@ -850,6 +855,9 @@ pub(super) fn dock_options_trigger(
+@@ -850,6 +864,9 @@ pub(super) fn dock_options_trigger(
                  .text_color(tokens::text())
          })
          .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
@@ -3719,7 +3935,7 @@ index c3419fab..58d5b3e4 100644
          .child(Icon::new(icon).size(px(icon_size)));
      Trigger::new(button).tooltip(label)
  }
-@@ -950,6 +958,9 @@ pub(super) fn button(
+@@ -950,6 +967,9 @@ pub(super) fn button(
              }
          })
          .active(|this| this.bg(tokens::ribbon_tab_active()))
@@ -3790,6 +4006,108 @@ index 6858c4b2..36fa8140 100644
          .text_size(px(11.5))
          .text_color(color)
          .child(text);
+diff --git a/crates/rbx_studio/src/shell/datastores/view.rs b/crates/rbx_studio/src/shell/datastores/view.rs
+index 37c31825..5080d426 100644
+--- a/crates/rbx_studio/src/shell/datastores/view.rs
++++ b/crates/rbx_studio/src/shell/datastores/view.rs
+@@ -6,7 +6,7 @@ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+ use crate::launcher::ui::{self, Weight};
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::state::{Dialog, Section, UniverseSource};
+ use super::DataStoresWindow;
+@@ -38,7 +38,7 @@ impl Render for DataStoresWindow {
+             .track_focus(&self.focus)
+             .relative()
+             .size_full()
+-            .bg(tokens::dock())
++            .bg(if cfg!(target_os = "android") { style::background() } else { tokens::dock() })
+             .font_family(tokens::font_ui())
+             .text_size(px(13.))
+             .text_color(tokens::text())
+@@ -55,7 +55,7 @@ impl Render for DataStoresWindow {
+                     .child(self.section_tabs(cx))
+                     .children(self.live_strip())
+             })
+-            .child(div().flex_1().min_h_0().child(body))
++            .child(style::appear(div().flex_1().min_h_0().child(body), "data-stores-appear"))
+             .child(self.footer())
+             .children(self.dialog_layer(cx))
+     }
+@@ -140,6 +140,7 @@ impl DataStoresWindow {
+             )
+         };
+         h_flex()
++            .id("data-stores-header")
+             .h(px(56.))
+             .flex_none()
+             .px(px(16.))
+@@ -147,6 +148,8 @@ impl DataStoresWindow {
+             .items_center()
+             .border_b_1()
+             .border_color(tokens::border())
++            .when(cfg!(target_os = "android"), |row| row
++                .w_full().px(px(6.)).gap(px(8.)).overflow_x_scroll())
+             .child(
+                 div()
+                     .text_color(tokens::text2())
+@@ -214,12 +217,15 @@ impl DataStoresWindow {
+             ("Memory Store", Section::Memory),
+         ];
+         h_flex()
++            .id("data-stores-sections")
+             .h(px(36.))
+             .flex_none()
+             .px(px(12.))
+             .gap(px(4.))
+             .border_b_1()
+             .border_color(tokens::border())
++            .when(cfg!(target_os = "android"), |row| row
++                .h(px(52.)).p(px(2.)).px(px(6.)).overflow_x_scroll())
+             .children(TABS.into_iter().enumerate().map(|(i, (label, section))| {
+                 let selected = self.section == section;
+                 h_flex()
+@@ -237,6 +243,9 @@ impl DataStoresWindow {
+                         d.border_b_2().border_color(tokens::check_on())
+                     })
+                     .when(!selected, |d| d.hover(|h| h.text_color(tokens::text())))
++                    .when(cfg!(target_os = "android"), |tab| tab
++                        .flex_none().map(style::control).when(selected, style::selected)
++                        .role(Role::Button).aria_selected(selected))
+                     .child(label)
+                     .on_click(cx.listener(move |this, _, _, cx| this.set_section(section, cx)))
+             }))
+diff --git a/crates/rbx_studio/src/shell/datastores/view/entry.rs b/crates/rbx_studio/src/shell/datastores/view/entry.rs
+index 65d904e0..fcbeac87 100644
+--- a/crates/rbx_studio/src/shell/datastores/view/entry.rs
++++ b/crates/rbx_studio/src/shell/datastores/view/entry.rs
+@@ -86,6 +86,8 @@ impl DataStoresWindow {
+             .id("ds-entry-pane")
+             .flex_1()
+             .min_w_0()
++            .when(cfg!(target_os = "android"), |entry| entry
++                .min_w(px(260.)).map(crate::mobile_style::field))
+             .h_full()
+             .overflow_y_scroll()
+             .p(px(16.))
+diff --git a/crates/rbx_studio/src/shell/datastores/view/standard.rs b/crates/rbx_studio/src/shell/datastores/view/standard.rs
+index e3a89bd0..76841916 100644
+--- a/crates/rbx_studio/src/shell/datastores/view/standard.rs
++++ b/crates/rbx_studio/src/shell/datastores/view/standard.rs
+@@ -20,8 +20,10 @@ impl DataStoresWindow {
+         let keys = self.keys_column(cx);
+         let entry = self.entry_pane(cx);
+         h_flex()
++            .id("data-stores-columns")
+             .size_full()
+             .min_h_0()
++            .when(cfg!(target_os = "android"), |row| row.overflow_x_scroll())
+             .child(stores)
+             .child(keys)
+             .child(entry)
 diff --git a/crates/rbx_studio/src/shell/debugging/panels.rs b/crates/rbx_studio/src/shell/debugging/panels.rs
 index ded9acd7..eaff427f 100644
 --- a/crates/rbx_studio/src/shell/debugging/panels.rs
@@ -4037,6 +4355,158 @@ index e1d08adc..2c7b85c5 100644
              Ok(place) => {
                  opened = Some((index, place));
                  break;
+diff --git a/crates/rbx_studio/src/shell/game_settings/view.rs b/crates/rbx_studio/src/shell/game_settings/view.rs
+index 752307a3..310fcdac 100644
+--- a/crates/rbx_studio/src/shell/game_settings/view.rs
++++ b/crates/rbx_studio/src/shell/game_settings/view.rs
+@@ -11,6 +11,7 @@ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+ use crate::launcher::ui::{self, Weight};
++use crate::mobile_style as style;
+ 
+ use super::super::chrome;
+ use super::super::settings_window::kit;
+@@ -26,7 +27,7 @@ impl Render for GameSettingsWindow {
+             .id("game-settings-window")
+             .track_focus(&self.focus)
+             .size_full()
+-            .bg(tokens::dock())
++            .bg(if cfg!(target_os = "android") { style::background() } else { tokens::dock() })
+             .font_family(tokens::font_ui())
+             .text_size(px(13.))
+             .text_color(tokens::text())
+@@ -36,11 +37,14 @@ impl Render for GameSettingsWindow {
+                 |window, cx| window.defer(cx, |window, _| window.remove_window()),
+             ))
+             .child(
+-                h_flex()
++                style::appear(h_flex()
+                     .flex_1()
+                     .min_h_0()
++                    .when(cfg!(target_os = "android"), |body| body.flex_col())
+                     .child(self.sidebar(cx))
+                     .child(self.page(cx)),
++                    "game-settings-appear",
++                ),
+             )
+     }
+ }
+@@ -52,6 +56,7 @@ fn id(prefix: &str, n: impl std::fmt::Display) -> SharedString {
+ impl GameSettingsWindow {
+     fn sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+         v_flex()
++            .id("game-settings-categories")
+             .w(px(220.))
+             .flex_none()
+             .h_full()
+@@ -60,6 +65,8 @@ impl GameSettingsWindow {
+             .border_color(tokens::border())
+             .p(px(10.))
+             .gap(px(2.))
++            .when(cfg!(target_os = "android"), |nav| nav.flex_row().w_full().h_auto()
++                .overflow_x_scroll().p(px(4.)).gap(px(4.)).bg(style::background()))
+             .children(Tab::ALL.iter().enumerate().map(|(i, &tab)| {
+                 let selected = tab == self.tab;
+                 h_flex()
+@@ -77,6 +84,9 @@ impl GameSettingsWindow {
+                     })
+                     .when(selected, |d| d.bg(tokens::accent_soft()))
+                     .when(!selected, |d| d.hover(|h| h.bg(tokens::hover())))
++                    .when(cfg!(target_os = "android"), |tab| tab
++                        .h(px(48.)).flex_none().map(style::control)
++                        .when(selected, style::selected).role(Role::Button).aria_selected(selected))
+                     .child(kit::icon(tab.glyph(), 14.))
+                     .child(kit::text(12.5, 18.).child(tab.title()))
+                     .on_click(cx.listener(move |this, _, _, cx| {
+@@ -133,6 +143,7 @@ impl GameSettingsWindow {
+             .track_scroll(&self.scroll)
+             .p(px(24.))
+             .gap(px(20.))
++            .when(cfg!(target_os = "android"), |page| page.p(px(10.)).gap(px(10.)))
+             .child(
+                 v_flex()
+                     .gap(px(4.))
+@@ -194,6 +205,7 @@ impl GameSettingsWindow {
+             .flex_1()
+             .min_w_0()
+             .h_full()
++            .when(cfg!(target_os = "android"), |page| page.min_h_0().h_auto())
+             .child(div().flex_1().min_h_0().child(body))
+             .child(self.footer(cx))
+     }
+@@ -202,13 +214,17 @@ impl GameSettingsWindow {
+         let can_save = self.is_dirty() && !self.saving && self.invalid.is_empty();
+         let save = if can_save {
+             ui::button("gs-save", "Save", Weight::Primary, false)
++                .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)))
+                 .on_click(cx.listener(|this, _, _, cx| this.save(cx)))
+                 .into_any_element()
+         } else {
+-            ui::disabled_button("gs-save-off", "Save").into_any_element()
++            ui::disabled_button("gs-save-off", "Save")
++                .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)))
++                .into_any_element()
+         };
+         let scopes = self.cloud.scopes();
+         h_flex()
++            .id("game-settings-footer")
+             .flex_none()
+             .px(px(24.))
+             .py(px(12.))
+@@ -216,6 +232,8 @@ impl GameSettingsWindow {
+             .items_center()
+             .border_t_1()
+             .border_color(tokens::border())
++            .when(cfg!(target_os = "android"), |footer| footer
++                .w_full().px(px(8.)).py(px(4.)).gap(px(6.)))
+             .child(
+                 div()
+                     .flex_1()
+@@ -229,7 +247,8 @@ impl GameSettingsWindow {
+             .when(!scopes.is_empty(), |d| {
+                 d.child(
+                     kit::mono(10.5, 14.)
+-                        .flex_none()
++                        .when(cfg!(target_os = "android"), |notice| notice.flex_1().min_w_0().line_clamp(2))
++                        .when(!cfg!(target_os = "android"), |notice| notice.flex_none())
+                         .text_color(tokens::text3())
+                         .child(format!("Key needs {}", scopes.join(", "))),
+                 )
+@@ -237,6 +256,7 @@ impl GameSettingsWindow {
+             .when(self.saving, |d| d.child(ui::spinner("gs-saving", 16.)))
+             .child(
+                 ui::button("gs-cancel", "Cancel", Weight::Secondary, false)
++                    .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)))
+                     .on_click(cx.listener(|this, _, _, cx| this.revert(cx))),
+             )
+             .child(save)
+@@ -272,6 +292,7 @@ fn section(
+                 .border_1()
+                 .border_color(tokens::border())
+                 .bg(tokens::black())
++                .when(cfg!(target_os = "android"), |section| section.map(style::surface).overflow_hidden())
+                 .children(rows),
+         )
+ }
+diff --git a/crates/rbx_studio/src/shell/game_settings/view/rows.rs b/crates/rbx_studio/src/shell/game_settings/view/rows.rs
+index 5ef39c11..7ca799bc 100644
+--- a/crates/rbx_studio/src/shell/game_settings/view/rows.rs
++++ b/crates/rbx_studio/src/shell/game_settings/view/rows.rs
+@@ -289,10 +289,13 @@ pub(super) fn row(
+             h_flex()
+                 .gap(px(16.))
+                 .items_center()
++                .when(cfg!(target_os = "android"), |row| row
++                    .flex_col().items_start().gap(px(6.)))
+                 .child(
+                     v_flex()
+                         .flex_1()
+                         .min_w_0()
++                        .when(cfg!(target_os = "android"), |label| label.w_full())
+                         .gap(px(2.))
+                         .child(
+                             h_flex()
 diff --git a/crates/rbx_studio/src/shell/input_panel.rs b/crates/rbx_studio/src/shell/input_panel.rs
 index 503cfcd4..9d388b31 100644
 --- a/crates/rbx_studio/src/shell/input_panel.rs
@@ -4383,7 +4853,7 @@ index 38c9fd93..580df6d0 100644
  
      fn mcp_studio(&self) -> Studio {
 diff --git a/crates/rbx_studio/src/shell/menu.rs b/crates/rbx_studio/src/shell/menu.rs
-index bdb7f0e2..08a38aef 100644
+index bdb7f0e2..98219d5f 100644
 --- a/crates/rbx_studio/src/shell/menu.rs
 +++ b/crates/rbx_studio/src/shell/menu.rs
 @@ -31,7 +31,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -4413,7 +4883,7 @@ index bdb7f0e2..08a38aef 100644
              MenuId::ExplorerOverflow => "menu-explorer",
              MenuId::PropertiesOverflow => "menu-properties",
              MenuId::ViewportOverflow => "menu-viewport",
-@@ -353,24 +357,37 @@ fn popover(
+@@ -353,24 +357,28 @@ fn popover(
      let cursor = clamp(shell.menu_nav.cursor.filter(|_| open), len);
      let scroll = shell.menu_nav.scroll.clone();
  
@@ -4425,18 +4895,9 @@ index bdb7f0e2..08a38aef 100644
 -        // chrome, and two stacked backgrounds would double the border.
 -        .appearance(false)
 -        .on_open_change({
-+    let styled = cfg!(target_os = "android")
-+        && matches!(menu, MenuId::MobilePanels | MenuId::ExplorerOverflow
-+            | MenuId::PropertiesOverflow | MenuId::OutputOverflow | MenuId::OutputContext
-+            | MenuId::ViewportOverflow | MenuId::ViewportScreen | MenuId::ViewportPerformance
-+            | MenuId::TerrainOverflow | MenuId::InputActionsOverflow | MenuId::LayersOverflow
-+            | MenuId::PlaytestsOverflow | MenuId::SecurityAuditOverflow | MenuId::CollaboratorsOverflow
-+            | MenuId::ScriptAnalysisOverflow | MenuId::WatchOverflow | MenuId::CallStackOverflow
-+            | MenuId::TestsOverflow | MenuId::ArgonOverflow | MenuId::ArgonSyncPriority
-+            | MenuId::ArgonDisplayPrompts | MenuId::ArgonLogLevel
-+            | MenuId::WallyOverflow | MenuId::WallyVersion(_) | MenuId::LorenOverflow
-+            | MenuId::AvatarOverflow | MenuId::AvatarPreset | MenuId::AvatarLimit
-+            | MenuId::LocalizationOverflow);
++    let styled = cfg!(target_os = "android");
++    let other_menu_open = shell.open_menu.is_some_and(|active| active != menu);
++    let below_topbar = matches!(menu, MenuId::MobilePanels | MenuId::MobileTool);
 +    let on_open_change = {
              let handle = handle.clone();
 -            move |open, window, cx| {
@@ -4460,7 +4921,7 @@ index bdb7f0e2..08a38aef 100644
                      }
                      shell.open_menu = open.then_some(menu);
                      shell.menu_nav.cursor = (open && keyboard)
-@@ -379,19 +396,21 @@ fn popover(
+@@ -379,19 +387,21 @@ fn popover(
                      cx.notify();
                  });
              }
@@ -4474,7 +4935,7 @@ index bdb7f0e2..08a38aef 100644
 +            let interactive = state.is_open();
              let back = back.clone();
 -            let max_height = window.viewport_size().height - WINDOW_MARGIN * 2.;
-+            let top_gap = if menu == MenuId::MobilePanels && styled { px(52.) } else { px(0.) };
++            let top_gap = if below_topbar && styled { px(52.) } else { px(0.) };
 +            let max_height = (window.viewport_size().height - WINDOW_MARGIN * 2. - top_gap).max(px(48.));
              let actions: Rc<[Option<Action>]> = items
                  .iter()
@@ -4488,7 +4949,7 @@ index bdb7f0e2..08a38aef 100644
                  .on_key_down(move |event: &KeyDownEvent, _, cx| {
                      let Some(movement) = Move::of(&event.keystroke, true) else {
                          return;
-@@ -425,15 +444,46 @@ fn popover(
+@@ -425,15 +435,47 @@ fn popover(
                          action(shell, cx);
                          cx.notify();
                      });
@@ -4531,8 +4992,9 @@ index bdb7f0e2..08a38aef 100644
 +            .presentation(move |open, window, cx| {
 +                let motion = window.use_keyed_state((menu.element_id(), "reveal"), cx,
 +                    |_, _| style::Reveal::<()>::default());
-+                let offset = if menu == MenuId::MobilePanels { 50. } else { 4. };
++                let offset = if below_topbar { 50. } else { 4. };
 +                motion.update(cx, |motion, _| motion.frame(open.then_some(()), window))
++                    .filter(|_| open || !other_menu_open)
 +                    .map(|frame| (frame.amount, px(offset - style::SHEET_SHIFT * (1. - frame.amount))))
 +            })
 +            .into_any_element();
@@ -4544,7 +5006,7 @@ index bdb7f0e2..08a38aef 100644
  }
  
  /// The gap `gpui_base`'s popup keeps from each window edge when it clamps a
-@@ -474,7 +524,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
+@@ -474,7 +516,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
                  .my(px(3.))
                  .bg(tokens::border())
                  .into_any_element(),
@@ -4553,7 +5015,7 @@ index bdb7f0e2..08a38aef 100644
          }
      }))
  }
-@@ -500,7 +550,7 @@ pub(super) fn surface() -> Div {
+@@ -500,7 +542,7 @@ pub(super) fn surface() -> Div {
  /// action and closes the menu. A real click holds for roughly that long
  /// anyway, and tying the flash to the press means it can never outlive the
  /// menu it is confirming.
@@ -4562,7 +5024,7 @@ index bdb7f0e2..08a38aef 100644
      let enabled = item.is_enabled();
      let action = item.action.clone();
  
-@@ -511,6 +561,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -511,6 +553,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
          enabled,
          item.checked,
      )
@@ -4570,7 +5032,7 @@ index bdb7f0e2..08a38aef 100644
      // The keyboard's highlight wears the hover's surface, and the pointer
      // moves it: one row is "the one Enter runs", however it got there.
      .when(highlighted, |this| this.bg(tokens::hover()))
-@@ -542,6 +593,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -542,6 +585,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
      })
  }
  
@@ -4583,7 +5045,7 @@ index bdb7f0e2..08a38aef 100644
  /// One menu row's chrome, without a handler on it. Shared with the
  /// Explorer's context menu (see [`surface`]).
  pub(super) fn row_chrome(
-@@ -554,7 +611,7 @@ pub(super) fn row_chrome(
+@@ -554,7 +603,7 @@ pub(super) fn row_chrome(
      h_flex()
          .id(id.into())
          .w_full()
@@ -4594,10 +5056,10 @@ index bdb7f0e2..08a38aef 100644
          .gap(px(6.))
 diff --git a/crates/rbx_studio/src/shell/mobile.rs b/crates/rbx_studio/src/shell/mobile.rs
 new file mode 100644
-index 00000000..97bf1763
+index 00000000..44e6e0d4
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile.rs
-@@ -0,0 +1,575 @@
+@@ -0,0 +1,578 @@
 +use gpui_kit::assets::IconName;
 +use gpui_kit::component::{h_flex, v_flex, Icon};
 +use gpui_kit::prelude::FluentBuilder as _;
@@ -4688,9 +5150,11 @@ index 00000000..97bf1763
 +        Popover::new("mobile-transform-options").appearance(false)
 +            .trigger(super::chrome::Trigger::new(compact_action("mobile-transform-options-trigger", IconName::Ellipsis, "Opções de transformação", true)))
 +            .content(move |_, window, cx| handle.update(cx, |shell, cx| {
-+                v_flex().id("mobile-transform-options-body").w(px(290.))
++                style::appear(v_flex().id("mobile-transform-options-body").w(px(290.))
++                    .max_w((window.viewport_size().width - px(16.)).max(px(48.)))
 +                    .max_h(px((f32::from(window.viewport_size().height) - 72.).max(48.)))
 +                    .overflow_y_scroll().occlude().p(px(8.)).gap(px(4.)).bg(tokens::dock())
++                    .map(style::surface)
 +                    .child(action("mobile-frame-selection", IconName::Crosshair, "Focar seleção")
 +                        .on_click(cx.listener(|shell, _, _, cx| shell.viewport.update(cx, |view, cx| view.focus_android_selection(cx)))))
 +                    .child(action("mobile-axis-space", IconName::Axis3d, if shell.transform.local { "Eixos locais" } else { "Eixos globais" })
@@ -4700,7 +5164,8 @@ index 00000000..97bf1763
 +                        .on_click(cx.listener(|shell, _, _, cx| { shell.viewport.update(cx, |v, cx| v.toggle_android_stick(cx)); cx.notify(); })))
 +                    .child(action("mobile-transform-combined", IconName::Move3d, "Transform combinado")
 +                        .on_click(cx.listener(|shell, _, _, cx| shell.transform_action(Action::Use(Tool::Transform), cx))))
-+                    .child(shell.align_control(cx)).child(shell.snap_fields_popover(cx))
++                    .child(shell.align_control(cx)).child(shell.snap_fields_popover(cx)),
++                    "mobile-transform-options-appear")
 +            }))
 +    }
 +
@@ -6667,10 +7132,10 @@ index be7c229c..6babdc0f 100644
                  .child(problem.message.clone()),
          )
 diff --git a/crates/rbx_studio/src/shell/script_panel.rs b/crates/rbx_studio/src/shell/script_panel.rs
-index 3bd81a5e..d336ad85 100644
+index 3bd81a5e..bfeb2729 100644
 --- a/crates/rbx_studio/src/shell/script_panel.rs
 +++ b/crates/rbx_studio/src/shell/script_panel.rs
-@@ -39,6 +39,12 @@ impl Shell {
+@@ -39,9 +39,16 @@ impl Shell {
              return no_scripts_open(cx).into_any_element();
          };
          let view = self.scripts.tabs.view(active);
@@ -6683,7 +7148,11 @@ index 3bd81a5e..d336ad85 100644
  
          v_flex()
              .size_full()
-@@ -60,9 +66,11 @@ impl Shell {
++            .when(cfg!(target_os = "android"), |editor| editor.bg(crate::mobile_style::background()))
+             .on_key_down(cx.listener(move |shell, event: &KeyDownEvent, window, cx| {
+                 // Stopping here also keeps Ctrl+D from reaching the window's
+                 // own handler, where it is the Explorer's Duplicate.
+@@ -60,9 +67,11 @@ impl Shell {
                  shell.go_to_declaration(active, window, cx);
                  cx.stop_propagation();
              }))
@@ -6698,7 +7167,7 @@ index 3bd81a5e..d336ad85 100644
                  match view {
                      View::Code => this
                          .children(self.scripts.open.get(&active).map(|open| {
-@@ -80,7 +88,9 @@ impl Shell {
+@@ -80,7 +89,9 @@ impl Shell {
                      View::Graph => this.child(self.graph_view(active, window, cx)),
                  }
              }))
@@ -6709,6 +7178,24 @@ index 3bd81a5e..d336ad85 100644
              .when(view == View::Code, |this| {
                  this.children(self.breakpoint_overlay(cx))
              })
+@@ -215,6 +226,7 @@ impl Shell {
+ 
+         h_flex()
+             .w_full()
++            .when(cfg!(target_os = "android"), |tabs| tabs.map(crate::mobile_style::field))
+             .child(
+                 TabBar::new("script-editor-tabs")
+                     .flex_1()
+@@ -249,6 +261,8 @@ fn no_scripts_open(cx: &App) -> impl IntoElement {
+             div()
+                 .text_xs()
+                 .text_color(cx.theme().muted_foreground)
+-                .child("Double-click a Script in the Explorer to edit it"),
++                .child(if cfg!(target_os = "android") {
++                    "Selecione um Script no Explorer e toque em Editar script"
++                } else { "Double-click a Script in the Explorer to edit it" }),
+         )
+ }
 diff --git a/crates/rbx_studio/src/shell/security_audit.rs b/crates/rbx_studio/src/shell/security_audit.rs
 index 95ca5c12..03aa8871 100644
 --- a/crates/rbx_studio/src/shell/security_audit.rs
@@ -6809,7 +7296,7 @@ index 12608f4a..2b5aeb37 100644
              viewport.set_targets(targets);
          });
 diff --git a/crates/rbx_studio/src/shell/settings_window.rs b/crates/rbx_studio/src/shell/settings_window.rs
-index 2f00d2c4..04fa679a 100644
+index 2f00d2c4..ef1da473 100644
 --- a/crates/rbx_studio/src/shell/settings_window.rs
 +++ b/crates/rbx_studio/src/shell/settings_window.rs
 @@ -14,6 +14,7 @@ use std::rc::Rc;
@@ -6854,7 +7341,7 @@ index 2f00d2c4..04fa679a 100644
          self.settings_open_on = Some(key);
          self.open_settings(cx);
      }
-@@ -340,6 +361,8 @@ impl Render for SettingsWindow {
+@@ -340,12 +361,14 @@ impl Render for SettingsWindow {
              field.sync(value, window, cx);
          }
          let picker = self.picker_popover(cx);
@@ -6863,6 +7350,13 @@ index 2f00d2c4..04fa679a 100644
          let closing = cx.entity().downgrade();
          v_flex()
              .id("settings-window")
+             .track_focus(&self.focus)
+             .size_full()
+-            .bg(tokens::dock())
++            .bg(if cfg!(target_os = "android") { crate::mobile_style::background() } else { tokens::dock() })
+             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                 let keystroke = &event.keystroke;
+                 if keystroke.key == "escape" {
 @@ -368,8 +391,12 @@ impl Render for SettingsWindow {
              .text_size(px(13.))
              .text_color(tokens::text())
@@ -6878,7 +7372,12 @@ index 2f00d2c4..04fa679a 100644
                  move |window, cx| {
                      closing.update(cx, |this, cx| this.commit_typed(cx)).ok();
                      // After the commits: they write the field back, which
-@@ -382,7 +409,8 @@ impl Render for SettingsWindow {
+@@ -378,12 +405,15 @@ impl Render for SettingsWindow {
+                 },
+             ))
+             .child(
+-                h_flex()
++                crate::mobile_style::appear(h_flex()
                      .flex_1()
                      .min_h_0()
                      .items_stretch()
@@ -6886,8 +7385,11 @@ index 2f00d2c4..04fa679a 100644
 +                    .when(compact, |this| this.flex_col())
 +                    .child(nav)
                      .child(page),
++                    "studio-settings-appear",
++                ),
              )
              .children(picker)
+     }
 diff --git a/crates/rbx_studio/src/shell/settings_window/files_account.rs b/crates/rbx_studio/src/shell/settings_window/files_account.rs
 index 2951191b..80c43c15 100644
 --- a/crates/rbx_studio/src/shell/settings_window/files_account.rs
@@ -7216,10 +7718,151 @@ index 2951191b..80c43c15 100644
 +        sections
      }
  }
+diff --git a/crates/rbx_studio/src/shell/settings_window/kit.rs b/crates/rbx_studio/src/shell/settings_window/kit.rs
+index 6672f1c5..8cf018f1 100644
+--- a/crates/rbx_studio/src/shell/settings_window/kit.rs
++++ b/crates/rbx_studio/src/shell/settings_window/kit.rs
+@@ -5,6 +5,7 @@
+ //! the Argon Diff window); only the window itself follows the UI scale.
+ 
+ use gpui_kit::component::{h_flex, v_flex, Icon};
++use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+ use crate::tokens;
+@@ -63,6 +64,7 @@ pub(in crate::shell) fn card() -> Div {
+         .border_color(tokens::border())
+         .rounded(px(8.))
+         .bg(tokens::field_select())
++        .when(cfg!(target_os = "android"), crate::mobile_style::surface)
+         .overflow_hidden()
+ }
+ 
+@@ -84,6 +86,8 @@ pub(in crate::shell) fn header_button(
+         .text_size(px(12.))
+         .line_height(px(16.))
+         .font_weight(FontWeight::SEMIBOLD)
++        .when(cfg!(target_os = "android"), |button| button
++            .h(px(48.)).map(crate::mobile_style::control))
+         .child(icon("rotate-ccw", 12.))
+         .child(label);
+     match on_click {
+diff --git a/crates/rbx_studio/src/shell/settings_window/kit/controls.rs b/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
+index 304a49e6..98233c52 100644
+--- a/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
++++ b/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
+@@ -9,7 +9,7 @@ use gpui_kit::component::slider::SliderState;
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::icon;
+ 
+@@ -32,6 +32,7 @@ pub(in crate::shell) fn ghost_icon(
+         .text_color(tokens::text3())
+         .cursor_pointer()
+         .hover(|this| this.bg(tokens::hover()).text_color(tokens::text()))
++        .when(cfg!(target_os = "android"), |button| button.size(px(48.)).map(style::control))
+         .child(icon(glyph, 12.))
+         .tooltip(move |window, cx| super::super::super::tooltip::text(label, window, cx))
+ }
+@@ -43,8 +44,8 @@ pub(in crate::shell) fn toggle(
+     on: bool,
+     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+ ) -> Stateful<Div> {
+-    div()
+-        .id(id.into())
++    let id = id.into();
++    let track = div()
+         .relative()
+         .flex_none()
+         .w(px(32.))
+@@ -56,7 +57,6 @@ pub(in crate::shell) fn toggle(
+         } else {
+             tokens::track()
+         })
+-        .on_click(on_click)
+         .child(
+             div()
+                 .absolute()
+@@ -65,7 +65,19 @@ pub(in crate::shell) fn toggle(
+                 .size(px(12.))
+                 .rounded_full()
+                 .bg(if on { tokens::black() } else { tokens::text2() }),
+-        )
++        );
++    if cfg!(target_os = "android") {
++        return h_flex()
++            .id(id)
++            .min_w(px(48.))
++            .h(px(48.))
++            .items_center()
++            .justify_center()
++            .cursor_pointer()
++            .child(track)
++            .on_click(on_click);
++    }
++    track.id(id).on_click(on_click)
+ }
+ 
+ /// A segmented control: `items` as `(label, selected, on_click)`, items
+@@ -83,6 +95,7 @@ pub(in crate::shell) fn segmented(
+         .border_color(tokens::border())
+         .rounded(px(6.))
+         .bg(tokens::dock())
++        .when(cfg!(target_os = "android"), |strip| strip.map(style::field).flex_wrap())
+         .children(
+             items
+                 .into_iter()
+@@ -97,6 +110,7 @@ pub(in crate::shell) fn segmented(
+                         .text_size(px(11.5))
+                         .line_height(px(16.))
+                         .cursor_pointer()
++                        .when(cfg!(target_os = "android"), |item| item.min_h(px(48.)))
+                         .map(|this| {
+                             if selected {
+                                 this.bg(tokens::accent_soft())
+@@ -107,6 +121,8 @@ pub(in crate::shell) fn segmented(
+                                     .hover(|this| this.bg(tokens::hover()))
+                             }
+                         })
++                        .when(cfg!(target_os = "android"), |item| item
++                            .map(style::control).when(selected, style::selected).aria_selected(selected))
+                         .on_click(move |_, window, cx| on_click(window, cx))
+                         .child(label)
+                 }),
+diff --git a/crates/rbx_studio/src/shell/settings_window/kit/row.rs b/crates/rbx_studio/src/shell/settings_window/kit/row.rs
+index 55cf5184..938c4cad 100644
+--- a/crates/rbx_studio/src/shell/settings_window/kit/row.rs
++++ b/crates/rbx_studio/src/shell/settings_window/kit/row.rs
+@@ -240,10 +240,12 @@ fn render_row(
+                 .pl(px(if row.indent { 40. } else { 16. }))
+                 .gap(px(16.))
+                 .items_center()
++                .when(cfg!(target_os = "android"), |row| row.flex_wrap().gap(px(8.)))
+                 .child(
+                     v_flex()
+                         .flex_1()
+                         .min_w_0()
++                        .when(cfg!(target_os = "android"), |label| label.min_w(px(140.)))
+                         .gap(px(2.))
+                         .child(
+                             h_flex()
 diff --git a/crates/rbx_studio/src/shell/settings_window/nav.rs b/crates/rbx_studio/src/shell/settings_window/nav.rs
-index f6a2d8e6..9a40bfd4 100644
+index f6a2d8e6..ad7d3f30 100644
 --- a/crates/rbx_studio/src/shell/settings_window/nav.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/nav.rs
+@@ -5,7 +5,7 @@ use gpui_kit::component::{h_flex, v_flex};
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::kit::{self, icon, mono, text};
+ use super::SettingsWindow;
 @@ -80,15 +80,15 @@ impl Page {
      /// The page's h1 and the line under it.
      pub(super) fn heading(self) -> (&'static str, &'static str) {
@@ -7261,7 +7904,15 @@ index f6a2d8e6..9a40bfd4 100644
                  12.5,
                  17.,
              )
-@@ -147,6 +151,7 @@ impl SettingsWindow {
+@@ -135,6 +139,7 @@ impl SettingsWindow {
+                     this
+                 }
+             })
++            .when(cfg!(target_os = "android"), |item| item.when(current, style::selected))
+             // While searching, a page with no match is dimmed and one with
+             // matches says how many.
+             .when(searching && count.is_none() && !current, |this| {
+@@ -147,6 +152,7 @@ impl SettingsWindow {
              }))
              .on_click(cx.listener(move |this, _, _, cx| {
                  this.page = page;
@@ -7269,10 +7920,20 @@ index f6a2d8e6..9a40bfd4 100644
                  cx.notify();
              }))
          });
-@@ -178,8 +183,30 @@ impl SettingsWindow {
+@@ -178,8 +184,41 @@ impl SettingsWindow {
          ];
          let folder = crate::settings::default_config_dir();
          let shown = folder.as_ref().map(|path| tilde(path)).unwrap_or_default();
++        let open_folder = nav_item(
++            "open-config", "folder", 14., "Open config folder", 30., 12., 16.,
++        )
++        .child(icon("external-link", 11.))
++        .on_click(move |_, _, cx| {
++            if let Some(folder) = &folder {
++                let _ = std::fs::create_dir_all(folder);
++                cx.open_with_system(folder);
++            }
++        });
 +        if compact {
 +            return h_flex()
 +                .id("settings-mobile-nav")
@@ -7287,6 +7948,7 @@ index f6a2d8e6..9a40bfd4 100644
 +                .child(div().w(px(160.)).flex_none().child(search))
 +                .children(pages)
 +                .children(own_windows)
++                .child(open_folder)
 +                .into_any_element();
 +        }
          v_flex()
@@ -7301,7 +7963,33 @@ index f6a2d8e6..9a40bfd4 100644
              .flex_none()
              .bg(tokens::black())
              .border_r_1()
-@@ -233,6 +260,7 @@ impl SettingsWindow {
+@@ -207,24 +246,7 @@ impl SettingsWindow {
+             )
+             .child(v_flex().gap(px(2.)).children(own_windows))
+             .child(div().flex_1())
+-            .child(
+-                nav_item(
+-                    "open-config",
+-                    "folder",
+-                    14.,
+-                    "Open config folder",
+-                    30.,
+-                    12.,
+-                    16.,
+-                )
+-                .child(icon("external-link", 11.))
+-                .on_click(move |_, _, cx| {
+-                    if let Some(folder) = &folder {
+-                        let _ = std::fs::create_dir_all(folder);
+-                        cx.open_with_system(folder);
+-                    }
+-                }),
+-            )
++            .child(open_folder)
+             .child(
+                 mono(10.5, 14.)
+                     .pt(px(4.))
+@@ -233,6 +255,7 @@ impl SettingsWindow {
                      .truncate()
                      .child(shown),
              )
@@ -7309,6 +7997,15 @@ index f6a2d8e6..9a40bfd4 100644
      }
  }
  
+@@ -258,6 +281,8 @@ fn nav_item(
+         .text_color(tokens::text2())
+         .cursor_pointer()
+         .hover(|this| this.bg(tokens::hover_subtle()).text_color(tokens::text()))
++        .when(cfg!(target_os = "android"), |item| item
++            .h(px(48.)).map(style::control).role(Role::Button))
+         .child(kit::icon(glyph, glyph_size))
+         .child(div().flex_1().child(label))
+ }
 diff --git a/crates/rbx_studio/src/shell/settings_window/page.rs b/crates/rbx_studio/src/shell/settings_window/page.rs
 index ffee0d6e..b196655c 100644
 --- a/crates/rbx_studio/src/shell/settings_window/page.rs
@@ -8783,7 +9480,7 @@ index 00000000..092620bc
 +    )
 +}
 diff --git a/crates/rbx_studio/src/shell/ui_editor.rs b/crates/rbx_studio/src/shell/ui_editor.rs
-index 5884c859..3cfc67d8 100644
+index 5884c859..3dcc8a7a 100644
 --- a/crates/rbx_studio/src/shell/ui_editor.rs
 +++ b/crates/rbx_studio/src/shell/ui_editor.rs
 @@ -247,6 +247,17 @@ impl Shell {
@@ -8804,6 +9501,15 @@ index 5884c859..3cfc67d8 100644
          self.reopen_document(document);
          if document == Document::UiEditor && self.document != Document::UiEditor {
              self.ui.tab = Tab::Canvas;
+@@ -455,7 +466,7 @@ impl Shell {
+         };
+         gpui_kit::component::v_flex()
+             .size_full()
+-            .bg(crate::tokens::dock())
++            .bg(if cfg!(target_os = "android") { crate::mobile_style::background() } else { crate::tokens::dock() })
+             .child(strip)
+             .child(div().flex_1().overflow_hidden().child(body))
+             .into_any_element()
 diff --git a/crates/rbx_studio/src/shell/viewport_dock.rs b/crates/rbx_studio/src/shell/viewport_dock.rs
 index 677fb105..dcc6b569 100644
 --- a/crates/rbx_studio/src/shell/viewport_dock.rs
@@ -9422,6 +10128,51 @@ index 7c86ba1d..c6d9c76d 100644
 +        assert_ne!(pose(3, 0.4, 500., 300.), Transformation::default());
      }
  }
+diff --git a/crates/rbx_studio/src/theme/apply.rs b/crates/rbx_studio/src/theme/apply.rs
+index 2fc69fa9..75530d04 100644
+--- a/crates/rbx_studio/src/theme/apply.rs
++++ b/crates/rbx_studio/src/theme/apply.rs
+@@ -42,9 +42,38 @@ pub(crate) fn apply(pack: &ThemePack, overrides: &Overrides, cx: &mut App) {
+ /// `Theme::change`, whose own mono-font fallback only steps in while the
+ /// family is still the platform default.
+ fn widgets(pack: &ThemePack, overrides: &Overrides, cx: &mut App) {
++    let mut base = pack.widgets.clone();
++    if cfg!(target_os = "android") && pack.id == super::DEFAULT_ID {
++        use crate::mobile_style as style;
++        let color = |rgb: u32| Some(format!("#{rgb:06X}").into());
++        base.radius = Some(style::CONTROL_RADIUS as usize);
++        base.radius_lg = Some(style::SURFACE_RADIUS as usize);
++        base.colors.background = color(style::BACKGROUND);
++        base.colors.border = color(style::BORDER);
++        base.colors.input = color(style::BORDER);
++        base.colors.foreground = color(style::INK);
++        base.colors.muted = color(style::FIELD);
++        base.colors.muted_foreground = color(style::MUTED);
++        base.colors.popover = color(style::SURFACE_BOTTOM);
++        base.colors.popover_foreground = color(style::INK);
++        base.colors.secondary = color(style::CONTROL_BOTTOM);
++        base.colors.secondary_foreground = color(style::INK);
++        base.colors.secondary_hover = color(style::CONTROL_TOP);
++        base.colors.tab_bar = color(style::BACKGROUND);
++        base.colors.tab = color(style::SURFACE_BOTTOM);
++        base.colors.tab_active = color(style::CONTROL_TOP);
++        base.colors.tab_foreground = color(style::MUTED);
++        base.colors.tab_active_foreground = color(style::INK);
++        if overrides.accent.is_none() {
++            base = recolour(&base, pack.palette.colors["check_on"], gpui_kit::rgb(style::ACCENT));
++            base.colors.primary_foreground = color(style::PRIMARY_INK);
++            base.colors.primary_hover = color(style::PRIMARY_TOP);
++            base.colors.primary_active = color(style::PRIMARY_BOTTOM);
++        }
++    }
+     let config = match overrides.accent {
+-        Some(to) => recolour(&pack.widgets, pack.palette.colors["check_on"], to),
+-        None => pack.widgets.clone(),
++        Some(to) => recolour(&base, pack.palette.colors["check_on"], to),
++        None => base,
+     };
+     let mode = pack.palette.mode;
+     let theme = Theme::global_mut(cx);
 diff --git a/crates/rbx_studio/src/tokens.rs b/crates/rbx_studio/src/tokens.rs
 index eecd7a15..858354aa 100644
 --- a/crates/rbx_studio/src/tokens.rs

@@ -142,6 +142,8 @@ def main():
     toolbox = rust("shell/toolbox.rs")
     output = rust("shell/output/filter.rs")
     viewport = rust("shell/viewport_dock/toggles.rs")
+    studio_settings = match_labels(rust("shell/settings_window/nav.rs").split("fn glyph(", 1)[0], "Page")
+    game_settings = match_labels(rust("shell/game_settings/catalog.rs").split("fn glyph(", 1)[0], "Tab")
 
     icon_names = KIT_ICON_NAMES | {row[1] for row in explorer_rows}
     icon_names |= {row[1] for rows in inserts.values() for row in rows if row[1]}
@@ -179,6 +181,8 @@ def main():
             for name, variable in [("Camera", "camera"), ("Overlays", "overlays"), ("Dragging & Snapping", "dragging")]
         },
         "panelExamples": catalog.get("panelExamples", {}),
+        "studioSettings": studio_settings,
+        "gameSettings": game_settings,
         "classIcons": class_icons("dark"), "lightClassIcons": class_icons("light"),
         "images": [thumbnail(args.templates / name, width) for name, width in [
             ("baseplate.png", 637), ("classic-baseplate.png", 180), ("flat-terrain.png", 180)
@@ -188,7 +192,7 @@ def main():
             "sheetShift": float(tokens["SHEET_SHIFT"]), "drawerShift": float(tokens["DRAWER_SHIFT"]),
         },
     }
-    if (len(panels), len(tabs), len(explorer_rows)) != (21, 7, 19):
+    if (len(panels), len(tabs), len(explorer_rows), len(studio_settings), len(game_settings)) != (21, 7, 19, 10, 8):
         raise ValueError(f"Recheck the catalog: {len(panels)} panels, {len(tabs)} tabs, {len(explorer_rows)} Explorer actions")
     css_text = "#rbx-mobile-review { " + ";\n".join(css) + "; }\n" + (REVIEW / "style.css").read_text()
     license_text = (args.kit_assets / "LICENSE-LUCIDE").read_text().replace("-->", "")
