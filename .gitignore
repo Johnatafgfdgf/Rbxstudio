@@ -1,0 +1,16 @@
+/target/
+/core/src/upstream/
+/dist/
+/android/build/
+/tools/
+/local.properties
+/logs/
+*.keystore
+__pycache__/
+
+
+/geometry/src/upstream/
+/upstream/*.tgz
+
+/platform/gpui-platform/Cargo.lock
+/platform/gpui-wgpu/Cargo.lock

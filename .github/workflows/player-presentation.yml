@@ -1,0 +1,99 @@
+name: Original Android player and default avatar validation
+on:
+  push:
+    branches: [work/rbx-native-android-touch]
+    paths: [.github/workflows/player-presentation.yml, patches/rook--android-port.patch, scripts/check_preparation.py]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-editor-arm64:
+    name: Build updated player (${{ matrix.abi }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64-linux-android
+            abi: arm64-v8a
+          - arch: x86_64-linux-android
+            abi: x86_64
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      PORT_ARCH: ${{ matrix.arch }}
+      STUDIO_ABI: ${{ matrix.abi }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target/android'
+          cache-on-failure: true
+          key: full-original-studio-${{ matrix.arch }}-v2
+      - name: Android SDK and NDK
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - run: python3 scripts/check_preparation.py
+      - name: Build original player with default head fallback
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          python3 scripts/cargo_android.py build --locked -p rbx_android_player 2>&1 | tee logs/player-build.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: original-studio-${{ matrix.arch }}
+          run-id: '41904499939'
+          github-token: ${{ github.token }}
+      - run: STUDIO_PLAYER_OVERRIDE="$PWD/target/android/$PORT_ARCH/debug/librbx_android_player.so" python3 scripts/repack_studio.py
+      - if: matrix.abi == 'x86_64'
+        run: python3 -m pip install Pillow
+      - name: Enable KVM
+        if: matrix.abi == 'x86_64'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        if: matrix.abi == 'x86_64'
+        env:
+          STUDIO_SKIP_SETUP: '1'
+          STUDIO_SKIP_RESUME: '1'
+          STUDIO_INSPECT_VIEWPORT: '1'
+          STUDIO_REQUIRE_EDITOR: '1'
+          STUDIO_COMPACT_LAYOUT: '1'
+          STUDIO_TEST_PLAY: '1'
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disk-size: 2048M
+          emulator-options: -no-window -gpu lavapipe -noaudio -no-boot-anim -no-snapshot -camera-back none -memory 3072 -partition-size 2048
+          disable-animations: true
+          script: python3 scripts/studio_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-studio-avatar-${{ matrix.abi }}
+          path: |
+            logs/player-build.log
+            dist/*.apk*
+            dist/original-studio-test/
+            dist/repack-inspection.json
+          retention-days: 14

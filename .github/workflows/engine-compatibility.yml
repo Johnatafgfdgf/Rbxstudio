@@ -1,0 +1,40 @@
+name: RBX-Mobile engine compatibility
+on:
+  push:
+    branches: ['work/rbx-mobile-*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: rbx-mobile-engine-compatibility-v1
+          cache-on-failure: true
+      - run: python3 scripts/check_preparation.py
+      - name: Test Play and editor regressions
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          cargo test --locked -p rbx_android_core --tests 2>&1 | tee logs/regression-tests.log
+      - name: Run the phone diagnostic scenarios on the cloud host
+        run: cargo run --locked -p rbx_android_core --example engine_diagnostics -- logs/engine-diagnostics.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: engine-compatibility-results
+          path: logs/
+          retention-days: 14

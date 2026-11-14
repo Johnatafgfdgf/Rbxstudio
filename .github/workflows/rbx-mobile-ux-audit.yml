@@ -1,0 +1,91 @@
+name: RBX-Mobile UX audit - Android validation and ARM64 APK
+on:
+  push:
+    branches: [work/rbx-mobile-0.6.10-ux-audit, work/rbx-mobile-0.6.10-mobile-ui]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  java-and-ui-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android APIs
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile all Android host and IME classes
+        run: |
+          mkdir -p android/build/ux-audit-classes
+          javac --release 11 -classpath "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d android/build/ux-audit-classes $(find android/src -name '*.java') \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiClipboard.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiDeepLink.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPlatformView.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiVideoPlayer.java \
+            upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiCamera.java
+      - name: Android UI audit parser regression tests
+        run: python3 -m unittest discover -s tests/android -p 'test_*.py' -v
+
+  build-studio-arm64:
+    needs: java-and-ui-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PORT_APP: studio
+      PORT_ARCH: aarch64-linux-android
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target/android'
+          cache-on-failure: true
+          key: rbx-mobile-ux-audit-arm64-v1
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - name: Verify patches and prepared source
+        run: python3 scripts/check_preparation.py
+      - name: Responsive layout and cache regressions
+        run: |
+          rustc --test tests/mobile_layout.rs -o /tmp/mobile-layout-tests
+          /tmp/mobile-layout-tests
+      - name: Build existing Rust Studio and Rook Android libraries
+        run: python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
+      - name: Package installable ARM64 Studio APK
+        run: python3 scripts/package_apk.py
+      - name: Publish APK and build diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RBX-Mobile-UX-audit-arm64
+          path: |
+            dist/*.apk
+            dist/*.apk.sha256
+            logs/
+          retention-days: 14

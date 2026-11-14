@@ -1,0 +1,81 @@
+name: Original Rook mobile input validation
+on:
+  push:
+    branches: [work/rbx-native-android-touch]
+    paths: [Cargo.toml, Cargo.lock, core/**, player/**, studio/**, platform/**, patches/**, scripts/prepare.py, scripts/check_preparation.py, scripts/cargo_android.py, .github/workflows/mobile-runtime.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile-core-scripts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          key: full-studio-core-resources-v1
+      - run: python3 scripts/check_preparation.py
+      - run: cargo test --locked -p rbx_android_core --tests
+      - name: Boot original CoreScripts with touch-only input
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          cargo run --locked -p rbx_android_core --example studio_resources -- "$RUNNER_TEMP/studio-resources" --touch 2>&1 | tee logs/original-mobile-core-scripts.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-mobile-input-validation
+          path: logs/
+          retention-days: 14
+  android-player-input:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64-linux-android, x86_64-linux-android]
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      PORT_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target/android'
+          cache-on-failure: true
+          key: full-original-studio-${{ matrix.arch }}-v2
+      - name: Android NDK
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - run: python3 scripts/check_preparation.py
+      - name: Check complete editor and original Android player input
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          python3 scripts/cargo_android.py check --locked -p rbx_android_player -p rbx_android_studio 2>&1 | tee logs/original-player-mobile-input.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-mobile-player-${{ matrix.arch }}
+          path: logs/
+          retention-days: 14

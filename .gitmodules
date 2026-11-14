@@ -1,0 +1,11 @@
+[submodule "upstream/rbx-native"]
+	path = upstream/rbx-native
+	url = https://github.com/chteau/rbx-native.git
+[submodule "upstream/rook"]
+	path = upstream/rook
+	url = https://github.com/AsyncFinn/rook.git
+
+
+[submodule "upstream/gpui-mobile"]
+	path = upstream/gpui-mobile
+	url = https://github.com/longbridge/gpui-mobile.git

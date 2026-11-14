@@ -1,0 +1,32 @@
+name: Restore native port workspace
+on:
+  push:
+    branches: [work/rbx-native-android-touch]
+    paths: [.github/workflows/source-checkpoint.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Archive exact source after asynchronous loader and surface-lifetime corrections
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for config in Path('.git').rglob('config'):
+              text = config.read_text(errors='replace').lower()
+              assert 'extraheader' not in text and 'authorization' not in text, 'Credential configuration must not be archived'
+          PY
+          tar -czf "$RUNNER_TEMP/native-port-source.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-native-port-source
+          path: ${{ runner.temp }}/native-port-source.tar.gz
+          retention-days: 7

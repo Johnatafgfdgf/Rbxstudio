@@ -1,0 +1,69 @@
+name: Original Android editor and visible avatar validation
+on:
+  push:
+    branches: [work/rbx-native-android-touch]
+    paths: [android/res/**, android/src/**, android/StudioManifest.xml, scripts/repack_studio.py, scripts/studio_smoke.py, .github/workflows/layout-emulator.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  safe-native-layout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        player-backend: [default]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: original-studio-avatar-x86_64
+          run-id: '42395763675'
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: python3 scripts/repack_studio.py
+      - run: python3 -m pip install Pillow
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          STUDIO_PROBE_SIGNIN: '1'
+          STUDIO_SKIP_RESUME: '1'
+          STUDIO_INSPECT_VIEWPORT: '1'
+          STUDIO_REQUIRE_EDITOR: '1'
+          STUDIO_COMPACT_LAYOUT: '1'
+          STUDIO_TEST_PLAY: '1'
+          STUDIO_REQUIRE_DEFAULT_AVATAR: '1'
+          STUDIO_PLAYER_BACKEND: ${{ matrix.player-backend }}
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disk-size: 2048M
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -gpu lavapipe -noaudio -no-boot-anim -no-snapshot -camera-back none -memory 3072 -partition-size 2048
+          disable-animations: true
+          script: python3 scripts/studio_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-editor-signin-probe
+          path: |
+            dist/original-studio-test/
+            dist/repack-inspection.json
+          retention-days: 14
