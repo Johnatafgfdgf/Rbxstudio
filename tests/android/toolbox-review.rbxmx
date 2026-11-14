@@ -1,0 +1,17 @@
+<roblox version="4">
+  <Item class="Model" referent="RBX0">
+    <Properties><string name="Name">Audit Toolbox</string></Properties>
+    <Item class="Folder" referent="RBX1">
+      <Properties><string name="Name">Scripts aninhados</string></Properties>
+      <Item class="Script" referent="RBX2">
+        <Properties><string name="Name">Servidor</string><ProtectedString name="Source">print("RBX_AUDIT_SERVER")</ProtectedString></Properties>
+      </Item>
+      <Item class="LocalScript" referent="RBX3">
+        <Properties><string name="Name">Cliente</string><ProtectedString name="Source">print("RBX_AUDIT_CLIENT")</ProtectedString></Properties>
+      </Item>
+      <Item class="ModuleScript" referent="RBX4">
+        <Properties><string name="Name">Modulo</string><ProtectedString name="Source">return true</ProtectedString></Properties>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
