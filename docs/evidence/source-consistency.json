@@ -1,0 +1,10 @@
+{
+  "tested_source_sha": "73c6433cd3340356514795ad0d90de9a10aec78d",
+  "tree_sha": "61583fa2de9036e1ed36230d19b473b34b5969d8",
+  "repository_blobs_checked": 106,
+  "local_runtime_and_test_sources_match": true,
+  "local_documentation_updates": [
+    ".gitignore",
+    "README.md"
+  ]
+}

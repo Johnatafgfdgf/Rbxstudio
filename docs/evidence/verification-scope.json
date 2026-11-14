@@ -1,0 +1,46 @@
+{
+  "source_sha": "73c6433cd3340356514795ad0d90de9a10aec78d",
+  "android_ci_run": 41361416794,
+  "android_ci_status": "success",
+  "jobs": {
+    "tests": "success",
+    "apk": "success"
+  },
+  "core_tests": 26,
+  "core_test_suites": {
+    "content": 5,
+    "port": 14,
+    "runtime": 7
+  },
+  "android": {
+    "api": 35,
+    "abi": "x86_64",
+    "gpu": "SwiftShader",
+    "result": "success",
+    "render_resolution": [
+      640,
+      233
+    ],
+    "gui_physical_click": true,
+    "gui_rendered_pixel_check": true,
+    "real_touch_movement_at_least_2_studs": true,
+    "play_stop": true,
+    "surface_builds": 1
+  },
+  "local_renderer": {
+    "backend": "Vulkan / llvmpipe CPU",
+    "pixels": [
+      960,
+      540
+    ],
+    "external_assets": false
+  },
+  "clean_preparation": {
+    "passes": 2,
+    "matching_files": 34
+  },
+  "physical_poco_test": false,
+  "gles_compatibility": "unresolved fs_resolve limitation",
+  "apk_sha256": "491583748dbfe2966b9f2348d787382c1f27378240d3453606da1993eca574df",
+  "certificate_sha256": "0b36c4e4587b40ecc16dbdca22fcaa20149432532567cc9acf44355c5b83711c"
+}
