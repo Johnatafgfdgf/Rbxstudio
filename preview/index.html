@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1422">
+<title>Rbx Studio — Laboratório visual</title>
+<style>
+:root{--bg:#0b1321;--surface:#152238;--raised:#1d3048;--ink:#edf7ff;--muted:#a0b3c8;--accent:#28c8e5;--accent-rgb:40,200,229;--radius:16px;--space:12px;--target:46px;--panel:41%;--bar:57px}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;-webkit-tap-highlight-color:transparent;overflow:hidden}button,input,select{font:inherit}button{color:inherit;cursor:pointer;touch-action:manipulation}button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}button:disabled{opacity:.42;cursor:not-allowed}button:hover:not(:disabled){border-color:rgba(var(--accent-rgb),.45)}.app{height:100dvh;display:flex;flex-direction:column;background:radial-gradient(ellipse at 70% 0%,#1d3451 0%,transparent 54%),var(--bg)}.top{height:var(--bar);flex:none;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111c2d;border-bottom:1px solid #30425a;z-index:8}.brand{font-weight:850;white-space:nowrap;letter-spacing:.1px;font-size:15px;display:flex;align-items:center;gap:8px}.brand-mark{display:grid;place-items:center;width:30px;height:30px;background:var(--accent);color:#102036;transform:rotate(-12deg);border-radius:8px;font-size:11px;font-weight:900}.spacer{flex:1}.btn{min-height:var(--target);border:1px solid #344961;background:#1c2b41;border-radius:calc(var(--radius)*.76);padding:7px 14px;display:inline-flex;gap:7px;align-items:center;justify-content:center;white-space:nowrap}.btn.small{padding:6px 10px}.btn.active,.btn.primary{background:rgba(var(--accent-rgb),.14);border-color:var(--accent);color:var(--ink)}.btn.primary{background:var(--accent);color:#092336;font-weight:800}.btn.icon{min-width:var(--target);padding:7px}.btn .symbol{font-size:17px}.top-name{color:var(--muted);font-size:12px;white-space:nowrap}.view{display:none;flex:1;min-height:0;position:relative}.view.active{display:flex}.home{flex-direction:column;overflow:auto;gap:13px;padding:15px 19px 73px;scrollbar-color:#405770 transparent}.hero{background:linear-gradient(125deg,#1b4657,#1e2c48 68%,#17273f);border:1px solid #345568;border-radius:calc(var(--radius) + 5px);padding:18px 19px;min-height:110px;display:flex;align-items:center;gap:18px}.hero h1{font-size:clamp(18px,2.5vw,26px);margin:0 0 7px}.hero p{color:#c4d4e3;margin:0}.orb{font-weight:900;font-size:34px;opacity:.75;text-shadow:0 0 32px var(--accent);margin-left:auto}.label-row{display:flex;justify-content:space-between;align-items:center;margin:0 3px}.label-row h2{font-size:16px;margin:0}.subtle{color:var(--muted)}.cards{display:flex;gap:var(--space);overflow-x:auto;padding:3px 1px 8px;scrollbar-color:#456078 transparent;flex:none}.tile{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid #33465e;border-radius:var(--radius);min-width:230px;max-width:265px;flex:1;min-height:111px;text-align:left;padding:12px}.tile strong{display:block;margin:3px 0 5px}.tile small{color:var(--muted)}.thumb{width:92px;height:76px;flex:none;border-radius:11px;overflow:hidden;border:1px solid #688097;background:linear-gradient(#72a4d3 0 45%,#93a6b3 46% 55%,#5f7087 55%);position:relative}.thumb:after{content:"";position:absolute;inset:42% -28% -20%;background:repeating-linear-gradient(90deg,transparent 0 19px,rgba(20,30,50,.23) 20px 21px),repeating-linear-gradient(0deg,transparent 0 14px,rgba(20,30,50,.23) 15px 16px);transform:perspective(100px) rotateX(38deg)}.thumb.grass{background:linear-gradient(#65b6ef 0 50%,#4a8d5d 50%)}.thumb.classic{background:linear-gradient(#68a4da 0 46%,#9c9fa6 46%)}.thumb.file{display:grid;place-items:center;font-size:31px;background:#26394c}.recent{display:flex;gap:11px;align-items:center;padding:12px 15px;min-height:64px;background:var(--surface);border:1px solid #34465c;border-radius:var(--radius)}.bottomnav{position:absolute;left:16px;right:16px;bottom:10px;display:flex;justify-content:space-evenly;gap:8px;background:#111f32ed;border:1px solid #30445b;border-radius:18px;padding:6px;box-shadow:0 10px 26px #0004}.navitem{flex:1;border:0;border-radius:12px;background:transparent;color:var(--muted);min-height:43px}.navitem.active{color:var(--accent);background:#264458}.editor{overflow:hidden}.scene{position:absolute;inset:0;background:linear-gradient(180deg,#4c8ab7 0%,#9cbcd1 46%,#b7c4c9 49%,#657387 50%,#586a81 100%);isolation:isolate;overflow:hidden}.scene:before{content:"";position:absolute;left:-60%;right:-60%;bottom:-60%;height:112%;transform:perspective(260px) rotateX(67deg);transform-origin:top;background:repeating-linear-gradient(0deg,transparent 0 38px,#33455a7d 39px 40px),repeating-linear-gradient(90deg,transparent 0 38px,#33455a7d 39px 40px);opacity:.5}.cube{position:absolute;left:51%;top:52%;width:100px;height:71px;background:linear-gradient(115deg,#f2f4f5 0 62%,#a9b1b8 62%);clip-path:polygon(0 18%,76% 0,100% 24%,100% 85%,23% 100%,0 72%);box-shadow:12px 12px 30px #243d5990}.axis{position:absolute;right:13px;top:13px;width:71px;height:71px;border:2px solid #d4e3f0aa;border-radius:50%;display:grid;place-items:center;font-weight:750;background:#13273d39}.axis span{position:absolute}.axis .x{left:6px;color:#fb7777}.axis .y{top:0;color:#7bec92}.axis .z{right:6px;color:#82bcff}.scene-note{position:absolute;left:14px;top:12px;color:#173954;background:#d9edf0b8;padding:7px 12px;border-radius:11px;font-size:12px}.dock{position:absolute;left:50%;transform:translateX(-50%);bottom:13px;display:flex;align-items:center;gap:5px;padding:6px;border:1px solid #5c7898;background:#12243beb;border-radius:calc(var(--radius) + 1px);box-shadow:0 12px 22px #00152a66;z-index:2}.dock .btn{padding:8px 9px;font-size:12px;min-height:var(--target)}.editor-tabs{position:absolute;left:9px;right:9px;top:8px;display:flex;gap:6px;overflow-x:auto;padding:4px 5px;z-index:5;background:#102037e8;border:1px solid #3c5574;border-radius:var(--radius)}.editor-tabs .btn{min-height:40px}.editor-tabs+.toolstrip{top:62px}.toolstrip{position:absolute;left:10px;right:10px;top:12px;z-index:4;display:flex;gap:7px;align-items:center;overflow-x:auto;background:#16283ee8;border:1px solid #40566c;padding:6px;border-radius:var(--radius);scrollbar-width:thin}.toolstrip .btn{min-height:40px}.drawer{position:absolute;right:9px;top:9px;bottom:9px;width:var(--panel);min-width:255px;display:flex;flex-direction:column;background:#121e30f7;border:1px solid #45617a;border-radius:calc(var(--radius) + 2px);box-shadow:-15px 6px 32px #0b1b2a85;overflow:hidden;z-index:6}.drawer-head{display:flex;align-items:center;gap:5px;padding:8px;border-bottom:1px solid #344760;overflow-x:auto;flex:none}.drawer-head .btn{min-height:38px}.drawer h3{margin:0;font-size:14px}.drawer-content{padding:11px;overflow:auto;min-height:0;display:flex;flex-direction:column;gap:9px}.search{width:100%;color:var(--ink);padding:10px 13px;background:#25344b;border:1px solid #496078;outline:none;border-radius:12px;min-height:43px}.tree-row{width:100%;display:flex;align-items:center;gap:8px;text-align:left;border:1px solid transparent;background:transparent;padding:9px 10px;border-radius:10px;min-height:40px}.tree-row.selected{background:#20516b;border-color:var(--accent)}.tree-row.child{padding-left:27px}.preview-pill{border:1px solid #4b7894;background:#173249;border-radius:100px;padding:4px 10px;color:#bed8e9;font-size:11px}.property{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#1b2b40;border:1px solid #33485e;border-radius:10px;padding:10px;min-height:42px}.property input{width:48%;min-width:100px;min-height:34px;background:#101e2e;border:1px solid #45627b;border-radius:9px;color:var(--ink);padding:6px}.menu-pop{position:absolute;left:11px;top:9px;z-index:7;width:min(330px,calc(100% - 22px));max-height:calc(100% - 18px);display:flex;flex-direction:column;background:#12243b;border:1px solid #56758b;box-shadow:0 16px 30px #00101aaa;border-radius:var(--radius);padding:8px;gap:3px}.menu-pop .menu-scroll{min-height:0;overflow:auto}.menu-row{width:100%;text-align:left;padding:11px 13px;border:0;border-radius:9px;background:transparent;min-height:42px}.menu-row:hover{background:#2a4561}.menu-header{display:flex;gap:4px;flex:none;overflow-x:auto;padding:5px}.menu-header .btn{min-height:40px}.muted{color:var(--muted)}.design{position:absolute;right:9px;top:9px;bottom:9px;width:min(390px,calc(100% - 18px));z-index:9;display:flex;flex-direction:column;background:#102033f9;border:1px solid #5b7e93;border-radius:var(--radius);box-shadow:0 0 0 100vw #07131b88;overflow:auto;padding:16px;gap:12px}.design h2{margin:0;font-size:18px}.control{display:flex;align-items:center;gap:9px;justify-content:space-between}.control label{flex:1}.control input[type=range]{width:45%}.control output{width:43px;text-align:right;color:var(--muted)}.swatches{display:flex;gap:9px}.swatch{height:34px;flex:1;border:2px solid #ebf6ff73;border-radius:9px}.toast{position:absolute;z-index:20;bottom:68px;left:50%;transform:translateX(-50%);background:#0e2438;color:#eaf5fb;border:1px solid var(--accent);border-radius:12px;padding:10px 16px;max-width:90%;text-align:center;pointer-events:none;opacity:0;transition:opacity .16s}.toast.show{opacity:1}.hidden{display:none!important}.hint{color:#a8c0cf;font-size:12px;line-height:1.4}.minibar{display:flex;gap:6px;flex-wrap:wrap}.list-section{display:flex;flex-direction:column;gap:6px}.list-section h4{margin:7px 0 0}.section-scroll{overflow-y:auto;min-height:0}.separator{height:1px;background:#394d61;margin:2px 0}.tag{display:inline-block;background:#204258;color:#91deea;border-radius:7px;padding:4px 6px;font-size:10px}@media(max-width:760px){.top{gap:5px;padding:6px}.brand-name,.top-name{display:none}.btn.small{padding:7px 9px}.drawer{width:min(90%,390px)}.hero{padding:12px}.orb{display:none}.home{padding:10px 10px 68px}.tile{min-width:205px}.top .btn .top-label{display:none}}@media(max-height:460px){:root{--bar:50px;--target:40px}.home{gap:8px;padding-top:8px}.hero{min-height:85px;padding:11px 14px}.tile{min-height:100px}.thumb{height:68px;width:77px}.editor-tabs{top:5px}.drawer{top:5px;bottom:5px}.dock{bottom:8px}.bottomnav{bottom:5px;padding:4px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<header class="top">
+<div class="brand"><span class="brand-mark">RBX</span><span class="brand-name">Rbx Studio</span></div>
+<span class="top-name" id="contextTitle">Prévia interativa</span>
+<div class="spacer"></div>
+<button class="btn small" id="homeBtn">⌂ <span class="top-label">Início</span></button>
+<button class="btn small" id="menuBtn">☰ <span class="top-label">Menu</span></button>
+<button class="btn small" id="toolsBtn">⚒ <span class="top-label">Ferramentas</span></button>
+<button class="btn small" id="panelsBtn">▤ <span class="top-label">Painéis</span></button>
+<button class="btn small" id="designBtn" title="Ajustar design visual">⚙ <span class="top-label">Visual</span></button>
+<button class="btn small" id="saveBtn">▣ <span class="top-label">Salvar</span></button>
+<button class="btn primary small" id="playBtn">▶ Play</button>
+</header>
+<main class="view home active" id="homeView">
+<section class="hero"><div><h1>Crie no seu ritmo.</h1><p>Seu estúdio Roblox, organizado para a tela do celular.</p></div><span class="orb">◇</span><button class="btn primary" id="newBtn">＋ Novo jogo</button></section>
+<div class="label-row"><h2>Começar um projeto</h2><span class="preview-pill">Prévia visual — sem motor</span></div>
+<div class="cards" id="templateCards">
+<button class="tile" data-template="Baseplate"><span class="thumb"></span><span><strong>Baseplate</strong><small>Cena vazia com uma base simples.</small></span></button>
+<button class="tile" data-template="Classic Baseplate"><span class="thumb classic"></span><span><strong>Classic Baseplate</strong><small>Base clássica para construir.</small></span></button>
+<button class="tile" data-template="Flat Terrain"><span class="thumb grass"></span><span><strong>Flat Terrain</strong><small>Terreno plano com grama.</small></span></button>
+<button class="tile" data-template="Abrir arquivo"><span class="thumb file">▤</span><span><strong>Abrir arquivo</strong><small>Visualização do fluxo de arquivos.</small></span></button>
+</div>
+<div class="label-row"><h2>Recentes</h2><span class="subtle">Exemplo de navegação</span></div>
+<div class="recent"><span style="font-size:24px">▣</span><span><strong>Baseplate 13</strong><br><small class="subtle">Projeto de demonstração</small></span><span class="spacer"></span><button class="btn small" id="openRecent">Abrir prévia</button></div>
+<nav class="bottomnav" aria-label="Navegação inicial">
+<button class="navitem active" data-home-tab="Início">⌂ Início</button><button class="navitem" data-home-tab="Recentes">◷ Recentes</button><button class="navitem" data-home-tab="Meus jogos">▣ Meus jogos</button><button class="navitem" data-home-tab="Conta">◉ Conta</button>
+</nav>
+</main>
+<main class="view editor" id="editorView">
+<div class="scene"><div class="cube"></div><div class="axis"><span class="x">X</span><span class="y">Y</span><span class="z">Z</span>◉</div><div class="scene-note">Cena ilustrativa • ferramentas visuais</div></div>
+<div id="toolsStrip" class="editor-tabs hidden" aria-label="Abas de ferramentas"></div>
+<div id="toolItems" class="toolstrip hidden"></div>
+<div class="dock" id="quickDock">
+<button class="btn active" data-tool="Selecionar">⌖ <span class="top-label">Selecionar</span></button>
+<button class="btn" data-tool="Mover">✥ <span class="top-label">Mover</span></button>
+<button class="btn" data-tool="Girar">↻ <span class="top-label">Girar</span></button>
+<button class="btn" data-tool="Escalar">⤢ <span class="top-label">Escalar</span></button>
+</div>
+<div id="drawer" class="drawer hidden"><div class="drawer-head"><span id="drawerTitle" style="font-weight:800;white-space:nowrap">Explorer</span><span class="spacer"></span><button class="btn icon" id="swapPanel" title="Trocar painel">▤</button><button class="btn icon" id="closePanel" aria-label="Fechar painel">×</button></div><div id="drawerBody" class="drawer-content"></div></div>
+<div id="menuPopup" class="menu-pop hidden"><div class="menu-header" id="menuHeader"></div><div class="menu-scroll" id="menuItems"></div></div>
+</main>
+<section id="designPanel" class="design hidden" aria-label="Ajustes da prévia">
+<div class="control"><h2>Personalizar visual</h2><button class="btn icon" id="closeDesign">×</button></div>
+<div class="hint">As mudanças aparecem imediatamente nesta prévia. Nada é alterado no motor GPUI do Studio.</div>
+<strong>Cor de destaque</strong><div class="swatches"><button class="swatch" style="background:#28c8e5" data-color="#28c8e5" aria-label="Ciano"></button><button class="swatch" style="background:#6c9fff" data-color="#6c9fff" aria-label="Azul"></button><button class="swatch" style="background:#9e8bff" data-color="#9e8bff" aria-label="Roxo"></button><button class="swatch" style="background:#47d4b6" data-color="#47d4b6" aria-label="Verde água"></button></div>
+<div class="control"><label for="radius">Arredondamento</label><input id="radius" type="range" min="6" max="26" step="1" value="16"><output id="radiusOut">16 px</output></div>
+<div class="control"><label for="spacing">Espaçamento</label><input id="spacing" type="range" min="6" max="20" step="1" value="12"><output id="spacingOut">12 px</output></div>
+<div class="control"><label for="touch">Botões (altura)</label><input id="touch" type="range" min="38" max="58" step="2" value="46"><output id="touchOut">46 px</output></div>
+<div class="control"><label for="panelSize">Largura do painel</label><input id="panelSize" type="range" min="31" max="67" step="1" value="41"><output id="panelSizeOut">41%</output></div>
+<div class="minibar"><button class="btn primary" id="exportBtn">⇩ Exportar escolhas</button><button class="btn" id="resetBtn">Restaurar</button></div>
+<div class="hint">Exportar gera um JSON com as escolhas para implementar depois no código Android. Os ajustes também são guardados localmente neste navegador.</div>
+</section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<script>
+(()=>{"use strict";
+const $=id=>document.getElementById(id);
+const tabs=["Home","Avatar","UI","Script","Model","Test","Plugins"];
+const panels=["Explorer","Properties","Toolbox","Output","Viewport","Argon","Wally","Script Analysis","Watch","Call Stack","Terrain Editor","Collaborators","Plugin Widgets","Input Actions","Security Audit","Playtests","Tests","Layers","Loren","Avatar Settings","Localization"];
+const menus={
+File:["New","Open…","Close Place","Open Game…","Save to File","Save to File As…","Export as glTF…","Export as Project…","Export Clean Copy…","Find in Game…","Sync Shared…","Save All","Publish All…","Save to Roblox","Publish to Roblox","Link to Roblox Place…","Version History…","Merge Place…","Game Settings…","Data Stores…","Open Auto Saves","Studio Settings…","Customize Shortcuts…","Beta Features…","Script Templates…","Diagnóstico do motor…"],
+Edit:["Undo","Redo","Cut","Copy","Paste","Paste Into","Paste at Original Location","Paste into at Original Location","Duplicate","Delete"],
+Model:["Insert Part","Insert Folder","Insert Script","Insert LocalScript","Insert ModuleScript","Insert ModuleScript (Class)","Insert Object…","Insert Mesh…","Insert Rig…","Import 3D Model…","Import Image…","Mark as Shared","Unmark Shared","Group","Ungroup"],
+View:["Explorer","Toolbox","Properties","Output","Viewport","Command Bar","Top View","Front View","Right View","Style Editor","Collaborators","Input Actions","Security Audit","Playtests","Layers","Loren","Avatar Settings","Reduce Motion","Large Click Targets","Reset Layout","Quick Open…","Command Palette…"]};
+const tools={
+Home:["Part","Folder","Script","Inserir objeto","Terrain Editor","Explorer","Properties","Toolbox"],
+Avatar:["Inserir Rig","Avatar Settings","Animation"],
+UI:["ScreenGui","Frame","TextLabel","TextButton","ImageLabel","UI Editor"],
+Script:["Novo Script","LocalScript","ModuleScript","Editor de código"],
+Model:["Insert Mesh","Import 3D Model","Group","Ungroup","Mover","Girar"],
+Test:["Play","Parar","Configurar Play","Play local","Viewport"],
+Plugins:["Plugin Widgets","Argon","Wally","Gerenciar plugins"]};
+const state={view:"home",tool:"Selecionar",ribbon:false,panel:null,tab:"Home",menu:null,submenu:"File",selected:"Part",expanded:true,homeTab:"Início",config:{accent:"#28c8e5",radius:16,spacing:12,touch:46,panelSize:41}};
+const cfg=state.config;
+const showToast=message=>{const t=$("toast");t.textContent=message;t.classList.add("show");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove("show"),2400)};
+function button(label,click,klass="btn"){const x=document.createElement("button");x.className=klass;x.textContent=label;x.addEventListener("click",click);return x}
+function setView(v){state.view=v;$("homeView").classList.toggle("active",v==="home");$("editorView").classList.toggle("active",v==="editor");$("contextTitle").textContent=v==="home"?"Início":"Editor • demonstração";state.menu=null;render(); }
+function render(){
+$("menuPopup").classList.toggle("hidden",!state.menu || state.view!=="editor");
+$("drawer").classList.toggle("hidden",!state.panel || state.view!=="editor");
+$("toolsStrip").classList.toggle("hidden",!state.ribbon || state.view!=="editor");
+$("toolItems").classList.toggle("hidden",!state.ribbon || state.view!=="editor");
+$("menuBtn").classList.toggle("active",!!state.menu);
+$("toolsBtn").classList.toggle("active",state.ribbon);
+$("panelsBtn").classList.toggle("active",!!state.panel);
+document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===state.tool));
+if(state.menu)renderMenu();if(state.ribbon)renderRibbon();if(state.panel)renderPanel();}
+function renderMenu(){
+$("menuHeader").replaceChildren(...Object.keys(menus).map(name=>button(name,()=>{state.submenu=name;renderMenu()},"btn small"+(state.submenu===name?" active":""))));
+$("menuItems").replaceChildren(...menus[state.submenu].map(name=>button(name,()=>action(name),"menu-row")));
+}
+function renderRibbon(){
+$("toolsStrip").replaceChildren(...tabs.map(name=>button(name,()=>{state.tab=name;renderRibbon()},"btn small"+(state.tab===name?" active":""))));
+$("toolItems").replaceChildren(...tools[state.tab].map(name=>button(name,()=>panels.includes(name)?openPanel(name):action(name),"btn small")));
+}
+function action(name){
+if(panels.includes(name)){openPanel(name);return}
+if(name==="Play" || name==="Parar" || name==="Save to File" || name==="New"||name==="Open…"){showToast(name+": demonstração — nenhum projeto será alterado");return}
+showToast(name+": comando representado visualmente (não executado)");
+}
+function openPanel(name){setView("editor");state.panel=name;state.menu=null;render()}
+function renderPanel(){
+$("drawerTitle").textContent=state.panel;const body=$("drawerBody");body.replaceChildren();
+if(state.panel==="Explorer"){
+const input=document.createElement("input");input.className="search";input.placeholder="Buscar no Explorer";input.setAttribute("aria-label","Buscar no Explorer");body.append(input);
+const items=[["Workspace",false],["Baseplate",true],["SpawnLocation",true],["Part",true],["Lighting",false],["ReplicatedStorage",false],["StarterGui",false],["StarterPack",false],["Players",false]];
+const list=document.createElement("div");list.className="list-section";body.append(list);
+function update(){const filter=input.value.toLowerCase();list.replaceChildren(...items.filter(([n,child])=>(!child||state.expanded)&&n.toLowerCase().includes(filter)).map(([n,child])=>button((!child?(n==="Workspace"?(state.expanded?"⌄ ":"› "):"◆ "):"◻ ")+n,()=>{if(n==="Workspace")state.expanded=!state.expanded;else state.selected=n;renderPanel()},"tree-row"+(child?" child":"")+(state.selected===n?" selected":""))))}
+input.addEventListener("input",update);update();body.append(button("＋ Inserir objeto",()=>action("Inserir objeto"),"btn primary"));
+}else if(state.panel==="Properties"){
+const h=document.createElement("div");h.className="preview-pill";h.textContent="Selecionado: "+state.selected;body.append(h);
+for(const [key,val] of [["Name",state.selected],["Anchored","true"],["Transparency","0"],["Color","#e5eff8"],["Material","Plastic"],["Size","4, 1, 2"]]){
+const row=document.createElement("label");row.className="property";const span=document.createElement("span");span.textContent=key;const input=document.createElement("input");input.value=val;input.addEventListener("change",()=>showToast(key+": alteração demonstrativa"));row.append(span,input);body.append(row)}}
+else if(state.panel==="Toolbox"){
+const input=document.createElement("input");input.className="search";input.placeholder="Buscar modelos";body.append(input);
+const bar=document.createElement("div");bar.className="minibar";["Modelos","Imagens","Criações","Recentes"].forEach(n=>bar.append(button(n,()=>showToast(n+": coleção de exemplo"),"btn small")));body.append(bar);
+const info=document.createElement("div");info.className="hint";info.textContent="Catálogo não conectado na prévia. As miniaturas e os resultados reais continuam no aplicativo Android.";body.append(info);
+body.append(button("＋ Adicionar modelo de teste",()=>showToast("Inserção apenas demonstrativa"),"btn primary"))}
+else if(state.panel==="Output"){body.append(document.createTextNode("Saída de exemplo: nenhuma execução foi iniciada."))}
+else{const info=document.createElement("div");info.className="hint";info.textContent="Área "+state.panel+" identificada no código original. Esta primeira prévia testa a navegação e o estilo do contêiner; os controles internos ainda serão mapeados.";body.append(info)}
+}
+function applyConfig(){
+const c=state.config;document.documentElement.style.setProperty("--accent",c.accent);
+const rgb=[1,3,5].map(i=>parseInt(c.accent.slice(i,i+2),16)).join(",");
+document.documentElement.style.setProperty("--accent-rgb",rgb);
+document.documentElement.style.setProperty("--radius",c.radius+"px");
+document.documentElement.style.setProperty("--space",c.spacing+"px");
+document.documentElement.style.setProperty("--target",c.touch+"px");
+document.documentElement.style.setProperty("--panel",c.panelSize+"%");
+for(const [id,value,suffix] of [["radius",c.radius," px"],["spacing",c.spacing," px"],["touch",c.touch," px"],["panelSize",c.panelSize,"%"]]){$(id).value=value;$(id+"Out").textContent=value+suffix}
+try{localStorage.setItem("rbxstudio-preview-v1",JSON.stringify(c))}catch(_){}
+}
+try{const old=JSON.parse(localStorage.getItem("rbxstudio-preview-v1")||"{}");for(const k of Object.keys(cfg))if(old[k]!==undefined)cfg[k]=old[k]}catch(_){}
+$("homeBtn").onclick=()=>setView("home");
+$("menuBtn").onclick=()=>{setView("editor");state.menu=state.menu?null:"main";state.ribbon=false;render()};
+$("toolsBtn").onclick=()=>{setView("editor");state.ribbon=!state.ribbon;state.menu=null;render()};
+$("panelsBtn").onclick=()=>{setView("editor");state.menu=null;state.panel=state.panel?null:"Explorer";render()};
+$("saveBtn").onclick=()=>action("Salvar");
+$("playBtn").onclick=()=>{setView("editor");action("Play")};
+$("designBtn").onclick=()=>{$("designPanel").classList.toggle("hidden")};
+$("closeDesign").onclick=()=>{$("designPanel").classList.add("hidden")};
+$("closePanel").onclick=()=>{state.panel=null;render()};
+$("swapPanel").onclick=()=>{state.panel=state.panel==="Explorer"?"Properties":state.panel==="Properties"?"Toolbox":"Explorer";render()};
+$("newBtn").onclick=()=>setView("editor");
+$("openRecent").onclick=()=>setView("editor");
+document.querySelectorAll("[data-template]").forEach(b=>b.addEventListener("click",()=>{setView("editor");showToast(b.dataset.template+": cena de demonstração")}));
+document.querySelectorAll("[data-home-tab]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-home-tab]").forEach(x=>x.classList.toggle("active",x===b));state.homeTab=b.dataset.homeTab;showToast(b.dataset.homeTab+": navegação demonstrativa")}));
+document.querySelectorAll("[data-tool]").forEach(b=>b.addEventListener("click",()=>{state.tool=b.dataset.tool;render()}));
+document.querySelectorAll("[data-color]").forEach(b=>b.addEventListener("click",()=>{cfg.accent=b.dataset.color;applyConfig()}));
+for(const [id,key] of [["radius","radius"],["spacing","spacing"],["touch","touch"],["panelSize","panelSize"]])$(id).addEventListener("input",e=>{cfg[key]=Number(e.target.value);applyConfig()});
+$("resetBtn").onclick=()=>{Object.assign(cfg,{accent:"#28c8e5",radius:16,spacing:12,touch:46,panelSize:41});applyConfig();showToast("Configuração restaurada")};
+$("exportBtn").onclick=()=>{const data={project:"Rbxstudio",kind:"UI visual preview only",version:1,settings:cfg};const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="rbxstudio-design.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);showToast("Preferências exportadas")};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("designPanel").classList.add("hidden");state.menu=null;state.panel=null;render()}});
+applyConfig();render();
+})();
+</script>
+</body></html>
