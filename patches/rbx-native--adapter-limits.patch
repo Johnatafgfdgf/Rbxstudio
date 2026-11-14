@@ -1,0 +1,18 @@
+diff --git a/crates/rbx_viewer/src/gpu.rs b/crates/rbx_viewer/src/gpu.rs
+index 1e6e26d..62daf35 100644
+--- a/crates/rbx_viewer/src/gpu.rs
++++ b/crates/rbx_viewer/src/gpu.rs
+@@ -67,6 +67,13 @@ pub fn describe_adapter() -> Result<String, String> {
+ pub(crate) fn device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), String> {
+     pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+         label: Some("rbxview"),
++        // GLES 3.0 has no compute. Keep the renderer's existing CPU skinning
++        // path available instead of requesting unsupported WebGPU limits.
++        required_limits: if adapter.limits().max_compute_workgroups_per_dimension == 0 {
++            wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits())
++        } else {
++            wgpu::Limits::default()
++        },
+         // Small allocator blocks rather than wgpu's default 128-256 MB ones:
+         // the renderer's own allocations are a few large textures made at
+         // load, and the default left a small place holding ~4x what it

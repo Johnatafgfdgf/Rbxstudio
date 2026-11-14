@@ -1,0 +1,128 @@
+diff --git a/crates/rbx_viewer/src/capture.rs b/crates/rbx_viewer/src/capture.rs
+index aa52b3b..cadbbf6 100644
+--- a/crates/rbx_viewer/src/capture.rs
++++ b/crates/rbx_viewer/src/capture.rs
+@@ -80,7 +80,18 @@ impl Offscreen {
+         quality: &QualityProfile,
+         view: &View,
+     ) -> Self {
+-        let renderer = Renderer::new(&device, &queue, FORMAT, world, quality);
++        Self::on_device_format(device, queue, FORMAT, world, quality, view)
++    }
++
++    pub(crate) fn on_device_format(
++        device: wgpu::Device,
++        queue: wgpu::Queue,
++        format: wgpu::TextureFormat,
++        world: World<'_>,
++        quality: &QualityProfile,
++        view: &View,
++    ) -> Self {
++        let renderer = Renderer::new(&device, &queue, format, world, quality);
+ 
+         let mut offscreen = Offscreen {
+             device,
+diff --git a/crates/rbx_viewer/src/headless.rs b/crates/rbx_viewer/src/headless.rs
+index 0cbd45a..23e45c1 100644
+--- a/crates/rbx_viewer/src/headless.rs
++++ b/crates/rbx_viewer/src/headless.rs
+@@ -167,6 +167,16 @@ impl Headless {
+         toggles: Toggles,
+         database: ReflectionDatabase,
+         view: View,
++    ) -> Result<Self, String> {
++        Self::build_on(dom, toggles, database, view, None)
++    }
++
++    fn build_on(
++        dom: &WeakDom,
++        toggles: Toggles,
++        database: ReflectionDatabase,
++        view: View,
++        gpu: Option<(wgpu::Device, wgpu::Queue, wgpu::TextureFormat, QualityLevel)>,
+     ) -> Result<Self, String> {
+         let mut resident = Resident::streaming();
+         let mut loaded = Loaded::from_dom(dom, &database, toggles, &mut resident)
+@@ -185,9 +195,19 @@ impl Headless {
+ 
+         let bounds = *loaded.world().scene.bounds();
+         let uploaded_material_layers = loaded.scene().materials().layers();
+-        let quality = QualityLevel::default();
++        let quality = gpu.as_ref().map_or_else(QualityLevel::default, |(_, _, _, level)| *level);
+         let mut headless = Headless {
+-            offscreen: Offscreen::new(loaded.world(), &quality.profile(), &view)?,
++            offscreen: match gpu {
++                Some((device, queue, format, _)) => Offscreen::on_device_format(
++                    device,
++                    queue,
++                    format,
++                    loaded.world(),
++                    &quality.profile(),
++                    &view,
++                ),
++                None => Offscreen::new(loaded.world(), &quality.profile(), &view)?,
++            },
+             quality,
+             calibration: crate::lighting::Calibration::default(),
+             view,
+@@ -213,6 +233,60 @@ impl Headless {
+         Ok(headless)
+     }
+ 
++    /// Android/native embedding: keep the original streaming renderer and
++    /// editing APIs, but present directly to a surface without CPU readback.
++    pub fn for_surface(
++        dom: &WeakDom,
++        instance: &wgpu::Instance,
++        surface: &wgpu::Surface<'_>,
++        width: u32,
++        height: u32,
++        quality: QualityLevel,
++    ) -> Result<(Self, wgpu::Device, wgpu::Queue, wgpu::SurfaceConfiguration), String> {
++        let adapter = crate::gpu::adapter(instance, Some(surface))?;
++        let (device, queue) = crate::gpu::device(&adapter)?;
++        let mut config = surface
++            .get_default_config(&adapter, width.max(1), height.max(1))
++            .ok_or_else(|| "surface has no compatible configuration".to_owned())?;
++        let caps = surface.get_capabilities(&adapter);
++        if let Some(format) = caps.formats.iter().find(|f| f.is_srgb()) {
++            config.format = *format;
++        }
++        config.view_formats = vec![];
++        config.present_mode = wgpu::PresentMode::Fifo;
++        config.desired_maximum_frame_latency = 2;
++        surface.configure(&device, &config);
++        let toggles = Toggles {
++            textures: true,
++            materials: true,
++            lights: true,
++            clock_time: None,
++            show_development_gui: false,
++        };
++        let headless = Self::build_on(
++            dom,
++            toggles,
++            ReflectionDatabase::embedded(),
++            View::default(),
++            Some((
++                device.clone(),
++                queue.clone(),
++                wgpu::TextureFormat::Rgba8UnormSrgb,
++                quality,
++            )),
++        )?;
++        Ok((headless, device, queue, config))
++    }
++
++    /// The texture must be Rgba8UnormSrgb with a Rgba8Unorm view for GUI compositing.
++    pub fn draw_to_surface_texture(&mut self, texture: &wgpu::Texture, width: u32, height: u32) {
++        self.offscreen.set_elapsed(self.start.elapsed());
++        let from = self.from;
++        self.offscreen.with_renderer(|renderer, device, queue| {
++            renderer.draw(device, queue, texture, (width.max(1), height.max(1)), from);
++        });
++    }
++
+     /// Hands skinning to the GPU when the renderer can do it there (not on
+     /// WebGL, which has no compute), then re-uploads every rig to match.
+     fn sync_skinning(&mut self) {

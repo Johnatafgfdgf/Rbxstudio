@@ -1,0 +1,54 @@
+{
+  "crate": "gpui-pre-wgpu",
+  "version": "0.3.4",
+  "archive_sha256": "567f1fb79e72c80001d9e358e9f552e2696d79ad71af76aab60da5684848fd98",
+  "source": "https://static.crates.io/crates/gpui-pre-wgpu/gpui-pre-wgpu-0.3.4.crate",
+  "change": "On Android, omit driver-facing SPIR-V debug metadata; release the native surface and swapchain at termination while preserving the GPU context/atlas for resume. Original shaders and validation retained.",
+  "files": [
+    {
+      "path": "src/cosmic_text_system.rs",
+      "original_sha256": "594ce637adbea56463dc3cce7eab8ea75559e5fcad11a2a95f9ab3df670374c7",
+      "modified": false
+    },
+    {
+      "path": "src/gpui_wgpu.rs",
+      "original_sha256": "4f346796eef3d714d9afbafe41c2d93a9a54dcd0c04fe9193bcd4019b6abc7e1",
+      "modified": false
+    },
+    {
+      "path": "src/shaders.wgsl",
+      "original_sha256": "1d91f2c8a1958a241f1b659a4137c160592c8076b9be09049db4c9fb9a344529",
+      "modified": false
+    },
+    {
+      "path": "src/shaders_storage.wgsl",
+      "original_sha256": "5e7935445569ec610b2f7ab520c6d2b3ad8613248fc4465072e8dfae941017ca",
+      "modified": false
+    },
+    {
+      "path": "src/shaders_subpixel.wgsl",
+      "original_sha256": "0530095284595ac2338dd471317fd936f4f1bbe8cc9a9dcfe2b3abb39dc2f62d",
+      "modified": false
+    },
+    {
+      "path": "src/shaders_webgl.wgsl",
+      "original_sha256": "79116c8213b89625b25a21b9318192c325e0c98c639038a28143a2a77e5dd520",
+      "modified": false
+    },
+    {
+      "path": "src/wgpu_atlas.rs",
+      "original_sha256": "527292f7dd4981d1a929fd2ba7b4edc5f68c2562023c5c5961915ec15c081a12",
+      "modified": false
+    },
+    {
+      "path": "src/wgpu_context.rs",
+      "original_sha256": "544e8b264d03aed0a97bfcec529f8106165813bb3413c98f124362704e90f026",
+      "modified": true
+    },
+    {
+      "path": "src/wgpu_renderer.rs",
+      "original_sha256": "ea695f290022952f476d312fbce46e66af7cc2f3f2064df631bebe8799721169",
+      "modified": true
+    }
+  ]
+}

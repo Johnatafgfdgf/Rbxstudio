@@ -1,0 +1,36 @@
+diff --git a/crates/rook-physics/src/shape/terrain.rs b/crates/rook-physics/src/shape/terrain.rs
+index e51e47c..fa60ad9 100644
+--- a/crates/rook-physics/src/shape/terrain.rs
++++ b/crates/rook-physics/src/shape/terrain.rs
+@@ -216,8 +216,7 @@ impl Physics {
+             self.terrain.unbuilt.remove(c);
+         }
+         let grid = &self.terrain.grid;
+-        let pieces: Vec<Piece> = rook_platform::get()
+-            .workers
++        let pieces: Vec<Piece> = rook_platform::workers()
+             .map(chunks, |&c| pieces(mesh_chunk(grid, c)))
+             .into_iter()
+             .flatten()
+diff --git a/crates/rook-platform/src/lib.rs b/crates/rook-platform/src/lib.rs
+index da7e7c2..31280fd 100644
+--- a/crates/rook-platform/src/lib.rs
++++ b/crates/rook-platform/src/lib.rs
+@@ -82,3 +82,17 @@ fn unchosen() -> Platform {
+ fn unchosen() -> Platform {
+     panic!("no platform: the app installs one, or turns on rook-platform's `native` feature")
+ }
++
++/// A physics host can supply workers without installing unrelated desktop
++/// clipboard, credential or networking services.
++static WORKERS: OnceLock<Box<dyn Workers>> = OnceLock::new();
++
++pub fn install_workers(workers: Box<dyn Workers>) -> Result<(), Box<dyn Workers>> {
++    WORKERS.set(workers)
++}
++
++pub fn workers() -> &'static dyn Workers {
++    WORKERS
++        .get()
++        .map_or_else(|| get().workers.as_ref(), |w| w.as_ref())
++}

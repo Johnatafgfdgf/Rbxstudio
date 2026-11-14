@@ -1,0 +1,13 @@
+diff --git a/crates/rbx_viewer/src/renderer/switch.rs b/crates/rbx_viewer/src/renderer/switch.rs
+index a7d3fa2..d8e4f78 100644
+--- a/crates/rbx_viewer/src/renderer/switch.rs
++++ b/crates/rbx_viewer/src/renderer/switch.rs
+@@ -86,6 +86,8 @@ impl Renderer {
+         self.cues.set_target(device, target, &self.frame_layout);
+         self.adornments.set_target(device, target);
+         self.preview = super::preview::Preview::new(device, target, &self.frame_layout);
++        // Gizmos share the HDR pass's sample count, including a quality switch.
++        self.draggers = super::gizmo::Draggers::new(device, target, &self.frame_layout);
+         self.particles.set_target(device, target);
+         self.beams.set_target(device, target);
+         self.trails.set_target(device, target);

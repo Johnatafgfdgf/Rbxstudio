@@ -1,0 +1,1781 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 2b86a7a..db52621 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -110,7 +110,7 @@ android-activity = { version = "0.6", features = ["native-activity"] }
+ android_logger = "0.15"
+ 
+ # wgpu renderer (Vulkan backend on Android)
+-gpui_wgpu = { package = "gpui-pre-wgpu", version = "=0.3.4", features = ["font-kit"] }
++gpui_wgpu = { package = "gpui-pre-wgpu", version = "=0.3.4" }
+ 
+ # rustc-hash is required by the PlatformKeyboardMapper trait signature
+ rustc-hash = "2"
+diff --git a/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java b/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java
+index b81e6bf..268f423 100644
+--- a/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java
++++ b/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java
+@@ -96,15 +96,16 @@ public final class GpuiFilePicker {
+ 
+     // ── Internal ─────────────────────────────────────────────────────────
+ 
+-    private static ArrayList<String> launchPicker(Activity activity, Intent intent) {
++    private static synchronized ArrayList<String> launchPicker(Activity activity, Intent intent) {
++        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
++                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+         CountDownLatch latch = new CountDownLatch(1);
+         GpuiPickerActivity.sLatch = latch;
+         GpuiPickerActivity.sResult.set(null);
+         GpuiPickerActivity.sPendingIntent = intent;
+ 
+         Intent proxy = new Intent(activity, GpuiPickerActivity.class);
+-        proxy.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+-        activity.startActivity(proxy);
++        activity.runOnUiThread(() -> activity.startActivity(proxy));
+ 
+         try {
+             latch.await();
+diff --git a/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java b/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java
+index d9be8ff..9f2e7d2 100644
+--- a/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java
++++ b/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java
+@@ -86,6 +86,13 @@ public class GpuiPickerActivity extends Activity {
+         ArrayList<String> uris = null;
+         if (requestCode == REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+             uris = extractUris(data);
++            int grants = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
++            if (grants != 0) for (String address : uris) {
++                try { getContentResolver().takePersistableUriPermission(Uri.parse(address), grants); }
++                catch (SecurityException unavailable) {
++                    // Some providers grant only this Activity session.
++                }
++            }
+         }
+ 
+         deliverResult(uris);
+diff --git a/src/android/ime.rs b/src/android/ime.rs
+new file mode 100644
+index 0000000..6a6cd59
+--- /dev/null
++++ b/src/android/ime.rs
+@@ -0,0 +1,433 @@
++//! NativeActivity's key queue does not carry Android IME text transactions.
++//! Keep the GPUI input handler on its native thread and route the Activity's
++//! InputConnection requests through the same foreground queue as other UI work.
++
++use std::{
++    cell::RefCell,
++    ops::Range,
++    rc::{Rc, Weak},
++    sync::{
++        atomic::{AtomicI64, Ordering},
++        mpsc,
++    },
++    time::Duration,
++};
++
++use gpui::PlatformInputHandler;
++use jni::{
++    errors::LogErrorAndDefault,
++    objects::{JIntArray, JObject, JString, JValue},
++    sys::{jboolean, jint, jlong, jobject},
++    EnvUnowned,
++};
++
++use super::{jni as host, AndroidKeyEvent};
++use host::JniExt;
++
++type Handler = RefCell<Option<PlatformInputHandler>>;
++
++struct Session {
++    id: i64,
++    window: u64,
++    handler: Weak<Handler>,
++    dirty: bool,
++    selection: Option<[i32; 4]>,
++}
++
++thread_local! {
++    static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
++}
++static NEXT_SESSION: AtomicI64 = AtomicI64::new(1);
++
++pub(super) fn focus(window: u64, handler: &Rc<Handler>, multiline: bool) {
++    let id = NEXT_SESSION.fetch_add(1, Ordering::Relaxed);
++    SESSION.with(|slot| {
++        *slot.borrow_mut() = Some(Session {
++            id,
++            window,
++            handler: Rc::downgrade(handler),
++            dirty: true,
++            selection: None,
++        });
++    });
++    set_connection(id, true, multiline);
++}
++
++pub(super) fn reopen(window: u64, multiline: bool) {
++    if let Some(id) = session_for_window(window) {
++        set_connection(id, true, multiline);
++    }
++}
++
++pub(super) fn blur(window: u64) {
++    if let Some(id) = session_for_window(window) {
++        SESSION.with(|slot| slot.borrow_mut().take());
++        set_connection(id, false, false);
++    }
++}
++
++pub(super) fn invalidate_selection(window: u64) {
++    SESSION.with(|slot| {
++        if let Some(session) = slot.borrow_mut().as_mut().filter(|s| s.window == window) {
++            session.dirty = true;
++        }
++    });
++}
++
++fn session_for_window(window: u64) -> Option<i64> {
++    SESSION.with(|slot| {
++        slot.borrow()
++            .as_ref()
++            .filter(|s| s.window == window)
++            .map(|s| s.id)
++    })
++}
++
++fn with_handler<T>(id: i64, f: impl FnOnce(&mut PlatformInputHandler) -> T) -> Option<T> {
++    let (window, handler) = SESSION.with(|slot| {
++        let slot = slot.borrow();
++        let session = slot.as_ref().filter(|s| s.id == id)?;
++        Some((session.window, session.handler.upgrade()?))
++    })?;
++    if host::platform()?.primary_window()?.id() != window {
++        return None;
++    }
++
++    let mut input = handler.borrow_mut().take()?;
++    let result = input.query_accepts_text_input().then(|| f(&mut input));
++    let mut slot = handler.borrow_mut();
++    if slot.is_none() {
++        *slot = Some(input);
++    }
++    result
++}
++
++fn set_connection(id: i64, show: bool, multiline: bool) {
++    let result = host::with_env(|env| {
++        let activity = host::activity(env)?;
++        env.call_method(
++            &activity,
++            jni::jni_str!("setEditorIme"),
++            jni::jni_sig!("(JZZ)V"),
++            &[
++                JValue::Long(id),
++                JValue::Bool(show),
++                JValue::Bool(multiline),
++            ],
++        )
++        .e()?;
++        Ok(())
++    });
++    if let Err(error) = result {
++        log::warn!("Could not change the Android editor input connection: {error}");
++    }
++}
++
++/// Call after GPUI has finished drawing, when its window can be borrowed again.
++pub(super) fn sync_selection(window: u64) {
++    let id = SESSION.with(|slot| {
++        let mut slot = slot.borrow_mut();
++        let session = slot.as_mut().filter(|s| s.window == window && s.dirty)?;
++        session.dirty = false;
++        Some(session.id)
++    });
++    let Some(id) = id else {
++        return;
++    };
++    let Some(Some(selection)) = with_handler(id, |input| {
++        let selection = input.selected_text_range(false)?.range;
++        let (start, end) = input
++            .marked_text_range()
++            .map_or((-1, -1), |mark| (mark.start as i32, mark.end as i32));
++        Some([selection.start as i32, selection.end as i32, start, end])
++    }) else {
++        return;
++    };
++
++    let changed = SESSION.with(|slot| {
++        let mut slot = slot.borrow_mut();
++        let Some(session) = slot.as_mut().filter(|s| s.id == id) else {
++            return false;
++        };
++        session.selection.replace(selection) != Some(selection)
++    });
++    if changed {
++        let [start, end, marked_start, marked_end] = selection;
++        let _ = host::with_env(|env| {
++            let activity = host::activity(env)?;
++            env.call_method(
++                &activity,
++                jni::jni_str!("updateEditorImeSelection"),
++                jni::jni_sig!("(JIIII)V"),
++                &[
++                    JValue::Long(id),
++                    JValue::Int(start),
++                    JValue::Int(end),
++                    JValue::Int(marked_start),
++                    JValue::Int(marked_end),
++                ],
++            )
++            .e()?;
++            Ok(())
++        });
++    }
++}
++
++fn enqueue(f: impl FnOnce() + Send + 'static) -> bool {
++    let Some(platform) = host::platform() else {
++        return false;
++    };
++    platform.foreground_executor().dispatch_on_main_thread(f);
++    true
++}
++
++enum Edit {
++    Commit(String, i32),
++    Compose(String, i32),
++    Finish,
++    Delete {
++        before: usize,
++        after: usize,
++        code_points: bool,
++    },
++    Select(Range<usize>),
++    Mark(Range<usize>),
++}
++
++impl Edit {
++    fn apply(self, input: &mut PlatformInputHandler) {
++        let Some(selection) = input.selected_text_range(false).map(|s| s.range) else {
++            return;
++        };
++        match self {
++            Self::Commit(text, cursor) => {
++                let start = input.marked_text_range().unwrap_or(selection).start;
++                input.replace_text_in_range(None, &text);
++                if cursor != 1 {
++                    place_cursor(input, start, &text, cursor);
++                }
++            }
++            Self::Compose(text, cursor) => {
++                let start = input.marked_text_range().unwrap_or(selection).start;
++                input.replace_and_mark_text_in_range(None, &text, None);
++                if cursor != 1 {
++                    place_cursor(input, start, &text, cursor);
++                }
++            }
++            Self::Finish => input.unmark_text(),
++            Self::Delete {
++                before,
++                after,
++                code_points,
++            } => {
++                delete_around(input, selection, before, after, code_points);
++            }
++            Self::Select(range) => input.set_selected_text_range(range),
++            Self::Mark(range) => {
++                let length = input.text_length_utf16().unwrap_or(range.end);
++                let range = range.start.min(length)..range.end.min(length);
++                if range.is_empty() {
++                    input.unmark_text();
++                    return;
++                }
++                let mut adjusted = None;
++                if let Some(text) = input.text_for_range(range, &mut adjusted) {
++                    input.replace_and_mark_text_in_range(adjusted, &text, None);
++                    input.set_selected_text_range(selection);
++                }
++            }
++        }
++    }
++}
++
++fn place_cursor(input: &mut PlatformInputHandler, start: usize, text: &str, cursor: i32) {
++    // Android counts positive offsets from the end of the inserted text (1 is
++    // just after it) and non-positive offsets from the start.
++    let offset = if cursor > 0 {
++        start
++            .saturating_add(text.encode_utf16().count())
++            .saturating_add(cursor as usize - 1)
++    } else {
++        start.saturating_sub(cursor.unsigned_abs() as usize)
++    };
++    input.set_selected_text_range(offset..offset);
++}
++
++fn delete_around(
++    input: &mut PlatformInputHandler,
++    selection: Range<usize>,
++    before: usize,
++    after: usize,
++    code_points: bool,
++) {
++    let mut protected = selection.clone();
++    if let Some(marked) = input.marked_text_range() {
++        protected.start = protected.start.min(marked.start);
++        protected.end = protected.end.max(marked.end);
++    }
++    let scale = if code_points { 2 } else { 1 };
++    let limit = input.text_length_utf16().unwrap_or(usize::MAX);
++    let (mut start, mut end) = (protected.start, protected.end);
++    if before > 0 {
++        let span = protected.start.saturating_sub(before.saturating_mul(scale))..protected.start;
++        let mut adjusted = None;
++        if let Some(text) = input.text_for_range(span, &mut adjusted) {
++            start = if code_points {
++                let units = text
++                    .chars()
++                    .rev()
++                    .take(before)
++                    .map(char::len_utf16)
++                    .sum::<usize>();
++                protected.start.saturating_sub(units)
++            } else {
++                adjusted.map_or(protected.start, |r| r.start)
++            };
++        }
++    }
++    if after > 0 {
++        let span = protected.end
++            ..protected
++                .end
++                .saturating_add(after.saturating_mul(scale))
++                .min(limit);
++        let mut adjusted = None;
++        if let Some(text) = input.text_for_range(span, &mut adjusted) {
++            end = if code_points {
++                protected.end + text.chars().take(after).map(char::len_utf16).sum::<usize>()
++            } else {
++                adjusted.map_or(protected.end, |r| r.end)
++            };
++        }
++    }
++    if start == protected.start && end == protected.end {
++        return;
++    }
++    input.unmark_text();
++    if end > protected.end {
++        input.replace_text_in_range(Some(protected.end..end), "");
++    }
++    if start < protected.start {
++        input.replace_text_in_range(Some(start..protected.start), "");
++    }
++    let removed = protected.start - start;
++    input.set_selected_text_range(selection.start - removed..selection.end - removed);
++}
++
++#[unsafe(no_mangle)]
++pub extern "system" fn Java_dev_gpui_mobile_GpuiImeView_editIme(
++    mut env: EnvUnowned<'_>,
++    _class: JObject<'_>,
++    id: jlong,
++    operation: jint,
++    first: jint,
++    second: jint,
++    text: JString<'_>,
++) -> jboolean {
++    let range = || first.min(second).max(0) as usize..first.max(second).max(0) as usize;
++    let edit = match operation {
++        0 | 1 => {
++            let Some(text) = env
++                .with_env(|env| text.try_to_string(env).map(Some))
++                .resolve::<LogErrorAndDefault>()
++            else {
++                return false;
++            };
++            if operation == 0 {
++                Edit::Commit(text, first)
++            } else {
++                Edit::Compose(text, first)
++            }
++        }
++        2 => Edit::Finish,
++        3 | 4 => Edit::Delete {
++            before: first.max(0) as usize,
++            after: second.max(0) as usize,
++            code_points: operation == 4,
++        },
++        5 => Edit::Select(range()),
++        6 => Edit::Mark(range()),
++        _ => return false,
++    };
++    enqueue(move || {
++        with_handler(id, |input| edit.apply(input));
++    })
++}
++
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn Java_dev_gpui_mobile_GpuiImeView_keyIme(
++    _env: *mut jni::sys::JNIEnv,
++    _class: jobject,
++    id: jlong,
++    key_code: jint,
++    action: jint,
++    meta_state: jint,
++    unicode: jint,
++) -> jboolean {
++    enqueue(move || {
++        let Some(window) = host::platform().and_then(|p| p.primary_window()) else {
++            return;
++        };
++        if session_for_window(window.id()) == Some(id) {
++            window.handle_key_event(AndroidKeyEvent {
++                key_code,
++                action,
++                meta_state,
++                unicode_char: unicode as u32,
++            });
++        }
++    })
++}
++
++#[unsafe(no_mangle)]
++pub extern "system" fn Java_dev_gpui_mobile_GpuiImeView_readIme<'local>(
++    mut env: EnvUnowned<'local>,
++    _class: JObject<'local>,
++    id: jlong,
++    before: jint,
++    after: jint,
++    offsets: JIntArray<'local>,
++) -> JString<'local> {
++    const CONTEXT: usize = 2048;
++    let (send, receive) = mpsc::sync_channel(1);
++    if !enqueue(move || {
++        let snapshot = with_handler(id, |input| {
++            let selection = input.selected_text_range(false)?.range;
++            // Bound queries so an IME cannot cause a copy of an entire script.
++            if selection.len() > CONTEXT {
++                return None;
++            }
++            let start = selection
++                .start
++                .saturating_sub(before.clamp(0, CONTEXT as i32) as usize);
++            let end = selection
++                .end
++                .saturating_add(after.clamp(0, CONTEXT as i32) as usize)
++                .min(input.text_length_utf16().unwrap_or(usize::MAX));
++            let mut adjusted = None;
++            let text = input.text_for_range(start..end, &mut adjusted)?;
++            let start = adjusted.map_or(start, |r| r.start);
++            let local_start = selection.start.checked_sub(start)?;
++            let local_end = selection.end.checked_sub(start)?;
++            (local_start <= local_end && local_end <= text.encode_utf16().count()).then_some((
++                text,
++                [start as i32, selection.start as i32, selection.end as i32],
++            ))
++        })
++        .flatten();
++        let _ = send.send(snapshot);
++    }) {
++        return JString::null();
++    }
++
++    // InputConnection's context getters are synchronous. Never wait
++    // indefinitely on a frame, native surface resize or Activity shutdown.
++    let Ok(Some((text, selection))) = receive.recv_timeout(Duration::from_millis(60)) else {
++        return JString::null();
++    };
++    env.with_env(|env| -> jni::errors::Result<_> {
++        offsets.set_region(env, 0, &selection)?;
++        env.new_string(text)
++    })
++    .resolve::<LogErrorAndDefault>()
++}
+diff --git a/src/android/jni.rs b/src/android/jni.rs
+index 634e32f..a2fd467 100644
+--- a/src/android/jni.rs
++++ b/src/android/jni.rs
+@@ -72,8 +72,10 @@ pub static NATIVE_INITIALIZED: AtomicBool = AtomicBool::new(false);
+ /// the lock holder waits for native rendering to complete, but native
+ /// is stuck.
+ ///
+-/// Instead, the handlers set these flags and the main loop body
+-/// processes them AFTER `poll_events` returns.
++/// Most handlers therefore set flags processed AFTER `poll_events` returns.
++/// TerminateWindow is the exception: the native-thread renderer's surface
++/// must be dropped before Android acknowledges destruction. It invokes no
++/// GPUI/user callbacks; those remain deferred.
+ static PAUSE_PENDING: AtomicBool = AtomicBool::new(false);
+ static RESUME_PENDING: AtomicBool = AtomicBool::new(false);
+ static TERM_WINDOW_PENDING: AtomicBool = AtomicBool::new(false);
+@@ -328,6 +330,7 @@ pub fn shared_platform() -> Option<SharedPlatform> {
+ 
+ /// Motion event action constants from the NDK.
+ const AMOTION_EVENT_ACTION_DOWN: u32 = 0;
++const AMOTION_EVENT_ACTION_CANCEL: u32 = 3;
+ const AMOTION_EVENT_ACTION_UP: u32 = 1;
+ const AMOTION_EVENT_ACTION_MOVE: u32 = 2;
+ 
+@@ -449,7 +452,7 @@ fn process_input_events(app: &AndroidApp) {
+                                         AMOTION_EVENT_ACTION_UP
+                                     }
+                                     MotionAction::Move => AMOTION_EVENT_ACTION_MOVE,
+-                                    MotionAction::Cancel => AMOTION_EVENT_ACTION_UP,
++                                    MotionAction::Cancel => AMOTION_EVENT_ACTION_CANCEL,
+                                     _ => continue,
+                                 };
+ 
+@@ -610,7 +613,7 @@ pub fn run_event_loop(app: &AndroidApp) {
+             *LAST_CHROME_STYLE.lock().unwrap() = None;
+             if let Some(platform) = PLATFORM.get() {
+                 if let Some(win) = platform.primary_window() {
+-                    win.term_window();
++                    win.handle_touch(crate::android::TouchPoint { id: -1, x: 0.0, y: 0.0, action: 3 });
+                 }
+             }
+             // Drain immediately — Java thread may be blocked on InitWindow condvar.
+@@ -713,6 +716,7 @@ pub fn run_event_loop(app: &AndroidApp) {
+             if let Some(platform) = PLATFORM.get() {
+                 platform.did_enter_background();
+                 if let Some(win) = platform.primary_window() {
++                    win.handle_touch(crate::android::TouchPoint { id: -1, x: 0.0, y: 0.0, action: 3 });
+                     win.set_active(false);
+                 }
+             }
+@@ -863,7 +867,13 @@ fn handle_main_event(_app: &AndroidApp, event: MainEvent<'_>) {
+ 
+         MainEvent::TerminateWindow { .. } => {
+             log::info!("MainEvent::TerminateWindow");
+-            // Defer to after poll_events to avoid deadlock with state lock.
++            // All rendering runs on this native thread, outside poll_events.
++            // Release ONLY surface resources here, before the event is ACKed;
++            // defer touch/focus/GPUI callbacks that may call back into Java.
++            INIT_WINDOW_DONE.store(false, Ordering::Relaxed);
++            if let Some(platform) = PLATFORM.get() {
++                if let Some(win) = platform.primary_window() { win.term_window(); }
++            }
+             TERM_WINDOW_PENDING.store(true, Ordering::Relaxed);
+         }
+ 
+@@ -1275,7 +1285,7 @@ pub unsafe extern "C" fn Java_dev_gpui_mobile_GpuiActivity_nativeOnDeepLink(
+         if url_string.is_empty() {
+             return Ok(());
+         }
+-        log::info!("nativeOnDeepLink: {}", url_string);
++        log::info!("nativeOnDeepLink: received");
+ 
+         #[cfg(feature = "deeplink")]
+         {
+diff --git a/src/android/mod.rs b/src/android/mod.rs
+index f381d88..83c010c 100644
+--- a/src/android/mod.rs
++++ b/src/android/mod.rs
+@@ -151,10 +151,14 @@ pub fn size<T>(width: T, height: T) -> Size<T> {
+ 
+ pub mod dispatcher;
+ pub mod display;
++mod ime;
+ pub mod jni;
+ pub mod keyboard;
+ pub mod platform;
+ pub mod platform_view;
++mod services;
++pub use services::{commit_document, resource_paths, read_credentials, write_credentials, delete_credentials};
++pub use services::{player_control, roblox_link};
+ pub mod window;
+ 
+ // ── public re-exports ─────────────────────────────────────────────────────────
+@@ -180,6 +184,11 @@ use std::rc::Rc;
+ /// Panics if the NDK context has not been initialised (i.e. if called before
+ /// `ANativeActivity_onCreate` has run).
+ pub fn current_platform(headless: bool) -> Rc<dyn gpui::Platform> {
++    if !headless {
++        return jni::shared_platform()
++            .expect("Initialize the Android platform before creating the GPUI application")
++            .into_rc();
++    }
+     Rc::new(AndroidPlatform::new(headless))
+ }
+ 
+@@ -249,3 +258,6 @@ pub fn init_logger() {
+         log::info!("gpui-android logger initialised");
+     });
+ }
++
++/// Keep the captured primary contact during an additional finger gesture.
++pub use window::preserve_primary_touch;
+diff --git a/src/android/platform.rs b/src/android/platform.rs
+index 7d5463b..aa47914 100644
+--- a/src/android/platform.rs
++++ b/src/android/platform.rs
+@@ -61,60 +61,67 @@ use super::{
+ };
+ use gpui_wgpu::GpuContext;
+ 
+-// ── stub: clipboard ───────────────────────────────────────────────────────────
+-
+ /// Android clipboard (thin wrapper over `ClipboardManager` via JNI).
+-///
+-/// A real implementation would call into Java via `jni-rs`; for now we use
+-/// an in-process string store so the rest of the platform compiles.
+ #[derive(Default)]
+ pub struct AndroidClipboard {
+-    contents: Option<String>,
++    /// Preserve GPUI metadata for copies made by this process.
++    item: Option<ClipboardItem>,
+ }
+ 
+ impl AndroidClipboard {
+     pub fn read(&self) -> Option<String> {
+-        self.contents.clone()
++        crate::packages::clipboard::get_text().map_err(|error| {
++            log::warn!("Clipboard Android: {error}");
++        }).ok().flatten()
+     }
+ 
+     pub fn write(&mut self, text: String) {
+-        self.contents = Some(text);
++        self.write_item(ClipboardItem::new_string(text));
+     }
+ 
+     pub fn clear(&mut self) {
+-        self.contents = None;
++        self.item = None;
++        if let Err(error) = crate::packages::clipboard::set_text("") {
++            log::warn!("Clipboard Android: {error}");
++        }
+     }
+-}
+ 
+-// ── stub: credential store ────────────────────────────────────────────────────
++    fn read_item(&self) -> Option<ClipboardItem> {
++        let text = self.read();
++        if let Some(item) = &self.item {
++            if item.text() == text { return Some(item.clone()); }
++        }
++        text.map(ClipboardItem::new_string)
++    }
++
++    fn write_item(&mut self, item: ClipboardItem) {
++        if let Some(text) = item.text() {
++            if let Err(error) = crate::packages::clipboard::set_text(&text) {
++                log::warn!("Clipboard Android: {error}");
++                return;
++            }
++        }
++        self.item = Some(item);
++    }
++}
+ 
+ /// Android credential store backed by the Android Keystore system.
+-///
+-/// Stubbed with an in-memory map; replace with a real JNI implementation.
+ #[derive(Default)]
+-pub struct AndroidCredentialStore {
+-    store: std::collections::HashMap<(String, String), Vec<u8>>,
+-}
++pub struct AndroidCredentialStore;
+ 
+ impl AndroidCredentialStore {
+     pub fn write(&mut self, service: &str, username: &str, password: &[u8]) -> Result<()> {
+-        self.store.insert(
+-            (service.to_string(), username.to_string()),
+-            password.to_vec(),
+-        );
+-        Ok(())
++        super::services::write_credentials(service, username, password)
+     }
+ 
+     pub fn read(&self, service: &str, username: &str) -> Result<Option<Vec<u8>>> {
+-        Ok(self
+-            .store
+-            .get(&(service.to_string(), username.to_string()))
+-            .cloned())
++        Ok(super::services::read_credentials(service)?.filter(|(user, _)| user == username).map(|(_, bytes)| bytes))
+     }
+ 
+     pub fn delete(&mut self, service: &str, username: &str) -> Result<()> {
+-        self.store
+-            .remove(&(service.to_string(), username.to_string()));
++        if super::services::read_credentials(service)?.is_some_and(|(user, _)| user == username) {
++            super::services::delete_credentials(service)?;
++        }
+         Ok(())
+     }
+ }
+@@ -132,6 +139,7 @@ struct AndroidPlatformState {
+ 
+     // ── windows / displays ────────────────────────────────────────────────────
+     windows: WindowList,
++    window_handles: HashMap<u64, AnyWindowHandle>,
+     displays: DisplayList,
+ 
+     // ── text ──────────────────────────────────────────────────────────────────
+@@ -403,6 +411,7 @@ impl AndroidPlatform {
+                 dispatcher,
+                 gpu_context: Rc::new(RefCell::new(None)),
+                 windows: WindowList::default(),
++                window_handles: HashMap::new(),
+                 displays,
+                 text_system,
+                 clipboard: AndroidClipboard::default(),
+@@ -593,7 +602,43 @@ impl AndroidPlatform {
+ 
+     /// Remove and return the window identified by `id`.
+     pub fn close_window(&self, id: u64) -> Option<Arc<AndroidWindow>> {
+-        self.state.lock().windows.remove(id)
++        let (removed, next, foreground, dispatcher) = {
++            let mut state = self.state.lock();
++            let front = state.windows.primary().is_some_and(|window| window.id() == id);
++            let removed = state.windows.remove(id)?;
++            state.window_handles.remove(&id);
++            let next = if front { state.windows.primary().cloned() } else { None };
++            if let Some(next) = &next { removed.transfer_surface_to(next); }
++            (removed, next, state.is_active, state.dispatcher.clone())
++        };
++        let closing = removed.clone();
++        dispatcher.dispatch_on_main_thread(move || {
++            closing.set_active(false);
++            if let Some(next) = next {
++                next.set_active(foreground);
++                next.notify_geometry();
++                next.request_frame();
++            }
++        });
++        Some(removed)
++    }
++
++    pub fn activate_window(&self, id: u64) {
++        let (previous, next, foreground, dispatcher) = {
++            let mut state = self.state.lock();
++            let Some(previous) = state.windows.primary().cloned() else { return; };
++            if previous.id() == id { return; }
++            if !state.windows.raise(id) { return; }
++            let next = state.windows.primary().unwrap().clone();
++            previous.transfer_surface_to(&next);
++            (previous, next, state.is_active, state.dispatcher.clone())
++        };
++        dispatcher.dispatch_on_main_thread(move || {
++            previous.set_active(false);
++            next.set_active(foreground);
++            next.notify_geometry();
++            next.request_frame();
++        });
+     }
+ 
+     /// Returns the primary (first) window, if any.
+@@ -932,14 +977,18 @@ impl AndroidPlatform {
+     /// Should be called from the native-activity main loop on every iteration
+     /// to process delayed background tasks.
+     pub fn tick(&self) {
+-        self.state.lock().dispatcher.tick();
++        let dispatcher = self.state.lock().dispatcher.clone();
++        dispatcher.tick();
+     }
+ 
+     /// Drain all pending main-thread tasks synchronously.
+     ///
+     /// Useful in headless tests where there is no real ALooper.
+     pub fn flush_main_thread_tasks(&self) {
+-        self.state.lock().dispatcher.flush_main_thread_tasks();
++        // GPUI tasks can open/close a window and re-enter this platform.
++        // Do not hold its state mutex while invoking those tasks.
++        let dispatcher = self.state.lock().dispatcher.clone();
++        dispatcher.flush_main_thread_tasks();
+     }
+ }
+ 
+@@ -951,7 +1000,24 @@ impl AndroidPlatform {
+ // existing `AndroidPlatform` helpers.  Desktop-only methods (menus, dock,
+ // file pickers, etc.) are no-ops or return sensible defaults.
+ 
++struct AndroidGestures;
++
++impl gpui::PlatformGestures for AndroidGestures {
++    fn tuning(&self) -> gpui::GestureTuning {
++        gpui::GestureTuning {
++            scroll_physics: gpui::ScrollPhysics::android(),
++            min_fling_velocity: 200.,
++            max_fling_velocity: 2400.,
++            ..Default::default()
++        }
++    }
++}
++
+ impl Platform for AndroidPlatform {
++    fn gestures(&self) -> Option<Rc<dyn gpui::PlatformGestures>> {
++        Some(Rc::new(AndroidGestures))
++    }
++
+     fn background_executor(&self) -> BackgroundExecutor {
+         let dispatcher: Arc<dyn gpui::PlatformDispatcher> = self.state.lock().dispatcher.clone();
+         BackgroundExecutor::new(dispatcher)
+@@ -1018,35 +1084,37 @@ impl Platform for AndroidPlatform {
+     }
+ 
+     fn active_window(&self) -> Option<AnyWindowHandle> {
+-        // Android does not have a window-stack concept — there is at most one
+-        // active window (the primary window).  GPUI uses `AnyWindowHandle`
+-        // which requires an entity id we don't have from the platform layer,
+-        // so return `None` and let the GPUI app context track the active window.
+-        None
++        let state = self.state.lock();
++        state.windows.primary().and_then(|window| state.window_handles.get(&window.id()).copied())
+     }
+ 
+     fn open_window(
+         &self,
+-        _handle: AnyWindowHandle,
++        handle: AnyWindowHandle,
+         _options: WindowParams,
+     ) -> anyhow::Result<Box<dyn PlatformWindow>> {
+         // On Android the native window is created by the system via
+         // MainEvent::InitWindow, not by the application.  If a window
+         // already exists we wrap it in an AndroidPlatformWindow and hand
+         // it to GPUI.
+-        let window = self.primary_window().ok_or_else(|| {
+-            anyhow::anyhow!(
+-                "AndroidPlatform::open_window — no native window available yet. \
+-                 Call this from the on_init_window callback after the surface is ready."
+-            )
+-        })?;
+-
+-        let display = self
+-            .state
+-            .lock()
+-            .displays
+-            .primary()
+-            .map(|d| Rc::new(d.clone()) as Rc<dyn PlatformDisplay>);
++        let (window, display, previous, foreground, dispatcher) = {
++            let mut state = self.state.lock();
++            let primary = state.windows.primary().cloned()
++                .ok_or_else(|| anyhow::anyhow!("The Android native surface is not ready"))?;
++            let (window, previous) = if state.window_handles.contains_key(&primary.id()) {
++                let window = AndroidWindow::logical_after(&primary);
++                state.windows.push(window.clone());
++                (window, Some(primary))
++            } else { (primary, None) };
++            state.window_handles.insert(window.id(), handle);
++            let display = state.displays.primary().map(|d| Rc::new(d.clone()) as Rc<dyn PlatformDisplay>);
++            (window, display, previous, state.is_active, state.dispatcher.clone())
++        };
++        let front = window.clone();
++        dispatcher.dispatch_on_main_thread(move || {
++            if let Some(previous) = previous { previous.set_active(false); }
++            front.set_active(foreground);
++        });
+ 
+         Ok(Box::new(super::window::AndroidPlatformWindow::new(
+             window, display,
+@@ -1058,9 +1126,10 @@ impl Platform for AndroidPlatform {
+     }
+ 
+     fn open_url(&self, url: &str) {
+-        // A full implementation would call startActivity with an ACTION_VIEW
+-        // Intent via JNI.  For now, log the request.
+-        log::info!("AndroidPlatform::open_url({url}) — Intent launch not yet implemented");
++        if !matches!(crate::packages::url_launcher::launch_url(url), Ok(true)) {
++            // OAuth URLs can carry secrets; never include the URL in a log.
++            log::warn!("O Android não encontrou um aplicativo para abrir o link");
++        }
+     }
+ 
+     fn on_open_urls(&self, callback: Box<dyn FnMut(Vec<String>)>) {
+@@ -1078,20 +1147,48 @@ impl Platform for AndroidPlatform {
+ 
+     fn prompt_for_paths(
+         &self,
+-        _options: PathPromptOptions,
++        options: PathPromptOptions,
+     ) -> oneshot::Receiver<Result<Option<Vec<PathBuf>>>> {
+         let (tx, rx) = oneshot::channel();
+-        let _ = tx.send(Ok(None));
++        // SAF pauses the Activity; keep its native lifecycle loop running.
++        std::thread::spawn(move || {
++            let result = (|| -> Result<Option<Vec<PathBuf>>> {
++                use crate::packages::file_selector::{self, OpenFileOptions};
++                let addresses = if options.directories && !options.files {
++                    file_selector::get_directory_path(None).map(|p| p.into_iter().collect::<Vec<_>>())
++                } else if options.multiple {
++                    file_selector::open_files(&OpenFileOptions::default())
++                        .map(|files| files.into_iter().map(|file| file.path).collect())
++                } else {
++                    file_selector::open_file(&OpenFileOptions::default())
++                        .map(|file| file.into_iter().map(|file| file.path).collect())
++                }.map_err(anyhow::Error::msg)?;
++                if addresses.is_empty() { return Ok(None); }
++                addresses.iter().map(|uri| super::services::localize_document(uri, false))
++                    .collect::<Result<Vec<_>>>().map(Some)
++            })();
++            let _ = tx.send(result);
++        });
+         rx
+     }
+ 
+     fn prompt_for_new_path(
+         &self,
+         _directory: &Path,
+-        _suggested_name: Option<&str>,
++        suggested_name: Option<&str>,
+     ) -> oneshot::Receiver<Result<Option<PathBuf>>> {
+         let (tx, rx) = oneshot::channel();
+-        let _ = tx.send(Ok(None));
++        let suggested_name = suggested_name.map(str::to_owned);
++        std::thread::spawn(move || {
++            let result = (|| -> Result<Option<PathBuf>> {
++                use crate::packages::file_selector::{self, SaveFileOptions};
++                let address = file_selector::get_save_path(&SaveFileOptions {
++                    suggested_name, ..Default::default()
++                }).map_err(anyhow::Error::msg)?;
++                address.map(|uri| super::services::localize_document(&uri, true)).transpose()
++            })();
++            let _ = tx.send(result);
++        });
+         rx
+     }
+ 
+@@ -1189,39 +1286,25 @@ impl Platform for AndroidPlatform {
+     }
+ 
+     fn read_from_clipboard(&self) -> Option<ClipboardItem> {
+-        self.state
+-            .lock()
+-            .clipboard
+-            .read()
+-            .map(ClipboardItem::new_string)
++        self.state.lock().clipboard.read_item()
+     }
+ 
+     fn write_to_clipboard(&self, item: ClipboardItem) {
+-        self.state
+-            .lock()
+-            .clipboard
+-            .write(item.text().unwrap_or_default());
++        self.state.lock().clipboard.write_item(item);
+     }
+ 
+     fn write_credentials(&self, url: &str, username: &str, password: &[u8]) -> Task<Result<()>> {
+-        let result = self.state.lock().credentials.write(url, username, password);
++        let result = super::services::write_credentials(url, username, password);
+         Task::ready(result)
+     }
+ 
+     fn read_credentials(&self, url: &str) -> Task<Result<Option<(String, Vec<u8>)>>> {
+-        // The credential store is keyed by (service, username) but the
+-        // Platform trait only provides `url`.  Use a fixed username for now.
+-        let result = self
+-            .state
+-            .lock()
+-            .credentials
+-            .read(url, "default")
+-            .map(|opt| opt.map(|pw| ("default".to_string(), pw)));
++        let result = super::services::read_credentials(url);
+         Task::ready(result)
+     }
+ 
+     fn delete_credentials(&self, url: &str) -> Task<Result<()>> {
+-        let result = self.state.lock().credentials.delete(url, "default");
++        let result = super::services::delete_credentials(url);
+         Task::ready(result)
+     }
+ 
+@@ -1293,6 +1376,10 @@ impl SharedPlatform {
+ /// so the compiler never accidentally picks the inherent method (which may
+ /// have a different return type).
+ impl Platform for SharedPlatform {
++    fn gestures(&self) -> Option<Rc<dyn gpui::PlatformGestures>> {
++        <AndroidPlatform as Platform>::gestures(&self.0)
++    }
++
+     fn background_executor(&self) -> BackgroundExecutor {
+         <AndroidPlatform as Platform>::background_executor(&self.0)
+     }
+diff --git a/src/android/services.rs b/src/android/services.rs
+new file mode 100644
+index 0000000..cc3d8e6
+--- /dev/null
++++ b/src/android/services.rs
+@@ -0,0 +1,145 @@
++//! Host services that need the application's Android manifest / Keystore.
++use super::jni::{self, JniExt};
++use ::jni::objects::JValue;
++
++/// Resolve or open an experience in the Android Roblox application.
++pub fn roblox_link(place: u64, launch: bool) -> anyhow::Result<i32> {
++    let place = i64::try_from(place)?;
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioRoblox")?;
++        env.call_static_method(
++            &class,
++            ::jni::jni_str!("openPlace"),
++            ::jni::jni_sig!("(Landroid/app/Activity;JZ)I"),
++            &[JValue::Object(&activity), JValue::Long(place), JValue::Bool(launch)],
++        ).and_then(|value| value.i()).map_err(|_| {
++            env.exception_clear();
++            "O Android não conseguiu verificar o link do Roblox".to_owned()
++        })
++    }).map_err(anyhow::Error::msg)
++}
++
++/// Control only the app's own, non-exported original Rook player activity.
++pub fn player_control(operation: &str, path: &std::path::Path) -> anyhow::Result<bool> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioPlayer")?;
++        let result = match operation {
++            "start" => {
++                let path = env.new_string(path.to_string_lossy()).e()?;
++                env.call_static_method(&class, ::jni::jni_str!("start"),
++                    ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;)V"),
++                    &[JValue::Object(&activity), JValue::Object(&path)]).map(|_| true)
++            }
++            "stop" => env.call_static_method(&class, ::jni::jni_str!("stop"),
++                ::jni::jni_sig!("(Landroid/app/Activity;)V"), &[JValue::Object(&activity)]).map(|_| false),
++            "alive" => env.call_static_method(&class, ::jni::jni_str!("alive"),
++                ::jni::jni_sig!("(Landroid/app/Activity;)Z"), &[JValue::Object(&activity)]).and_then(|v| v.z()),
++            _ => return Err("Operação do player inválida".into()),
++        };
++        result.map_err(|_| {
++            env.exception_clear();
++            "O Android não conseguiu controlar a sessão de Play local".to_owned()
++        })
++    }).map_err(anyhow::Error::msg)
++}
++
++pub fn resource_paths() -> anyhow::Result<String> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioServices")?;
++        let value = env.call_static_method(&class, ::jni::jni_str!("resourcePaths"),
++            ::jni::jni_sig!("(Landroid/app/Activity;)Ljava/lang/String;"), &[JValue::Object(&activity)])
++            .and_then(|v| v.l()).map_err(|_| {
++                env.exception_clear();
++                "O Android não conseguiu localizar os recursos instalados".to_owned()
++            })?;
++        Ok(jni::get_string(env, &value))
++    }).map_err(anyhow::Error::msg)
++}
++
++fn credential(operation: &str, service: &str, username: &str, password: &[u8]) -> anyhow::Result<Option<String>> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioServices")?;
++        let operation = env.new_string(operation).e()?;
++        let service = env.new_string(service).e()?;
++        let username = env.new_string(username).e()?;
++        let password = env.new_string(hex(password)).e()?;
++        let value = env.call_static_method(&class, ::jni::jni_str!("credential"),
++            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"),
++            &[JValue::Object(&activity), JValue::Object(&operation), JValue::Object(&service),
++                JValue::Object(&username), JValue::Object(&password)])
++            .and_then(|v| v.l()).map_err(|_| {
++                // Do not describe Java exceptions: a provider may include secrets.
++                env.exception_clear();
++                "O Android não conseguiu acessar o armazenamento seguro de credenciais".to_owned()
++            })?;
++        Ok((!value.is_null()).then(|| jni::get_string(env, &value)))
++    }).map_err(anyhow::Error::msg)
++}
++
++pub fn write_credentials(service: &str, username: &str, password: &[u8]) -> anyhow::Result<()> {
++    credential("write", service, username, password).map(|_| ())
++}
++
++pub fn read_credentials(service: &str) -> anyhow::Result<Option<(String, Vec<u8>)>> {
++    credential("read", service, "", &[])?.map(|packed| {
++        let (username, password) = packed.split_once(':').ok_or_else(|| anyhow::anyhow!("Invalid credential encoding"))?;
++        Ok((String::from_utf8(unhex(username)?)?, unhex(password)?))
++    }).transpose()
++}
++
++pub fn delete_credentials(service: &str) -> anyhow::Result<()> {
++    credential("delete", service, "", &[]).map(|_| ())
++}
++
++fn hex(bytes: &[u8]) -> String {
++    const ALPHABET: &[u8] = b"0123456789abcdef";
++    let mut out = String::with_capacity(bytes.len() * 2);
++    for &byte in bytes { out.push(ALPHABET[(byte >> 4) as usize] as char); out.push(ALPHABET[(byte & 15) as usize] as char); }
++    out
++}
++
++fn unhex(value: &str) -> anyhow::Result<Vec<u8>> {
++    anyhow::ensure!(value.len() % 2 == 0, "Invalid credential encoding");
++    value.as_bytes().chunks_exact(2).map(|p| {
++        let a = (p[0] as char).to_digit(16).ok_or_else(|| anyhow::anyhow!("Invalid credential encoding"))?;
++        let b = (p[1] as char).to_digit(16).ok_or_else(|| anyhow::anyhow!("Invalid credential encoding"))?;
++        Ok(((a << 4) | b) as u8)
++    }).collect()
++}
++
++pub fn localize_document(address: &str, creating: bool) -> anyhow::Result<std::path::PathBuf> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioDocuments")?;
++        let address = env.new_string(address).e()?;
++        let value = env.call_static_method(&class, ::jni::jni_str!("localize"),
++            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;Z)Ljava/lang/String;"),
++            &[JValue::Object(&activity), JValue::Object(&address), JValue::Bool(creating)])
++            .and_then(|v| v.l()).map_err(|_| {
++                env.exception_clear();
++                "O Android não conseguiu abrir o documento selecionado".to_owned()
++            })?;
++        if value.is_null() { return Err("O Android não retornou um caminho para o documento".into()); }
++        Ok(std::path::PathBuf::from(jni::get_string(env, &value)))
++    }).map_err(anyhow::Error::msg)
++}
++
++pub fn commit_document(path: &std::path::Path) -> anyhow::Result<()> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioDocuments")?;
++        let path = env.new_string(path.to_string_lossy()).e()?;
++        env.call_static_method(&class, ::jni::jni_str!("commit"),
++            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;)V"),
++            &[JValue::Object(&activity), JValue::Object(&path)])
++            .map_err(|_| {
++                env.exception_clear();
++                "O Android não conseguiu gravar o documento no destino escolhido; a cópia local foi preservada".to_owned()
++            })?;
++        Ok(())
++    }).map_err(anyhow::Error::msg)
++}
+diff --git a/src/android/window.rs b/src/android/window.rs
+index 849a2d1..c77abcd 100644
+--- a/src/android/window.rs
++++ b/src/android/window.rs
+@@ -55,6 +55,14 @@ use std::sync::{Arc, OnceLock};
+ use super::{AndroidKeyEvent, Bounds, DevicePixels, Pixels, Point, Size, TouchPoint};
+ use crate::momentum::{MomentumScroller, VelocityTracker};
+ 
++// A direct control can keep its first contact while the rest of the
++// sequence is sent as a two-finger gesture.
++static KEEP_PRIMARY_TOUCH: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
++
++pub fn preserve_primary_touch(preserve: bool) {
++    KEEP_PRIMARY_TOUCH.store(preserve, std::sync::atomic::Ordering::Relaxed);
++}
++
+ /// Lightweight, owned window handle for wgpu surface creation.
+ /// Stores the raw ANativeWindow pointer and implements the traits
+ /// required by `WgpuRenderer::new` (`Clone + Debug + Send + Sync + 'static`).
+@@ -285,6 +293,8 @@ struct WindowState {
+ 
+     /// The wgpu renderer from `gpui_wgpu`.  `None` while the surface is unavailable.
+     renderer: Option<WgpuRenderer>,
++    /// Shared atlas remains available to logical windows in the background.
++    atlas: Option<Arc<dyn PlatformAtlas>>,
+ 
+     /// Cached display geometry.
+     width: i32,
+@@ -390,11 +400,13 @@ impl AndroidWindow {
+         .context("failed to create gpui_wgpu renderer")?;
+ 
+         let id = native_window.ptr().as_ptr() as u64;
++        let atlas = renderer.sprite_atlas().clone() as Arc<dyn PlatformAtlas>;
+ 
+         let state = Arc::new(Mutex::new(WindowState {
+             native_window: Some(native_window),
+             gpu_context,
+             renderer: Some(renderer),
++            atlas: Some(atlas),
+             width,
+             height,
+             scale_factor,
+@@ -426,6 +438,7 @@ impl AndroidWindow {
+             native_window: None,
+             gpu_context: Rc::new(RefCell::new(None)),
+             renderer: None,
++            atlas: None,
+             width,
+             height,
+             scale_factor,
+@@ -451,6 +464,52 @@ impl AndroidWindow {
+ 
+     // ── window lifecycle ──────────────────────────────────────────────────────
+ 
++    /// Separate GPUI callbacks and view state on the one Android surface.
++    pub fn logical_after(previous: &Arc<Self>) -> Arc<Self> {
++        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1 << 63);
++        let (width, height, scale) = {
++            let state = previous.state.lock();
++            (state.width, state.height, state.scale_factor)
++        };
++        let mut window = Self::headless(width, height, scale);
++        Arc::get_mut(&mut window).expect("new logical window").id =
++            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++        previous.transfer_surface_to(&window);
++        window
++    }
++
++    /// Native-thread only: transfer the existing renderer without creating
++    /// a second Vulkan/EGL surface or invalidating GPUI's atlas IDs.
++    pub fn transfer_surface_to(&self, target: &Self) {
++        if self.id == target.id { return; }
++        let mut from = self.state.lock();
++        let mut to = target.state.lock();
++        debug_assert!(to.renderer.is_none());
++        to.renderer = from.renderer.take();
++        to.native_window = from.native_window.take();
++        to.gpu_context = Rc::clone(&from.gpu_context);
++        to.atlas = from.atlas.clone();
++        to.width = from.width;
++        to.height = from.height;
++        to.scale_factor = from.scale_factor;
++        to.safe_area_insets = from.safe_area_insets;
++        to.appearance = from.appearance;
++        to.transparent = from.transparent;
++    }
++
++    /// Restored windows may have last laid out before a rotation or IME resize.
++    pub fn notify_geometry(&self) {
++        let (callback, size, scale) = {
++            let mut state = self.state.lock();
++            (state.resize_callback.take(), Size { width: DevicePixels(state.width), height: DevicePixels(state.height) }, state.scale_factor)
++        };
++        if let Some(mut callback) = callback {
++            callback(size, scale);
++            let mut state = self.state.lock();
++            if state.resize_callback.is_none() { state.resize_callback = Some(callback); }
++        }
++    }
++
+     /// Called when `APP_CMD_INIT_WINDOW` fires and a new `NativeWindow` is
+     /// available (e.g. after returning from the background).
+     pub fn init_window(&self, native_window: NativeWindow, gpu_context: GpuContext) -> Result<()> {
+@@ -499,6 +558,7 @@ impl AndroidWindow {
+                 gpu_context
+             };
+             let renderer = Self::create_renderer(&native_window, ctx, width, height, transparent)?;
++            state.atlas = Some(renderer.sprite_atlas().clone() as Arc<dyn PlatformAtlas>);
+             state.renderer = Some(renderer);
+             log::info!(
+                 "AndroidWindow::init_window — created new renderer {}×{}",
+@@ -521,8 +581,8 @@ impl AndroidWindow {
+     /// Called when `APP_CMD_TERM_WINDOW` fires and the surface is about to be
+     /// destroyed.
+     ///
+-    /// Drops the renderer (and therefore the wgpu surface) but keeps the window
+-    /// struct alive so callbacks are preserved.
++    /// Drops the native surface/swapchain while preserving the renderer's
++    /// device, atlas and logical window callbacks.
+     pub fn term_window(&self) {
+         let mut state = self.state.lock();
+ 
+@@ -932,11 +992,7 @@ impl AndroidWindow {
+ 
+     /// Returns the sprite atlas from the renderer, if available.
+     pub fn sprite_atlas(&self) -> Option<Arc<dyn PlatformAtlas>> {
+-        let state = self.state.lock();
+-        state
+-            .renderer
+-            .as_ref()
+-            .map(|r| r.sprite_atlas().clone() as Arc<dyn PlatformAtlas>)
++        self.state.lock().atlas.clone()
+     }
+ 
+     /// Returns GPU specs from the renderer, if available.
+@@ -1089,7 +1145,8 @@ impl Drop for AndroidWindow {
+ pub struct AndroidPlatformWindow {
+     window: Arc<AndroidWindow>,
+     display: Option<Rc<dyn PlatformDisplay>>,
+-    input_handler: Option<PlatformInputHandler>,
++    input_handler: Rc<RefCell<Option<PlatformInputHandler>>>,
++    ime_multiline: std::cell::Cell<bool>,
+     title: String,
+     /// Shared momentum scrolling state — used by both the touch callback
+     /// (to start/cancel flings) and the frame callback (to pump inertia).
+@@ -1110,7 +1167,8 @@ impl AndroidPlatformWindow {
+         Self {
+             window,
+             display,
+-            input_handler: None,
++            input_handler: Rc::new(RefCell::new(None)),
++            ime_multiline: std::cell::Cell::new(false),
+             title: String::new(),
+             momentum: Arc::new(Mutex::new(MomentumState {
+                 velocity_tracker: VelocityTracker::new(),
+@@ -1151,6 +1209,15 @@ impl HasWindowHandle for AndroidPlatformWindow {
+     }
+ }
+ 
++impl Drop for AndroidPlatformWindow {
++    fn drop(&mut self) {
++        super::ime::blur(self.window.id());
++        if let Some(platform) = super::jni::shared_platform() {
++            platform.0.close_window(self.window.id());
++        }
++    }
++}
++
+ impl HasDisplayHandle for AndroidPlatformWindow {
+     fn display_handle(
+         &self,
+@@ -1226,11 +1293,34 @@ impl PlatformWindow for AndroidPlatformWindow {
+     }
+ 
+     fn set_input_handler(&mut self, input_handler: PlatformInputHandler) {
+-        self.input_handler = Some(input_handler);
++        *self.input_handler.borrow_mut() = Some(input_handler);
++        super::ime::invalidate_selection(self.window.id());
+     }
+ 
+     fn take_input_handler(&mut self) -> Option<PlatformInputHandler> {
+-        self.input_handler.take()
++        self.input_handler.borrow_mut().take()
++    }
++
++    fn set_text_input_configuration(&mut self, config: gpui::TextInputConfiguration) {
++        self.ime_multiline.set(config.input_action == gpui::TextInputAction::Enter);
++    }
++
++    fn show_soft_keyboard(&self) {
++        super::ime::reopen(self.window.id(), self.ime_multiline.get());
++    }
++
++    fn hide_soft_keyboard(&self) {
++        super::ime::blur(self.window.id());
++    }
++
++    fn text_input_state_changed(&self, change: gpui::TextInputStateChange) {
++        match change {
++            gpui::TextInputStateChange::FocusGained => {
++                super::ime::focus(self.window.id(), &self.input_handler, self.ime_multiline.get());
++            }
++            gpui::TextInputStateChange::FocusLost => self.hide_soft_keyboard(),
++            _ => {}
++        }
+     }
+ 
+     fn prompt(
+@@ -1246,8 +1336,9 @@ impl PlatformWindow for AndroidPlatformWindow {
+     }
+ 
+     fn activate(&self) {
+-        // Android windows are always "active" when in the foreground.
+-        // The system manages window activation via the activity lifecycle.
++        if let Some(platform) = super::jni::shared_platform() {
++            platform.0.activate_window(self.window.id());
++        }
+     }
+ 
+     fn is_active(&self) -> bool {
+@@ -1310,6 +1401,7 @@ impl PlatformWindow for AndroidPlatformWindow {
+         // on the struct so on_request_frame can capture it.
+         let input_cb = Arc::clone(&self.momentum_input_cb);
+ 
++        let window_id = self.window.id();
+         self.window.on_request_frame(move || {
+             // ── Drain coalesced touch-scroll deltas ──────────────────
+             // The touch callback accumulates scroll deltas into
+@@ -1423,6 +1515,8 @@ impl PlatformWindow for AndroidPlatformWindow {
+                 require_presentation: true,
+                 force_render: text_dirty,
+             });
++            drop(cb);
++            super::ime::sync_selection(window_id);
+         });
+     }
+ 
+@@ -1443,245 +1537,106 @@ impl PlatformWindow for AndroidPlatformWindow {
+             Box::new(move |input: gpui::PlatformInput| -> DispatchEventResult { cb.lock()(input) })
+         };
+ 
+-        // ── Touch events → PlatformInput ─────────────────────────────────
+-        //
+-        // Android touch events must be translated into both mouse events
+-        // (for taps / clicks) and scroll-wheel events (for drag-to-scroll).
+-        //
+-        // A small state machine distinguishes the two gestures:
+-        //
+-        //   DOWN  → record start position, enter "pending" state
+-        //   MOVE  → if finger moved > threshold → switch to "scrolling",
+-        //           cancel the mouse-down, emit ScrollWheel deltas
+-        //   UP    → if still "pending" → emit MouseDown + MouseUp (tap)
+-        //           if "scrolling"   → emit final ScrollWheel (Ended) +
+-        //           start momentum fling
+-        //
+-        // The threshold is in logical pixels (~8 px ≈ ~3 mm at 160 dpi).
++        // Forward raw contacts to GPUI's original gesture recognizer. It owns
++        // tap/long-press/pan/drag arbitration, hit testing and kinetic scroll.
++        // Android pointer IDs can be reused, whereas GPUI TouchIds cannot.
+         {
+             let cb = Arc::clone(&input_cb);
+-            let scale_factor = self.window.scale_factor();
+-            let momentum = Arc::clone(&self.momentum);
+-
+-            /// Distance (logical px) the finger must travel before a touch
+-            /// is promoted from a potential tap to a scroll gesture.
+-            const SCROLL_SLOP: f32 = 8.0;
+-
+-            /// Tracks the current touch gesture.
+-            #[derive(Clone, Copy, Debug)]
+-            enum TouchState {
+-                /// No active touch.
+-                Idle,
+-                /// Finger is down but hasn't moved beyond the slop threshold.
+-                Pending { start_x: f32, start_y: f32 },
+-                /// Finger has moved beyond the threshold — we are scrolling.
+-                Scrolling { prev_x: f32, prev_y: f32 },
+-            }
+-
+-            let state = Mutex::new(TouchState::Idle);
+-
++            let window = Arc::downgrade(&self.window);
++            type Contacts = std::collections::HashMap<i32, (gpui::TouchId, gpui::Point<gpui::Pixels>)>;
++            let sequence = Mutex::new((Contacts::new(), false, None));
++            let next = std::sync::atomic::AtomicU64::new(1);
+             self.window.on_touch(move |touch| {
+-                // Android delivers touch coordinates in physical (device)
+-                // pixels, but GPUI performs layout and hit-testing in logical
+-                // pixels.  Divide by scale factor.
+-                let logical_x = touch.x / scale_factor;
+-                let logical_y = touch.y / scale_factor;
+-                let modifiers = gpui::Modifiers::default();
+-
+-                let mut ts = state.lock();
+-
+-                match touch.action {
+-                    // ── ACTION_DOWN ──────────────────────────────────────
+-                    0 => {
+-                        // Cancel any active momentum fling — the user
+-                        // touched the screen, so inertia must stop.
+-                        // Also flush any pending coalesced scroll.
+-                        {
+-                            let mut ms = momentum.lock();
+-                            ms.scroller.cancel();
+-                            ms.velocity_tracker.reset();
+-                            ms.pending_scroll_dx = 0.0;
+-                            ms.pending_scroll_dy = 0.0;
+-                            ms.has_pending_scroll = false;
+-                        }
+-                        *ts = TouchState::Pending {
+-                            start_x: logical_x,
+-                            start_y: logical_y,
+-                        };
+-                        // Do NOT emit MouseDown here — wait until we know
+-                        // whether this is a tap or a scroll.  Emitting
+-                        // MouseDown immediately causes accidental navigation
+-                        // when the user starts scrolling near a button/tab.
+-                        //
+-                        // - Tap (finger lifts within slop) → emit MouseDown +
+-                        //   MouseUp together in ACTION_UP.
+-                        // - Scroll (finger exceeds slop) → emit only
+-                        //   MouseMove + ScrollWheel, no MouseDown.
+-                    }
+-
+-                    // ── ACTION_MOVE ──────────────────────────────────────
+-                    2 => {
+-                        // Instead of emitting a ScrollWheel event for every
+-                        // single MOVE, accumulate the delta in MomentumState.
+-                        // The frame callback will drain and emit one coalesced
+-                        // ScrollWheel per frame.  This is the key optimisation
+-                        // that prevents N layout passes per frame during a drag.
+-                        //
+-                        // We DO emit MouseMove immediately for every MOVE so
+-                        // that interactive screens (Animations drag line,
+-                        // Shaders touch position) update in real time.
+-                        let mut ms = momentum.lock();
+-
+-                        // Record every move for velocity estimation.
+-                        ms.velocity_tracker.record(logical_x, logical_y);
+-
+-                        match *ts {
+-                            TouchState::Pending { start_x, start_y } => {
+-                                let dx = logical_x - start_x;
+-                                let dy = logical_y - start_y;
+-                                let distance = (dx * dx + dy * dy).sqrt();
+-
+-                                if distance > SCROLL_SLOP {
+-                                    // Promote to scrolling — accumulate the
+-                                    // first scroll delta from the start pos.
+-                                    *ts = TouchState::Scrolling {
+-                                        prev_x: logical_x,
+-                                        prev_y: logical_y,
+-                                    };
+-                                    ms.pending_scroll_dx += dx;
+-                                    ms.pending_scroll_dy += dy;
+-                                    ms.pending_scroll_pos_x = logical_x;
+-                                    ms.pending_scroll_pos_y = logical_y;
+-                                    // Use Started phase for the first batch.
+-                                    if !ms.has_pending_scroll {
+-                                        ms.pending_scroll_phase = gpui::TouchPhase::Started;
+-                                    }
+-                                    ms.has_pending_scroll = true;
++                let Some(window) = window.upgrade() else { return; };
++                let scale = window.scale_factor();
++                drop(window);
++                let position = gpui::point(gpui::px(touch.x / scale), gpui::px(touch.y / scale));
++                let single = |id, position, phase| {
++                    gpui::PlatformInput::Touch(gpui::TouchEvent {
++                        id, position, phase, ..Default::default()
++                    })
++                };
++                let pair = |contacts: &Contacts| {
++                    if contacts.len() != 2 { return None; }
++                    let mut points = contacts.values().map(|(_, position)| *position);
++                    let a = points.next()?;
++                    let b = points.next()?;
++                    Some(((a + b) * 0.5, (a - b).magnitude().max(1.0)))
++                };
++                let mut events = Vec::new();
++                {
++                    let (contacts, multi, primary) = &mut *sequence.lock();
++                    let before = pair(contacts);
++                    match touch.action {
++                        0 => {
++                            if let Some((id, previous)) = contacts.remove(&touch.id) {
++                                if !*multi {
++                                    events.push(single(id, previous, gpui::TouchPhase::Cancelled));
+                                 }
+-                                // else: still within slop, stay Pending
+                             }
+-                            TouchState::Scrolling { prev_x, prev_y } => {
+-                                let dx = logical_x - prev_x;
+-                                let dy = logical_y - prev_y;
+-                                *ts = TouchState::Scrolling {
+-                                    prev_x: logical_x,
+-                                    prev_y: logical_y,
+-                                };
+-                                ms.pending_scroll_dx += dx;
+-                                ms.pending_scroll_dy += dy;
+-                                ms.pending_scroll_pos_x = logical_x;
+-                                ms.pending_scroll_pos_y = logical_y;
+-                                if !ms.has_pending_scroll {
+-                                    ms.pending_scroll_phase = gpui::TouchPhase::Moved;
++                            if !*multi && contacts.len() == 1 {
++                                if !KEEP_PRIMARY_TOUCH.load(std::sync::atomic::Ordering::Relaxed) {
++                                    if let Some(&(id, previous)) = contacts.values().next() {
++                                        events.push(single(id, previous, gpui::TouchPhase::Cancelled));
++                                    }
++                                    *primary = None;
+                                 }
+-                                ms.has_pending_scroll = true;
++                                *multi = true;
+                             }
+-                            TouchState::Idle => {
+-                                // Spurious move without a preceding down — ignore.
++                            let id = gpui::TouchId(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
++                            contacts.insert(touch.id, (id, position));
++                            if !*multi {
++                                *primary = Some(id);
++                                events.push(single(id, position, gpui::TouchPhase::Started));
+                             }
+                         }
+-
+-                        // Drop momentum lock before dispatching MouseMove.
+-                        drop(ms);
+-
+-                        // Always emit MouseMove so interactive screens can
+-                        // track finger position (drag line in Animations,
+-                        // gradient control in Shaders).
+-                        let position = gpui::point(gpui::px(logical_x), gpui::px(logical_y));
+-                        let mut guard = cb.lock();
+-                        let _ = guard(gpui::PlatformInput::MouseMove(gpui::MouseMoveEvent {
+-                            position,
+-                            modifiers,
+-                            pressed_button: Some(gpui::MouseButton::Left),
+-                        }));
+-                    }
+-
+-                    // ── ACTION_UP / ACTION_CANCEL ────────────────────────
+-                    1 | 3 => {
+-                        let position = gpui::point(gpui::px(logical_x), gpui::px(logical_y));
+-
+-                        match *ts {
+-                            TouchState::Pending { start_x, start_y } => {
+-                                // Finger lifted without exceeding slop →
+-                                // this is a tap.  Emit MouseDown + MouseUp
+-                                // together at the original down position so
+-                                // hit-testing matches the initial touch point.
+-                                {
+-                                    let mut ms = momentum.lock();
+-                                    ms.velocity_tracker.reset();
+-                                    ms.has_pending_scroll = false;
+-                                }
+-                                let tap_pos = gpui::point(gpui::px(start_x), gpui::px(start_y));
+-                                let mut guard = cb.lock();
+-                                let _ =
+-                                    guard(gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+-                                        button: gpui::MouseButton::Left,
+-                                        position: tap_pos,
+-                                        modifiers,
+-                                        click_count: 1,
+-                                        first_mouse: false,
+-                                    }));
+-                                let _ = guard(gpui::PlatformInput::MouseUp(gpui::MouseUpEvent {
+-                                    button: gpui::MouseButton::Left,
+-                                    position: tap_pos,
+-                                    modifiers,
+-                                    click_count: 1,
+-                                }));
++                        2 => if let Some((id, previous)) = contacts.get_mut(&touch.id) {
++                            *previous = position;
++                            if Some(*id) == *primary {
++                                events.push(single(*id, position, gpui::TouchPhase::Moved));
+                             }
+-                            TouchState::Scrolling { prev_x, prev_y } => {
+-                                // End the active touch-scroll gesture.
+-                                // Include the final delta in the coalesced
+-                                // accumulator, then flush it immediately
+-                                // as an Ended event so the momentum fling
+-                                // starts cleanly.
+-                                let dx = logical_x - prev_x;
+-                                let dy = logical_y - prev_y;
+-                                let mut ms = momentum.lock();
+-
+-                                // Flush any accumulated delta + this final
+-                                // move as a single Ended scroll event.
+-                                let total_dx = ms.pending_scroll_dx + dx;
+-                                let total_dy = ms.pending_scroll_dy + dy;
+-                                ms.pending_scroll_dx = 0.0;
+-                                ms.pending_scroll_dy = 0.0;
+-                                ms.has_pending_scroll = false;
+-
+-                                // Compute release velocity and start fling.
+-                                let (vx, vy) = ms.velocity_tracker.velocity();
+-                                ms.velocity_tracker.reset();
+-                                ms.scroller.fling(vx, vy, logical_x, logical_y);
+-
+-                                // Drop momentum lock before dispatching.
+-                                drop(ms);
+-
+-                                let mut guard = cb.lock();
+-                                // ScrollWheel Ended for scroll containers.
+-                                let _ = guard(gpui::PlatformInput::ScrollWheel(
+-                                    gpui::ScrollWheelEvent {
+-                                        position,
+-                                        delta: gpui::ScrollDelta::Pixels(gpui::point(
+-                                            gpui::px(total_dx),
+-                                            gpui::px(total_dy),
+-                                        )),
+-                                        modifiers,
+-                                        touch_phase: gpui::TouchPhase::Ended,
+-                                    },
+-                                ));
+-                                // MouseUp for interactive screens (Animations
+-                                // drag-to-throw, Shaders touch release).
+-                                let _ = guard(gpui::PlatformInput::MouseUp(gpui::MouseUpEvent {
+-                                    button: gpui::MouseButton::Left,
+-                                    position,
+-                                    modifiers,
+-                                    click_count: 1,
+-                                }));
++                        },
++                        1 => if let Some((id, _)) = contacts.remove(&touch.id) {
++                            if Some(id) == *primary {
++                                *primary = None;
++                                preserve_primary_touch(false);
++                                events.push(single(id, position, gpui::TouchPhase::Ended));
++                            }
++                        },
++                        3 => for (_, (id, previous)) in contacts.drain() {
++                            if Some(id) == *primary {
++                                *primary = None;
++                                preserve_primary_touch(false);
++                                events.push(single(id, previous, gpui::TouchPhase::Cancelled));
+                             }
+-                            TouchState::Idle => {}
++                        },
++                        _ => {}
++                    }
++                    let pinch = match (before, pair(contacts)) {
++                        (None, Some((center, _))) => Some((center, 0.0, gpui::TouchPhase::Started)),
++                        (Some((center, _)), None) => Some((center, 0.0, if touch.action == 1 {
++                            gpui::TouchPhase::Ended
++                        } else {
++                            gpui::TouchPhase::Cancelled
++                        })),
++                        (Some((_, old)), Some((center, new))) if touch.action == 2 => {
++                            Some((center, (new / old).ln() as f32, gpui::TouchPhase::Moved))
+                         }
+-                        *ts = TouchState::Idle;
++                        _ => None,
++                    };
++                    if let Some((position, delta, phase)) = pinch {
++                        events.push(gpui::PlatformInput::Pinch(gpui::PinchEvent {
++                            position, delta, phase, ..Default::default()
++                        }));
++                    }
++                    if contacts.is_empty() {
++                        *multi = false;
++                        *primary = None;
++                        preserve_primary_touch(false);
+                     }
+-
+-                    _ => {} // Unknown action, ignore
++                }
++                for event in events {
++                    let _ = cb.lock()(event);
+                 }
+             });
+         }
+@@ -1689,7 +1644,8 @@ impl PlatformWindow for AndroidPlatformWindow {
+         // ── Key events → PlatformInput ───────────────────────────────────
+         {
+             let cb = Arc::clone(&input_cb);
+-            self.window.on_key_event(move |key_event| {
++            let input_handler = Rc::clone(&self.input_handler);
++            let callback: Box<dyn FnMut(AndroidKeyEvent)> = Box::new(move |key_event| {
+                 use crate::android::keyboard::{
+                     android_key_to_keystroke, AKEY_EVENT_ACTION_DOWN, AKEY_EVENT_ACTION_UP,
+                 };
+@@ -1724,6 +1680,13 @@ impl PlatformWindow for AndroidPlatformWindow {
+                     None => return, // Modifier-only or unmapped key
+                 };
+ 
++                let text = if key_event.action == AKEY_EVENT_ACTION_DOWN
++                    && !keystroke.modifiers.control && !keystroke.modifiers.alt && !keystroke.modifiers.platform {
++                    char::from_u32(key_event.unicode_char)
++                        .filter(|c| !c.is_control() || matches!(c, '\n' | '\t'))
++                        .map(|c| c.to_string())
++                } else { None };
++
+                 let event = if key_event.action == AKEY_EVENT_ACTION_DOWN {
+                     gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
+                         keystroke,
+@@ -1736,9 +1699,25 @@ impl PlatformWindow for AndroidPlatformWindow {
+                     return; // ACTION_MULTIPLE or unknown
+                 };
+ 
+-                let mut guard = cb.lock();
+-                let _ = guard(event);
++                let result = cb.lock()(event);
++                // Key bindings get first refusal. Text then enters GPUI's
++                // actual focused input handler, including the script editor.
++                // The example-only global text callback is not that handler.
++                if result.propagate {
++                    if let Some(text) = text {
++                        let handler = input_handler.borrow_mut().take();
++                        if let Some(mut handler) = handler {
++                            handler.replace_text_in_range(None, &text);
++                            let mut slot = input_handler.borrow_mut();
++                            if slot.is_none() { *slot = Some(handler); }
++                        }
++                    }
++                }
+             });
++            // SAFETY: Key events are delivered exclusively by the Android
++            // native GPUI thread; the Rc never reaches a different thread.
++            let mut callback: Box<dyn FnMut(AndroidKeyEvent) + Send> = unsafe { std::mem::transmute(callback) };
++            self.window.on_key_event(move |event| callback(event));
+         }
+     }
+ 
+@@ -2067,7 +2046,13 @@ impl WindowList {
+ 
+     /// Returns the first (primary) window, if any.
+     pub fn primary(&self) -> Option<&Arc<AndroidWindow>> {
+-        self.windows.first()
++        self.windows.last()
++    }
++
++    pub fn raise(&mut self, id: u64) -> bool {
++        let Some(window) = self.remove(id) else { return false; };
++        self.windows.push(window);
++        true
+     }
+ 
+     /// Iterate over all windows.

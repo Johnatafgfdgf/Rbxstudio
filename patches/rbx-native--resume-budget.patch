@@ -1,0 +1,165 @@
+diff --git a/crates/rbx_lua/src/runtime.rs b/crates/rbx_lua/src/runtime.rs
+index 0f76ba4..3996154 100644
+--- a/crates/rbx_lua/src/runtime.rs
++++ b/crates/rbx_lua/src/runtime.rs
+@@ -91,6 +91,8 @@ pub struct Runtime {
+     /// How long one resume lets scripts go before the running thread
+     /// errors, so a `while true do end` cannot freeze the editor for good.
+     budget: Duration,
++    frame_dt: Option<f64>,
++    pending_events: Vec<(rbx_dom::Ref, String, Vec<crate::plugin::Arg>)>,
+ }
+ 
+ impl Runtime {
+@@ -118,7 +120,7 @@ impl Runtime {
+         // stale value after a script wrote to it. Declaring the DOM-backed globals
+         // mutable turns that caching off for them, exactly as Roblox does.
+         lua.set_compiler(Compiler::new().set_mutable_globals(["game", "workspace", "Workspace"]));
+-        lua.set_app_data(HookSlot(Rc::new(CommandBarHooks)));
++        lua.set_app_data(HookSlot(Rc::new(CommandBarHooks { playing: false })));
+ 
+         install_globals(&lua, &ctx)?;
+         lua.globals()
+@@ -135,9 +137,40 @@ impl Runtime {
+             output,
+             host,
+             budget: Duration::from_secs(10),
++            frame_dt: None,
++            pending_events: Vec::new(),
+         })
+     }
+ 
++    /// Bound one host-driven resume on mobile. Uses the original VM interrupt
++    /// and timeout error; does not disable any script API.
++    pub fn set_resume_budget(&mut self, limit: Duration) {
++        self.budget = limit.max(Duration::from_millis(1));
++    }
++
++    /// An offline player uses this same VM and signal/scheduler implementation.
++    /// The default command-bar and plugin semantics remain edit-mode.
++    pub fn set_play_mode(&mut self) {
++        self.lua
++            .set_app_data(HookSlot(Rc::new(CommandBarHooks { playing: true })));
++    }
++
++    /// Queue a real host/physics event; callbacks run under resume's interrupt.
++    pub fn queue_event(
++        &mut self,
++        target: rbx_dom::Ref,
++        name: &str,
++        args: Vec<crate::plugin::Arg>,
++    ) {
++        self.pending_events.push((target, name.to_owned(), args));
++    }
++
++    /// Advance frame signals using the original scheduler and the lent DOM.
++    pub fn frame_in(&mut self, dom: &mut WeakDom, dt: Duration) -> Step {
++        self.frame_dt = Some(dt.as_secs_f64());
++        self.resume_in(dom)
++    }
++
+     /// Replaces the clock timers and `time()` read: the time since the
+     /// runtime was made, by default.
+     pub fn set_clock(&mut self, clock: impl Fn() -> Duration + 'static) {
+@@ -245,6 +278,7 @@ impl Runtime {
+             output,
+             host,
+             budget: _,
++            ..
+         } = self;
+         // Closing the VM drops every userdata still holding a handle on the DOM,
+         // which is what makes the unwrap below the normal path.
+diff --git a/crates/rbx_lua/src/runtime/host.rs b/crates/rbx_lua/src/runtime/host.rs
+index 918ec67..cc531db 100644
+--- a/crates/rbx_lua/src/runtime/host.rs
++++ b/crates/rbx_lua/src/runtime/host.rs
+@@ -77,7 +77,9 @@ impl Host for CommandBar {
+ /// (`engine::events`), `HttpService`'s offline half and
+ /// `CollectionService`. `game:GetService` finds or creates real services,
+ /// so these hang off real instances.
+-pub(super) struct CommandBarHooks;
++pub(super) struct CommandBarHooks {
++    pub(super) playing: bool,
++}
+ 
+ impl Hooks for CommandBarHooks {
+     fn index(
+@@ -91,6 +93,29 @@ impl Hooks for CommandBarHooks {
+         if let Some(value) = events::index(lua, ctx, referent, class, key)? {
+             return Ok(Some(value));
+         }
++        if self.playing {
++            let frame =
++                class == "RunService" && matches!(key, "Heartbeat" | "Stepped" | "RenderStepped");
++            let contact = ctx.database().is_subclass_of(class, "BasePart")
++                && matches!(key, "Touched" | "TouchEnded");
++            let humanoid = class == "Humanoid" && key == "StateChanged";
++            if frame || contact || humanoid {
++                return Ok(Some(Value::UserData(lua.create_userdata(
++                    crate::engine::signal::LuaSignal(events::instance_key(referent, key)),
++                )?)));
++            }
++            if class == "RunService"
++                && matches!(
++                    key,
++                    "IsStudio" | "IsRunning" | "IsRunMode" | "IsEdit" | "IsClient" | "IsServer"
++                )
++            {
++                let value = matches!(key, "IsStudio" | "IsRunning" | "IsClient");
++                return Ok(Some(Value::Function(
++                    lua.create_function(move |_, _: Value| Ok(value))?,
++                )));
++            }
++        }
+         match class {
+             "HttpService" => http_member(lua, key),
+             "CollectionService" => collection::member(lua, key),
+diff --git a/crates/rbx_lua/src/runtime/resume.rs b/crates/rbx_lua/src/runtime/resume.rs
+index 740e97b..3b996e3 100644
+--- a/crates/rbx_lua/src/runtime/resume.rs
++++ b/crates/rbx_lua/src/runtime/resume.rs
+@@ -80,6 +80,44 @@ impl Runtime {
+         });
+         let mut seen = self.dom.borrow().changes().len();
+         let mut ran = scheduler::tick(&self.lua, self.host.now());
++        // A host never invokes Luau callbacks outside this bounded resume.
++        // Reuse the original signal dispatcher; there is no second VM.
++        for (target, name, args) in std::mem::take(&mut self.pending_events) {
++            if ran.is_ok() {
++                ran = signal::fire(
++                    &self.lua,
++                    &crate::engine::events::instance_key(target, name),
++                    &args,
++                );
++            }
++        }
++        if let Some(dt) = self.frame_dt.take() {
++            let service = self.dom.borrow().root_refs().iter().copied().find(|r| {
++                self.dom
++                    .borrow()
++                    .get(*r)
++                    .is_some_and(|i| i.class() == "RunService")
++            });
++            if let Some(service) = service {
++                use crate::plugin::api::Arg;
++                for (event, args) in [
++                    (
++                        "Stepped",
++                        vec![Arg::Number(self.host.now()), Arg::Number(dt)],
++                    ),
++                    ("Heartbeat", vec![Arg::Number(dt)]),
++                    ("RenderStepped", vec![Arg::Number(dt)]),
++                ] {
++                    if ran.is_ok() {
++                        ran = signal::fire(
++                            &self.lua,
++                            &crate::engine::events::instance_key(service, event),
++                            &args,
++                        );
++                    }
++                }
++            }
++        }
+         for _ in 0..ROUNDS {
+             if ran.is_err() {
+                 break;
