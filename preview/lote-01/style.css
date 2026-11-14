@@ -122,14 +122,68 @@
 }
 #rbx-mobile-review .drawer[data-expanded="true"] { position: absolute; inset: 4px; width: auto; }
 #rbx-mobile-review .drawer[data-bottom="true"] {
-  position: absolute; inset: auto 4px 4px; width: auto; height: min(150px, 65%);
+  position: absolute; inset: auto 4px 4px; width: auto; height: min(var(--output-height, 150px), 65%);
 }
+#rbx-mobile-review .drawer[data-bottom="true"][data-expanded="true"] { inset: 4px; height: auto; }
+#rbx-mobile-review .drawer[data-bottom="true"][data-collapsed="true"] { inset: auto 4px 4px; height: 68px; }
 #rbx-mobile-review .drawer-grip { flex: 0 0 16px; display: grid; place-items: center; touch-action: none; cursor: ew-resize; }
+#rbx-mobile-review .drawer[data-bottom="true"] .drawer-grip { cursor: ns-resize; }
 #rbx-mobile-review .drawer-grip::after { content: ""; width: 30px; height: 3px; border-radius: 99px; background: var(--rbx-border); }
 #rbx-mobile-review .drawer-header { display: flex; align-items: center; border-bottom: 1px solid var(--rbx-border); flex: none; }
 #rbx-mobile-review .drawer-tabs { min-width: 0; flex: 1; display: flex; align-items: center; overflow-x: auto; scrollbar-width: none; }
 #rbx-mobile-review .drawer-actions { display: flex; flex: none; padding: 0 5px; }
 #rbx-mobile-review #rbx-drawer-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#rbx-mobile-review .sample-scroll {
+  display: flex; flex-direction: column; gap: 7px;
+  flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 6px;
+}
+#rbx-mobile-review .sample-strip {
+  display: flex; flex: none; align-items: center; gap: 4px; min-width: 0;
+  overflow-x: auto; scrollbar-width: none; padding: 4px 6px;
+}
+#rbx-mobile-review .sample-strip .control { flex-shrink: 0; }
+#rbx-mobile-review .sample-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 6px; }
+#rbx-mobile-review .sample-grid .control { min-width: 0; min-height: 58px; flex-direction: column; gap: 3px; }
+#rbx-mobile-review .sample-section {
+  min-width: 0; border-radius: var(--rbx-control-radius);
+  border: 1px solid var(--rbx-border); background: var(--rbx-field); padding: 7px;
+}
+#rbx-mobile-review .sample-section > strong { display: block; margin: 4px 2px; }
+#rbx-mobile-review .sample-section > button { margin: 3px 0; max-width: 100%; }
+#rbx-mobile-review .sample-section summary { display: flex; justify-content: flex-start; }
+#rbx-mobile-review .sample-field {
+  display: flex; flex-direction: column; min-width: 0; gap: 3px;
+  padding: 3px; font-size: 13px; color: var(--rbx-muted);
+}
+#rbx-mobile-review .sample-field input, #rbx-mobile-review .sample-field select, #rbx-mobile-review .sample-editor {
+  box-sizing: border-box; height: 48px; min-width: 0; width: 100%; border: 1px solid var(--rbx-border);
+  border-radius: var(--rbx-control-radius); background: var(--rbx-field); padding: 0 9px;
+  color: var(--rbx-ink); font-size: 16px;
+}
+#rbx-mobile-review .toolbox-filter .sample-field { flex: 1; }
+#rbx-mobile-review .drawer-tabs .sample-field { width: 144px; flex: 0 0 144px; }
+#rbx-mobile-review .sample-switch {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 48px; gap: 8px; padding-inline: 4px;
+}
+#rbx-mobile-review .sample-switch input {
+  flex: 0 0 36px; appearance: none; width: 36px; height: 21px; border: 1px solid var(--rbx-border);
+  border-radius: 99px; background: var(--rbx-control-bottom); margin: 0; cursor: inherit;
+}
+#rbx-mobile-review .sample-switch input::after {
+  display: block; content: ""; width: 15px; height: 15px; border-radius: 50%; margin: 2px;
+  background: var(--rbx-muted); transition: transform 140ms ease-out;
+}
+#rbx-mobile-review .sample-switch input:checked { background: var(--rbx-accent); }
+#rbx-mobile-review .sample-switch input:checked::after { transform: translateX(15px); background: var(--rbx-primary-ink); }
+#rbx-mobile-review .output-entry { color: var(--rbx-muted); font: 12px monospace; padding: 8px; }
+#rbx-mobile-review .toolbox-card { display: flex; flex-direction: column; align-items: stretch; padding: 8px; gap: 6px; }
+#rbx-mobile-review .toolbox-card small { color: var(--rbx-muted); }
+#rbx-mobile-review .toolbox-thumb {
+  min-height: 96px; display: grid; place-items: center; border-radius: var(--rbx-row-radius);
+  background: var(--rbx-field);
+}
+#rbx-mobile-review .toolbox-thumb img { width: 38px; height: 38px; }
 #rbx-mobile-review .explorer-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 5px; gap: 3px; }
 #rbx-mobile-review .explorer-filter { display: flex; flex: none; gap: 4px; }
 #rbx-mobile-review .explorer-filter input {

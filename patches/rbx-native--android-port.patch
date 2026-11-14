@@ -3108,7 +3108,7 @@ index ca801d0e..81b84e49 100644
              .get("output_timestamps")
              .and_then(|v| v.as_bool())
 diff --git a/crates/rbx_studio/src/shell.rs b/crates/rbx_studio/src/shell.rs
-index 8bedd347..a53ef401 100644
+index 8bedd347..e1cfb3ed 100644
 --- a/crates/rbx_studio/src/shell.rs
 +++ b/crates/rbx_studio/src/shell.rs
 @@ -52,6 +52,7 @@ mod output;
@@ -3171,7 +3171,7 @@ index 8bedd347..a53ef401 100644
 +    #[cfg(target_os = "android")]
 +    mobile_sheet_motion: crate::mobile_style::Reveal<mobile::Sheet>,
 +    #[cfg(target_os = "android")]
-+    mobile_explorer_motion: crate::mobile_style::Reveal<layout::Panel>,
++    mobile_drawer_motion: crate::mobile_style::Reveal<layout::Panel>,
 +    #[cfg(target_os = "android")]
 +    mobile_panel: Option<layout::Panel>,
 +    #[cfg(target_os = "android")]
@@ -3221,7 +3221,7 @@ index 8bedd347..a53ef401 100644
 +            #[cfg(target_os = "android")]
 +            mobile_sheet_motion: Default::default(),
 +            #[cfg(target_os = "android")]
-+            mobile_explorer_motion: Default::default(),
++            mobile_drawer_motion: Default::default(),
 +            #[cfg(target_os = "android")]
 +            mobile_panel: None,
 +            #[cfg(target_os = "android")]
@@ -3274,7 +3274,7 @@ index 8bedd347..a53ef401 100644
      }
  
      /// Opens (or brings forward) or shuts one, from the View menu or the
-@@ -1740,20 +1807,41 @@ impl Shell {
+@@ -1740,20 +1807,44 @@ impl Shell {
          if open {
              self.ui_unhide(panel);
          }
@@ -3286,6 +3286,9 @@ index 8bedd347..a53ef401 100644
 +        {
 +            self.viewport.update(cx, |view, cx| view.cancel_android_interaction(cx));
 +            if open {
++                if panel == layout::Panel::Output && self.mobile_panel != Some(panel) {
++                    self.output_collapsed = false;
++                }
 +                self.mobile_panel = Some(panel);
 +                self.mobile_last_panel = panel;
 +                self.mobile_code_focus = false;
@@ -3323,7 +3326,7 @@ index 8bedd347..a53ef401 100644
      }
  
      /// Shows one of a dock's tabs, from a click on it.
-@@ -2100,6 +2188,11 @@ impl Render for Shell {
+@@ -2100,6 +2191,11 @@ impl Render for Shell {
          // An increment set from Settings has to reach the popover's text.
          self.snap_fields.sync(self.transform, window, cx);
          self.sync_argon_fields(window, cx);
@@ -3335,7 +3338,7 @@ index 8bedd347..a53ef401 100644
          v_flex()
              .size_full()
              .bg(tokens::black())
-@@ -2184,15 +2277,25 @@ impl Render for Shell {
+@@ -2184,15 +2280,25 @@ impl Render for Shell {
                  }),
              )
              .children(self.theme_background(false))
@@ -3369,7 +3372,7 @@ index 8bedd347..a53ef401 100644
                  div()
                      // Studio's keys (see `command_bar`), captured before the
                      // field's own: its Ctrl+Enter would insert a line first.
-@@ -2217,9 +2320,15 @@ impl Render for Shell {
+@@ -2217,9 +2323,15 @@ impl Render for Shell {
              // Painted at the window's root rather than inside the Explorer:
              // a popup nested in the tree's own scrolled, virtualised list
              // is clipped by it.
@@ -3924,7 +3927,7 @@ index 38c9fd93..580df6d0 100644
  
      fn mcp_studio(&self) -> Studio {
 diff --git a/crates/rbx_studio/src/shell/menu.rs b/crates/rbx_studio/src/shell/menu.rs
-index bdb7f0e2..4f1d4f47 100644
+index bdb7f0e2..58eaaadb 100644
 --- a/crates/rbx_studio/src/shell/menu.rs
 +++ b/crates/rbx_studio/src/shell/menu.rs
 @@ -31,7 +31,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -3954,7 +3957,7 @@ index bdb7f0e2..4f1d4f47 100644
              MenuId::ExplorerOverflow => "menu-explorer",
              MenuId::PropertiesOverflow => "menu-properties",
              MenuId::ViewportOverflow => "menu-viewport",
-@@ -353,24 +357,27 @@ fn popover(
+@@ -353,24 +357,29 @@ fn popover(
      let cursor = clamp(shell.menu_nav.cursor.filter(|_| open), len);
      let scroll = shell.menu_nav.scroll.clone();
  
@@ -3967,7 +3970,9 @@ index bdb7f0e2..4f1d4f47 100644
 -        .appearance(false)
 -        .on_open_change({
 +    let styled = cfg!(target_os = "android")
-+        && matches!(menu, MenuId::MobilePanels | MenuId::ExplorerOverflow);
++        && matches!(menu, MenuId::MobilePanels | MenuId::ExplorerOverflow
++            | MenuId::PropertiesOverflow | MenuId::OutputOverflow | MenuId::OutputContext
++            | MenuId::ViewportOverflow | MenuId::ViewportPerformance | MenuId::TerrainOverflow);
 +    let on_open_change = {
              let handle = handle.clone();
 -            move |open, window, cx| {
@@ -3991,7 +3996,7 @@ index bdb7f0e2..4f1d4f47 100644
                      }
                      shell.open_menu = open.then_some(menu);
                      shell.menu_nav.cursor = (open && keyboard)
-@@ -379,19 +386,21 @@ fn popover(
+@@ -379,19 +388,21 @@ fn popover(
                      cx.notify();
                  });
              }
@@ -4019,7 +4024,7 @@ index bdb7f0e2..4f1d4f47 100644
                  .on_key_down(move |event: &KeyDownEvent, _, cx| {
                      let Some(movement) = Move::of(&event.keystroke, true) else {
                          return;
-@@ -425,15 +434,46 @@ fn popover(
+@@ -425,15 +436,46 @@ fn popover(
                          action(shell, cx);
                          cx.notify();
                      });
@@ -4075,7 +4080,7 @@ index bdb7f0e2..4f1d4f47 100644
  }
  
  /// The gap `gpui_base`'s popup keeps from each window edge when it clamps a
-@@ -474,7 +514,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
+@@ -474,7 +516,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
                  .my(px(3.))
                  .bg(tokens::border())
                  .into_any_element(),
@@ -4084,7 +4089,7 @@ index bdb7f0e2..4f1d4f47 100644
          }
      }))
  }
-@@ -500,7 +540,7 @@ pub(super) fn surface() -> Div {
+@@ -500,7 +542,7 @@ pub(super) fn surface() -> Div {
  /// action and closes the menu. A real click holds for roughly that long
  /// anyway, and tying the flash to the press means it can never outlive the
  /// menu it is confirming.
@@ -4093,7 +4098,7 @@ index bdb7f0e2..4f1d4f47 100644
      let enabled = item.is_enabled();
      let action = item.action.clone();
  
-@@ -511,6 +551,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -511,6 +553,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
          enabled,
          item.checked,
      )
@@ -4101,7 +4106,7 @@ index bdb7f0e2..4f1d4f47 100644
      // The keyboard's highlight wears the hover's surface, and the pointer
      // moves it: one row is "the one Enter runs", however it got there.
      .when(highlighted, |this| this.bg(tokens::hover()))
-@@ -542,6 +583,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -542,6 +585,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
      })
  }
  
@@ -4114,7 +4119,7 @@ index bdb7f0e2..4f1d4f47 100644
  /// One menu row's chrome, without a handler on it. Shared with the
  /// Explorer's context menu (see [`surface`]).
  pub(super) fn row_chrome(
-@@ -554,7 +601,7 @@ pub(super) fn row_chrome(
+@@ -554,7 +603,7 @@ pub(super) fn row_chrome(
      h_flex()
          .id(id.into())
          .w_full()
@@ -4125,10 +4130,10 @@ index bdb7f0e2..4f1d4f47 100644
          .gap(px(6.))
 diff --git a/crates/rbx_studio/src/shell/mobile.rs b/crates/rbx_studio/src/shell/mobile.rs
 new file mode 100644
-index 00000000..faa02e8f
+index 00000000..f60b606f
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile.rs
-@@ -0,0 +1,570 @@
+@@ -0,0 +1,593 @@
 +use gpui_kit::assets::IconName;
 +use gpui_kit::component::{h_flex, v_flex, Icon};
 +use gpui_kit::prelude::FluentBuilder as _;
@@ -4150,6 +4155,14 @@ index 00000000..faa02e8f
 +pub(super) enum Sheet {
 +    Main,
 +    Tools,
++}
++
++fn styled_drawer(panel: Panel) -> bool {
++    matches!(
++        panel,
++        Panel::Explorer | Panel::Properties | Panel::Toolbox | Panel::Output |
++        Panel::Viewport | Panel::TerrainEditor
++    )
 +}
 +
 +impl Shell {
@@ -4236,11 +4249,11 @@ index 00000000..faa02e8f
 +    }
 +
 +    fn mobile_resize_handle(&self, bottom: bool, cx: &mut Context<Self>) -> impl IntoElement {
-+        let explorer = self.mobile_panel == Some(Panel::Explorer);
++        let styled = self.mobile_panel.is_some_and(styled_drawer);
 +        div().id("mobile-drawer-resize-handle").h(px(16.)).w_full().flex_none()
-+            .bg(if explorer { rgba(0x00000000) } else { tokens::border() })
++            .bg(if styled { rgba(0x00000000) } else { tokens::border() })
 +            .flex().items_center().justify_center()
-+            .when(explorer, |handle| handle.child(
++            .when(styled, |handle| handle.child(
 +                div().w(px(30.)).h(px(3.)).rounded_full().bg(style::border()),
 +            ))
 +            .role(Role::Button).aria_label("Redimensionar painel")
@@ -4248,6 +4261,9 @@ index 00000000..faa02e8f
 +                match event.phase {
 +                    TouchPhase::Started => {
 +                        shell.viewport.update(cx, |v, cx| v.cancel_android_interaction(cx));
++                        if bottom {
++                            shell.output_collapsed = false;
++                        }
 +                        let current = if bottom { shell.mobile_output_height } else {
 +                            mobile_metrics::drawer_width(window.viewport_size().width.into(), shell.mobile_drawer_width, false)
 +                        };
@@ -4416,23 +4432,27 @@ index 00000000..faa02e8f
 +        let drawer_width = mobile_metrics::drawer_width(width, self.mobile_drawer_width, self.mobile_panel_expanded);
 +        let code_focused = self.mobile_code_focused(window);
 +        let panel = (!code_focused).then_some(self.mobile_panel).flatten();
-+        let explorer = self.mobile_explorer_motion.frame(
-+            (panel == Some(Panel::Explorer)).then_some(Panel::Explorer),
-+            window,
-+        );
-+        let explorer = explorer.filter(|_| panel.is_none_or(|p| p == Panel::Explorer) && !code_focused);
-+        let panel = panel.or(explorer.as_ref().map(|frame| frame.value));
++        let motion = self.mobile_drawer_motion.frame(panel.filter(|p| styled_drawer(*p)), window);
++        let motion = motion.filter(|frame| panel.is_none_or(|p| p == frame.value) && !code_focused);
++        let panel = panel.or(motion.as_ref().map(|frame| frame.value));
 +        let output = panel == Some(Panel::Output);
-+        let drawer_height = mobile_metrics::output_height((f32::from(window.viewport_size().height) - 56.).max(0.), self.mobile_output_height, self.mobile_panel_expanded);
++        let available_height = (f32::from(window.viewport_size().height) - 60.).max(0.);
++        let drawer_height = if output && self.output_collapsed {
++            available_height.min(68.)
++        } else {
++            mobile_metrics::output_height(available_height, self.mobile_output_height, self.mobile_panel_expanded)
++        };
 +        let drawer = panel.map(|panel| {
-+            let drawer = self.mobile_drawer(panel, if output { width } else { drawer_width }, window, cx);
-+            match explorer {
++            let width = if output { (width - 8.).max(0.) } else { drawer_width };
++            let drawer = self.mobile_drawer(panel, width, window, cx);
++            match motion {
 +                // Hold the allocated viewport width until the fade finishes.
 +                // Resizing it every frame would recreate the 3D render target.
-+                Some(frame) => div().w(px(drawer_width)).h_full().flex_none().relative()
++                Some(frame) => div().w(px(width)).h_full().flex_none().relative()
 +                    .overflow_hidden()
 +                    .child(div().relative().size_full()
-+                        .left(px((1. - frame.amount) * style::DRAWER_SHIFT))
++                        .when(output, |body| body.top(px((1. - frame.amount) * style::DRAWER_SHIFT)))
++                        .when(!output, |body| body.left(px((1. - frame.amount) * style::DRAWER_SHIFT)))
 +                        .opacity(frame.amount).child(drawer))
 +                    .when(!frame.interactive, |host| {
 +                        host.child(div().absolute().inset_0().occlude())
@@ -4452,7 +4472,7 @@ index 00000000..faa02e8f
 +            .min_h_0()
 +            .overflow_hidden()
 +            .bg(style::background())
-+            .when(scene, |workspace| workspace.p(px(4.)));
++            .p(px(4.));
 +        if output {
 +            workspace = workspace.child(v_flex().size_full().overflow_hidden()
 +                .child(div().flex_1().min_h_0().overflow_hidden().child(document))
@@ -4561,7 +4581,11 @@ index 00000000..faa02e8f
 +        window: &mut Window,
 +        cx: &mut Context<Self>,
 +    ) -> AnyElement {
-+        let (trailing, body) = self.panel_parts(panel, false, window, cx);
++        let (trailing, body) =
++            self.panel_parts(panel, panel == Panel::Output && self.output_collapsed, window, cx);
++        let styled = styled_drawer(panel);
++        let output = panel == Panel::Output;
++        let (header_controls, trailing) = if output { (trailing, None) } else { (None, trailing) };
 +        let mut tabs = h_flex()
 +            .id("mobile-panel-tabs")
 +            .flex_1()
@@ -4575,7 +4599,7 @@ index 00000000..faa02e8f
 +                "Propriedades",
 +            ),
 +            (Panel::Toolbox, IconName::Package, "Toolbox"),
-+        ] {
++        ].into_iter().filter(|_| !output) {
 +            tabs = tabs.child(
 +                compact_action(entry.key(), icon, label, entry != panel || width < 325.)
 +                    .aria_selected(entry == panel)
@@ -4586,7 +4610,8 @@ index 00000000..faa02e8f
 +            );
 +        }
 +        if !matches!(panel, Panel::Explorer | Panel::Properties | Panel::Toolbox) {
-+            tabs = tabs.child(div().flex_none().px(px(8.)).child(panel.key()));
++            tabs = tabs.child(div().flex_none().px(px(8.)).child(panel.key()))
++                .children(header_controls);
 +        }
 +        let expanded = self.mobile_panel_expanded;
 +        let resize = if expanded {
@@ -4605,7 +4630,7 @@ index 00000000..faa02e8f
 +            .bg(tokens::dock())
 +            .border_l_1()
 +            .border_color(tokens::border())
-+            .when(panel == Panel::Explorer, |drawer| {
++            .when(styled, |drawer| {
 +                drawer.map(style::surface).text_color(style::text())
 +            })
 +            .child(self.mobile_resize_handle(panel == Panel::Output, cx))
@@ -4614,7 +4639,7 @@ index 00000000..faa02e8f
 +                    .flex_none()
 +                    .items_center()
 +                    .border_b_1()
-+                    .border_color(if panel == Panel::Explorer { style::border() } else { tokens::border() })
++                    .border_color(if styled { style::border() } else { tokens::border() })
 +                    .child(tabs)
 +                    .when(f32::from(window.viewport_size().width) >= 700., |bar| {
 +                        bar.child(
@@ -4629,11 +4654,14 @@ index 00000000..faa02e8f
 +                                true,
 +                            )
 +                            .on_click(cx.listener(
-+                                |shell, _, _, cx| {
++                                move |shell, _, _, cx| {
 +                                    shell
 +                                        .viewport
 +                                        .update(cx, |view, cx| view.cancel_android_interaction(cx));
 +                                    shell.mobile_panel_expanded = !shell.mobile_panel_expanded;
++                                    if panel == Panel::Output {
++                                        shell.output_collapsed = false;
++                                    }
 +                                    cx.notify();
 +                                },
 +                            )),
@@ -4717,6 +4745,91 @@ index 00000000..e6e48552
 +    if expanded { return height.max(0.); }
 +    preferred.clamp(96_f32.min(height), (height * 0.65).max(96_f32.min(height)))
 +}
+diff --git a/crates/rbx_studio/src/shell/output.rs b/crates/rbx_studio/src/shell/output.rs
+index d4eba18c..36405667 100644
+--- a/crates/rbx_studio/src/shell/output.rs
++++ b/crates/rbx_studio/src/shell/output.rs
+@@ -276,7 +276,10 @@ impl Shell {
+             div()
+                 .id("output-log")
+                 .flex_1()
++                .min_h_0()
+                 .overflow_y_scroll()
++                .when(cfg!(target_os = "android"), |log| log
++                    .map(crate::mobile_style::field).py(px(4.)))
+                 .track_scroll(&self.output_scroll)
+                 .pr(super::chrome::SCROLLBAR_GUTTER)
+                 .child(list)
+diff --git a/crates/rbx_studio/src/shell/output/controls.rs b/crates/rbx_studio/src/shell/output/controls.rs
+index 7874eb3c..0f8e5398 100644
+--- a/crates/rbx_studio/src/shell/output/controls.rs
++++ b/crates/rbx_studio/src/shell/output/controls.rs
+@@ -6,7 +6,7 @@ use gpui_kit::component::{h_flex, Icon};
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::super::chrome;
+ use super::super::menu::{self, MenuId};
+@@ -27,6 +27,7 @@ impl Shell {
+                 div()
+                     .flex_none()
+                     .ml(px(16.))
++                    .when(cfg!(target_os = "android"), |count| count.ml_0())
+                     .text_size(tokens::text_xs())
+                     .line_height(tokens::line_xs())
+                     .text_color(tokens::text_placeholder())
+@@ -53,6 +54,7 @@ impl Shell {
+                     .rounded(tokens::radius())
+                     .p(px(2.))
+                     .gap(px(2.))
++                    .when(cfg!(target_os = "android"), style::field)
+                     .children(OutputFilter::ALL.map(|level| {
+                         let selected = current == level;
+                         h_flex()
+@@ -65,11 +67,19 @@ impl Shell {
+                             .text_size(tokens::text_xs())
+                             .line_height(tokens::line_xs())
+                             .cursor_pointer()
++                            .when(cfg!(target_os = "android"), |segment| segment
++                                .min_h(px(44.))
++                                .rounded(px(style::ROW_RADIUS))
++                                .role(Role::Button)
++                                .aria_selected(selected))
+                             .map(|this| {
+                                 if selected {
+-                                    this.bg(tokens::accent_soft())
+-                                        .text_color(tokens::check_on())
+-                                        .font_weight(tokens::WEIGHT_SEMIBOLD)
++                                    let this = this.font_weight(tokens::WEIGHT_SEMIBOLD);
++                                    if cfg!(target_os = "android") {
++                                        style::selected(this)
++                                    } else {
++                                        this.bg(tokens::accent_soft()).text_color(tokens::check_on())
++                                    }
+                                 } else {
+                                     this.text_color(tokens::text_placeholder())
+                                         .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+@@ -95,6 +105,8 @@ impl Shell {
+                     .text_size(tokens::text_xs())
+                     .line_height(tokens::line_xs())
+                     .text_color(tokens::text_placeholder())
++                    .when(cfg!(target_os = "android"), |button| button
++                        .map(style::control).min_h(px(48.)))
+                     .hover(|this| {
+                         tokens::hover_fx(this)
+                             .bg(tokens::hover())
+@@ -142,6 +154,8 @@ impl Shell {
+                 tokens::check_on()
+             })
+             .cursor_pointer()
++            .when(cfg!(target_os = "android"), |button| button
++                .map(style::control).min_h(px(48.)))
+             .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
+             .child(current.label())
+             .child(Icon::new(IconName::ChevronDown).size(px(10.)));
 diff --git a/crates/rbx_studio/src/shell/palette/focus.rs b/crates/rbx_studio/src/shell/palette/focus.rs
 index 36b95213..67d365fb 100644
 --- a/crates/rbx_studio/src/shell/palette/focus.rs
@@ -4731,7 +4844,7 @@ index 36b95213..67d365fb 100644
  }
  
 diff --git a/crates/rbx_studio/src/shell/panels.rs b/crates/rbx_studio/src/shell/panels.rs
-index 050a436f..3edb9510 100644
+index 050a436f..b377e87c 100644
 --- a/crates/rbx_studio/src/shell/panels.rs
 +++ b/crates/rbx_studio/src/shell/panels.rs
 @@ -49,13 +49,13 @@ impl Shell {
@@ -4755,6 +4868,29 @@ index 050a436f..3edb9510 100644
          // Which row is hovered and which is being renamed: read once here,
          // since the per-row closure below runs inside the tree's own layout
          // pass and cannot borrow the shell back out of it.
+@@ -292,6 +292,13 @@ impl Shell {
+                 &self.filter,
+                 cx,
+             ))
++            .when(cfg!(target_os = "android") && filtering && sections.is_empty(), |body| {
++                // Tags and attributes may still match; the sections below
++                // remain available even when no reflected property matches.
++                body.child(div().px(px(8.)).text_size(tokens::text_sm())
++                    .text_color(crate::mobile_style::muted())
++                    .child("Nenhuma propriedade encontrada."))
++            })
+             .children(self.properties_breadcrumb())
+             .child(
+                 div()
+@@ -331,6 +338,8 @@ impl Shell {
+                                 let name = category.clone();
+                                 v_flex()
+                                     .w_full()
++                                    .when(cfg!(target_os = "android"), |group| group
++                                        .map(crate::mobile_style::surface).p(px(4.)))
+                                     .child(self.properties_nav.claim(
+                                         section_header(
+                                             SharedString::from(category),
 diff --git a/crates/rbx_studio/src/shell/play.rs b/crates/rbx_studio/src/shell/play.rs
 index 40907428..878dd7db 100644
 --- a/crates/rbx_studio/src/shell/play.rs
@@ -5638,7 +5774,7 @@ index 9bd6c9cb..c2db4549 100644
      let mut stack = dom.root_refs().to_vec();
      while let Some(instance) = stack.pop().and_then(|r| dom.get(r)) {
 diff --git a/crates/rbx_studio/src/shell/rows.rs b/crates/rbx_studio/src/shell/rows.rs
-index af8d6994..4ec76303 100644
+index af8d6994..83ffd552 100644
 --- a/crates/rbx_studio/src/shell/rows.rs
 +++ b/crates/rbx_studio/src/shell/rows.rs
 @@ -30,7 +30,7 @@ use super::explorer_edit::RowWidgets;
@@ -5743,7 +5879,36 @@ index af8d6994..4ec76303 100644
          let x = px(level as f32 * INDENT + GUIDE_OFFSET);
          let continues = guides & (1 << level) != 0;
          let last_level = level + 1 == depth;
-@@ -377,7 +384,7 @@ pub(super) fn property_row_control(
+@@ -346,6 +353,19 @@ fn tag_color(color: (u8, u8, u8), alpha: u8) -> Rgba {
+ /// A read-only property dims *both* columns, not just the value, the name
+ /// of something you cannot set is as unavailable as the setting is.
+ pub(super) fn property_row(row: &PropertyRow) -> impl IntoElement {
++    if cfg!(target_os = "android") {
++        return property_stack(
++            row,
++            div()
++                .min_w_0()
++                .px(px(8.))
++                .font_family(tokens::font_mono())
++                .text_size(tokens::text_sm())
++                .text_color(crate::mobile_style::muted())
++                .child(SharedString::from(row.value.clone())),
++            None,
++        ).into_any_element();
++    }
+     property_shell(
+         row,
+         true,
+@@ -363,7 +383,7 @@ pub(super) fn property_row(row: &PropertyRow) -> impl IntoElement {
+             .text_color(tokens::text_placeholder())
+             .child(SharedString::from(row.value.clone())),
+         None,
+-    )
++    ).into_any_element()
+ }
+ 
+ /// The editable twin of [`property_row`]: the value column becomes whichever
+@@ -377,7 +397,7 @@ pub(super) fn property_row_control(
      composite: bool,
      error: Option<&str>,
  ) -> impl IntoElement {
@@ -5752,7 +5917,16 @@ index af8d6994..4ec76303 100644
          return property_stack(row, control, error).into_any_element();
      }
      property_shell(
-@@ -419,9 +426,9 @@ fn property_stack(
+@@ -410,6 +430,8 @@ fn property_stack(
+         .text_size(tokens::text_md())
+         .line_height(tokens::line_md())
+         .text_color(tokens::text_strong())
++        .when(cfg!(target_os = "android"), |row| row
++            .rounded(px(crate::mobile_style::ROW_RADIUS)).py(px(4.)))
+         .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+         .child(
+             div()
+@@ -419,9 +441,9 @@ fn property_stack(
                  // even though this shape has nothing in it but the name.
                  .pl(tokens::chevron_slot() + tokens::label_gap())
                  .text_color(tokens::text_muted())
@@ -5764,7 +5938,7 @@ index af8d6994..4ec76303 100644
          .when_some(error, |this, message| {
              this.child(
                  div()
-@@ -584,12 +591,14 @@ pub(super) fn property_expandable(
+@@ -584,12 +606,14 @@ pub(super) fn property_expandable(
                  .min_h(tokens::row_height())
                  .flex_none()
                  .items_center()
@@ -5779,6 +5953,36 @@ index af8d6994..4ec76303 100644
                          .overflow_hidden()
                          .pr(tokens::row_padding())
                          .child(summary),
+@@ -665,7 +689,7 @@ pub(super) fn toggle_pill(checked: Option<bool>) -> Div {
+         .rounded_full()
+         .map(|this| {
+             if on {
+-                this.bg(tokens::check_on())
++                this.bg(if cfg!(target_os = "android") { crate::mobile_style::accent() } else { tokens::check_on() })
+             } else {
+                 this.bg(tokens::field_select())
+                     .border(px(1.))
+@@ -718,6 +742,12 @@ pub(super) fn section_header(
+         .line_height(tokens::line_xs())
+         .font_weight(tokens::WEIGHT_BOLD)
+         .text_color(tokens::text3())
++        .when(cfg!(target_os = "android"), |button| button
++            .min_h(px(48.))
++            .map(crate::mobile_style::control)
++            .text_color(crate::mobile_style::text())
++            .role(Role::Button)
++            .aria_expanded(open))
+         .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+         .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
+         .on_click(on_click)
+@@ -1208,6 +1238,7 @@ fn field_surface(surface: Rgba) -> Div {
+         .bg(surface)
+         .border_1()
+         .border_color(tokens::border())
++        .when(cfg!(target_os = "android"), crate::mobile_style::field)
+ }
+ 
+ #[cfg(test)]
 diff --git a/crates/rbx_studio/src/shell/save.rs b/crates/rbx_studio/src/shell/save.rs
 index 28cfa272..61a9e7db 100644
 --- a/crates/rbx_studio/src/shell/save.rs
@@ -6464,6 +6668,85 @@ index 04caaea6..864e7c13 100644
               is yours and readable."
              .to_owned(),
      }
+diff --git a/crates/rbx_studio/src/shell/terrain/panel.rs b/crates/rbx_studio/src/shell/terrain/panel.rs
+index fe66aa98..fe4f5aa4 100644
+--- a/crates/rbx_studio/src/shell/terrain/panel.rs
++++ b/crates/rbx_studio/src/shell/terrain/panel.rs
+@@ -15,7 +15,7 @@ use gpui_kit::*;
+ use rbx_terrain::generate::Biome;
+ 
+ use crate::terrain::{FillMode, MaterialChoice, Tab, TerrainTool};
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::super::layout::Panel;
+ use super::super::menu;
+@@ -94,6 +94,9 @@ impl Shell {
+                     .when(on, |this| {
+                         this.border_1().border_color(tokens::accent_line())
+                     })
++                    .when(cfg!(target_os = "android"), |button| button
++                        .map(style::control).text_color(style::text()).when(on, style::selected)
++                        .role(Role::Button).aria_selected(on))
+                     .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+                     .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
+                     .tooltip(move |window, cx| super::super::tooltip::text(tool.hint(), window, cx))
+diff --git a/crates/rbx_studio/src/shell/terrain/panel/controls.rs b/crates/rbx_studio/src/shell/terrain/panel/controls.rs
+index 7f3c67cf..05145e5b 100644
+--- a/crates/rbx_studio/src/shell/terrain/panel/controls.rs
++++ b/crates/rbx_studio/src/shell/terrain/panel/controls.rs
+@@ -8,7 +8,7 @@ use gpui_kit::component::{h_flex, v_flex};
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::super::super::rows::{rail_slider, text_field, toggle_pill};
+ use super::super::super::Shell;
+@@ -17,6 +17,7 @@ use super::super::super::Shell;
+ pub(super) fn section(title: &'static str, rows: Vec<AnyElement>) -> Div {
+     v_flex()
+         .gap(px(8.))
++        .when(cfg!(target_os = "android"), |section| section.map(style::field).p(px(8.)))
+         .child(
+             div()
+                 .text_size(tokens::text_xxs())
+@@ -55,6 +56,7 @@ pub(super) fn switch_row(
+         .px(px(6.))
+         .mx(px(-6.))
+         .rounded(tokens::radius_badge())
++        .when(cfg!(target_os = "android"), |row| row.h(px(48.)).rounded(px(style::ROW_RADIUS)))
+         .cursor_pointer()
+         .hover(|this| tokens::hover_fx(this).bg(tokens::hover_subtle()))
+         .focus_visible(|this| this.shadow(tokens::focus_ring_inset()))
+@@ -78,6 +80,7 @@ pub(super) fn chips<T: Copy + PartialEq + 'static>(
+         .gap(px(2.))
+         .rounded(tokens::radius_segment())
+         .bg(tokens::field_select())
++        .when(cfg!(target_os = "android"), |strip| strip.flex_wrap().map(style::field))
+         .children(choices.iter().map(|&(value, text)| {
+             let on = value == current;
+             div()
+@@ -93,6 +96,9 @@ pub(super) fn chips<T: Copy + PartialEq + 'static>(
+                 .line_height(tokens::line_sm())
+                 .text_color(if on { tokens::text() } else { tokens::text2() })
+                 .when(on, |this| this.bg(tokens::accent_soft()))
++                .when(cfg!(target_os = "android"), |chip| chip
++                    .min_w(px(64.)).h(px(48.)).map(style::control).when(on, style::selected)
++                    .role(Role::Button).aria_selected(on))
+                 .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+                 .focus_visible(|this| this.shadow(tokens::focus_ring_inset()))
+                 .on_click(cx.listener(move |shell, _, _, cx| pick(shell, value, cx)))
+@@ -173,6 +179,8 @@ pub(super) fn action_button(
+                 this.bg(tokens::field_select()).text_color(tokens::text2())
+             }
+         })
++        .when(cfg!(target_os = "android"), |button| button
++            .h(px(48.)).map(style::control).when(primary, style::primary))
+         .hover(|this| {
+             tokens::hover_fx(this).bg(if primary {
+                 tokens::accent_hover()
 diff --git a/crates/rbx_studio/src/shell/toolbar.rs b/crates/rbx_studio/src/shell/toolbar.rs
 index fdc1fd72..7727bd63 100644
 --- a/crates/rbx_studio/src/shell/toolbar.rs
@@ -6497,10 +6780,10 @@ index ee6770c3..ab524775 100644
              .w(px(248.))
 diff --git a/crates/rbx_studio/src/shell/toolbox.rs b/crates/rbx_studio/src/shell/toolbox.rs
 new file mode 100644
-index 00000000..8b864e08
+index 00000000..092620bc
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/toolbox.rs
-@@ -0,0 +1,1135 @@
+@@ -0,0 +1,1153 @@
 +//! The docked Creator Store and local model importer.
 +use std::collections::HashMap;
 +use std::io::Cursor;
@@ -6520,6 +6803,7 @@ index 00000000..8b864e08
 +use rbx_dom::{Ref, WeakDom};
 +
 +use crate::launcher::ui::{self, Weight};
++use crate::mobile_style as style;
 +use crate::tokens;
 +
 +use super::{chrome, freeze::read_model, Shell};
@@ -7118,7 +7402,7 @@ index 00000000..8b864e08
 +        let frame = div()
 +            .w_full()
 +            .h(px(height))
-+            .rounded(px(5.))
++            .rounded(px(if cfg!(target_os = "android") { style::ROW_RADIUS } else { 5. }))
 +            .overflow_hidden()
 +            .bg(ui::panel2())
 +            .flex()
@@ -7149,9 +7433,12 @@ index 00000000..8b864e08
 +            .p(px(4.))
 +            .rounded(px(5.))
 +            .bg(ui::panel())
++            .when(cfg!(target_os = "android"), |card| card.map(style::surface).gap(px(6.)).p(px(8.)))
 +            .child(
 +                div()
 +                    .id(("toolbox-detail", id))
++                    .role(Role::Button)
++                    .aria_label(asset.name.clone())
 +                    .cursor_pointer()
 +                    .on_click(cx.listener(move |this, _, _, cx| {
 +                        this.detail = Some(detail.clone());
@@ -7167,11 +7454,12 @@ index 00000000..8b864e08
 +            )
 +            .child(if cfg!(target_os = "android") {
 +                v_flex().w_full().gap(px(4.))
-+                    .child(div().truncate().text_size(px(11.)).text_color(tokens::text2()).child(asset.creator_name.clone()))
++                    .child(div().truncate().text_size(tokens::text_sm()).text_color(style::muted()).child(asset.creator_name.clone()))
 +                    .child(ui::button(("toolbox-insert", id), if self.busy { "Aguarde…" } else { "Adicionar" }, Weight::Secondary, false)
-+                        .w_full().min_h(px(48.))
++                        .w_full().min_h(px(48.)).map(style::control).text_color(style::accent())
 +                        .when(self.busy, |b| b.opacity(0.5).cursor_not_allowed())
-+                        .on_click(cx.listener(move |this, _, _, cx| this.import_asset(insert.clone(), cx))))
++                        .when(!self.busy, |b| b.on_click(cx.listener(move |this, _, _, cx|
++                            this.import_asset(insert.clone(), cx)))))
 +                    .into_any_element()
 +            } else {
 +                ui::button(("toolbox-insert", id), "Inserir", Weight::Ghost, true)
@@ -7219,9 +7507,13 @@ index 00000000..8b864e08
 +            )
 +            .child(div().child(asset.description.clone()))
 +            .child(
-+                ui::button("toolbox-detail-insert", if self.busy { "Aguarde…" } else { "Adicionar" }, Weight::Primary, false).min_h(px(48.)).on_click(
-+                    cx.listener(move |this, _, _, cx| this.import_asset(insert.clone(), cx)),
-+                ),
++                ui::button("toolbox-detail-insert", if self.busy { "Aguarde…" } else { "Adicionar" }, Weight::Primary, false)
++                    .min_h(px(48.))
++                    .when(cfg!(target_os = "android"), |button| button.map(style::control).map(style::primary))
++                    .when(self.busy, |button| button.opacity(0.5).cursor_not_allowed())
++                    .when(!self.busy, |button| button.on_click(
++                        cx.listener(move |this, _, _, cx| this.import_asset(insert.clone(), cx)),
++                    )),
 +            )
 +    }
 +}
@@ -7237,6 +7529,7 @@ index 00000000..8b864e08
 +            .id("toolbox-tabs")
 +            .w_full()
 +            .flex_none()
++            .when(cfg!(target_os = "android"), |tabs| tabs.gap(px(4.)))
 +            .overflow_x_scroll()
 +            .children(Collection::ALL.map(|(tab, label, icon)| {
 +                #[cfg(target_os = "android")]
@@ -7248,17 +7541,22 @@ index 00000000..8b864e08
 +                button
 +                    .aria_selected(tab == self.collection)
 +                    .when(tab == self.collection, |button| {
-+                        button.bg(tokens::field_select()).text_color(tokens::check_on())
++                        if cfg!(target_os = "android") { style::selected(button) }
++                        else { button.bg(tokens::field_select()).text_color(tokens::check_on()) }
 +                    })
 +                    .on_click(cx.listener(move |this, _, _, cx| this.show_collection(tab, cx)))
 +            }));
 +        let controls = h_flex()
 +            .w_full()
 +            .gap(px(4.))
-+            .child(div().min_w_0().flex_1().child(Input::new(&self.input)))
++            .child(div().min_w_0().flex_1()
++                .when(cfg!(target_os = "android"), |field| style::field(field)
++                    .h(px(48.)).flex().items_center().overflow_hidden())
++                .child(Input::new(&self.input).appearance(!cfg!(target_os = "android"))
++                    .when(cfg!(target_os = "android"), |input| input.h_full())))
 +            .child(
 +                chrome::icon_button("toolbox-search", IconName::Search, "Buscar")
-+                    .when(cfg!(target_os = "android"), |button| button.size(px(48.)))
++                    .when(cfg!(target_os = "android"), |button| button.size(px(48.)).map(style::control))
 +                    .on_click(cx.listener(|this, _, _, cx| this.search(false, cx))),
 +            );
 +        #[cfg(target_os = "android")]
@@ -7291,12 +7589,12 @@ index 00000000..8b864e08
 +        } else if self.options_open {
 +            body.child(
 +                ui::button("toolbox-file", "Arquivo local", Weight::Ghost, true)
-+                    .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)))
++                    .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)).map(style::control))
 +                    .on_click(cx.listener(|this, _, _, cx| this.choose_model(cx))),
 +            )
 +            .child(
 +                ui::button("toolbox-id", "Inserir ID", Weight::Ghost, true)
-+                    .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)))
++                    .when(cfg!(target_os = "android"), |button| button.min_h(px(48.)).map(style::control))
 +                    .on_click(cx.listener(|this, _, _, cx| this.insert_id(cx))),
 +            )
 +            .when(self.collection != Collection::Recent, |body| {
@@ -7306,7 +7604,10 @@ index 00000000..8b864e08
 +                    } else {
 +                        Weight::Ghost
 +                    };
-+                    ui::button(label, label, weight, true).on_click(cx.listener(
++                    ui::button(label, label, weight, true)
++                        .when(cfg!(target_os = "android"), |button| button.min_h(px(48.))
++                            .map(style::control).when(category == self.category, style::selected))
++                        .on_click(cx.listener(
 +                        move |this, _, _, cx| {
 +                            if !this.busy {
 +                                this.category = category;
@@ -7375,7 +7676,7 @@ index 00000000..8b864e08
 +                    column.child(
 +                        div()
 +                            .text_color(tokens::text2())
-+                            .line_clamp(if cfg!(target_os = "android") { 1 } else { 3 })
++                            .line_clamp(if cfg!(target_os = "android") { 2 } else { 3 })
 +                            .child(self.status.clone())
 +                            .id("toolbox-status")
 +                            .tooltip({
@@ -7671,6 +7972,53 @@ index 677fb105..dcc6b569 100644
          self.viewport.read(cx).set_stats_sampling(wanted);
      }
  
+diff --git a/crates/rbx_studio/src/shell/viewport_dock/rows.rs b/crates/rbx_studio/src/shell/viewport_dock/rows.rs
+index 80823fe9..1d64bee3 100644
+--- a/crates/rbx_studio/src/shell/viewport_dock/rows.rs
++++ b/crates/rbx_studio/src/shell/viewport_dock/rows.rs
+@@ -10,7 +10,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon, IndexPath, Sizable as _};
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ use crate::ui_canvas::PRESETS;
+ 
+ use super::super::menu::{self, MenuId};
+@@ -20,7 +20,7 @@ use super::Toggle;
+ 
+ /// Every control on the right of a row is this wide.
+ pub(super) const CONTROL_WIDTH: f32 = 150.;
+-pub(super) const CONTROL_HEIGHT: f32 = 26.;
++pub(super) const CONTROL_HEIGHT: f32 = if cfg!(target_os = "android") { 48. } else { 26. };
+ const ROW_HEIGHT: f32 = 28.;
+ /// A row's hover bleeds this far past its section's edges.
+ const ROW_BLEED: f32 = 8.;
+@@ -30,6 +30,7 @@ pub(super) fn section(title: &'static str, rows: Vec<AnyElement>) -> Div {
+     v_flex()
+         .min_w_0()
+         .gap(px(6.))
++        .when(cfg!(target_os = "android"), |section| section.map(style::field).p(px(10.)))
+         .child(
+             div()
+                 .h(px(14.))
+@@ -74,6 +75,7 @@ pub(super) fn horizontal_rule() -> Div {
+ pub(super) fn row(label: &'static str, control: impl IntoElement) -> Div {
+     h_flex()
+         .h(px(ROW_HEIGHT))
++        .when(cfg!(target_os = "android"), |row| row.h_auto().min_h(px(48.)))
+         .mx(px(-ROW_BLEED))
+         .px(px(ROW_BLEED))
+         .items_center()
+@@ -83,7 +85,7 @@ pub(super) fn row(label: &'static str, control: impl IntoElement) -> Div {
+         .child(
+             div()
+                 .min_w_0()
+-                .truncate()
++                .when(!cfg!(target_os = "android"), |label| label.truncate())
+                 .text_size(tokens::text_md())
+                 .line_height(tokens::line_md())
+                 .text_color(tokens::text2())
 diff --git a/crates/rbx_studio/src/shell/workspace.rs b/crates/rbx_studio/src/shell/workspace.rs
 index e0d7689a..17b3b9b0 100644
 --- a/crates/rbx_studio/src/shell/workspace.rs

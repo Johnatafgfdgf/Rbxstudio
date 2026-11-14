@@ -30,6 +30,11 @@
     tool: "select", selection: null, query: "", queryMode: false, allServices: false,
     lightIcons: false, commandBar: false, reduced: false, clipboard: null, undo: [], redo: [],
     expandedNodes: new Set(["Workspace"]), nodes: [], saved: false, localAxes: false, stick: false,
+    propertyQuery: "", toolboxQuery: "", toolboxTab: "Loja", toolboxOptions: false, toolboxDetail: false,
+    toolboxCategory: "Modelos", toolboxVerified: false, toolboxBusy: false, toolboxRecent: false, outputHeight: 150,
+    outputFilter: "All", outputContext: "All Contexts", outputQuery: "", outputCollapsed: false,
+    outputEntries: [["Info", "Edit", "Baseplate aberta na prévia."], ["Warnings", "Edit", "Catálogo de exemplo."]],
+    terrainTab: "Create", terrainTool: "", switches: {}, examples: {},
   };
   let toastTimer;
   let nextId = 0;
@@ -196,7 +201,7 @@
         { id: "SpawnLocation", label: "SpawnLocation", class: "SpawnLocation" },
       ] },
       ...["Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage", "ServerScriptService", "ServerStorage",
-        "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService", "TextChatService"]
+        "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService", "TextChatService", "TestService", "LocalizationService"]
         .map(name => ({ id: name, label: name, class: name, children: [] })),
     ];
   }
@@ -330,17 +335,26 @@
 
   function sizeLayout() {
     const width = root.clientWidth;
-    drawer.style.setProperty("--drawer-width", Math.min(380, Math.max(260, Math.min(width * .4, state.width || width * .36))) + "px");
+    drawer.style.setProperty("--drawer-width", drawerWidth(width) + "px");
+    drawer.style.setProperty("--output-height", state.outputHeight + "px");
     const grid = homeBody.querySelector(".project-grid");
     if (grid) grid.style.setProperty("--columns", Math.max(1, Math.min(5, Math.floor((width - 24 + 16) / 191))));
+  }
+
+  function drawerWidth(width) {
+    return state.expanded || width < 700 ? width
+      : Math.min(380, Math.max(260, Math.min(width * .4, state.width || width * .36)));
   }
 
   function setPanel(panel) {
     closePopup(false);
     closeSheet();
-    state.panel = panel === state.panel ? null : panel;
+    const previous = state.panel;
+    state.panel = panel === previous ? null : panel;
+    if (state.panel === "Output") state.outputCollapsed = false;
     if (state.panel) renderDrawer();
-    motion(drawer, Boolean(state.panel), "x", data.motion.drawerShift);
+    motion(drawer, Boolean(state.panel), panel === "Output" ? "y" : "x", data.motion.drawerShift);
+    if (previous && state.panel && previous !== state.panel) animatePage(drawerBody);
   }
 
   function renderDrawer() {
@@ -348,20 +362,21 @@
     const expand = drawer.querySelector("[data-action='expand-panel']");
     drawer.dataset.expanded = String(state.expanded);
     drawer.dataset.bottom = String(state.panel === "Output");
+    drawer.dataset.collapsed = String(state.panel === "Output" && state.outputCollapsed);
     drawer.setAttribute("aria-label", state.panel);
     expand.replaceChildren(glyph(state.expanded ? "minimize-2" : "maximize-2"));
     expand.setAttribute("aria-label", state.expanded ? "Reduzir painel" : "Ampliar painel");
-    const tabButtons = [["Explorer", "list-tree"], ["Properties", "sliders-horizontal"], ["Toolbox", "package"]]
+    const tabButtons = (state.panel === "Output" ? [] : [["Explorer", "list-tree"], ["Properties", "sliders-horizontal"], ["Toolbox", "package"]])
       .map(([name, icon]) => {
         const selected = state.panel === name;
-        const labeled = selected && name === "Explorer" && (state.expanded ? root.clientWidth : drawer.clientWidth) >= 325;
+        const labeled = selected && drawerWidth(root.clientWidth) >= 325;
         return button(name, "drawer-tab:" + name, icon, "control" + (labeled ? "" : " icon-only"), { pressed: selected, iconOnly: !labeled });
       });
     if (!["Explorer", "Properties", "Toolbox"].includes(state.panel)) tabButtons.push(element("span", "drawer-notice", state.panel));
     drawer.querySelector(".drawer-tabs").replaceChildren(...tabButtons);
     drawerBody.replaceChildren();
     if (state.panel !== "Explorer") {
-      drawerBody.append(element("p", "drawer-notice", "Conteúdo interno reservado para outro lote."));
+      renderNamedPanel(state.panel);
       return;
     }
     const settings = element("div", "drawer-actions");
@@ -425,7 +440,7 @@
     };
     tree.replaceChildren();
     for (const service of state.nodes) {
-      if (!state.allServices && ["Teams", "TextChatService", "SoundService"].includes(service.id)) continue;
+      if (!state.allServices && ["TestService", "LocalizationService"].includes(service.id)) continue;
       visit(service, 0);
     }
     if (!tree.childElementCount) tree.append(element("p", "drawer-notice", "Nenhum resultado"));
@@ -474,6 +489,187 @@
     state.expandedNodes.add(parent.id);
     state.selection = item.id;
     renderTree();
+  }
+
+  function sampleField(label, value, type = "text") {
+    const field = element("label", "sample-field");
+    const input = element("input");
+    input.type = type; input.value = value; input.setAttribute("aria-label", label);
+    field.append(element("span", "", label), input);
+    return field;
+  }
+
+  function sampleSwitch(label, checked = false) {
+    const row = element("label", "sample-switch");
+    const input = element("input");
+    input.type = "checkbox"; input.checked = checked;
+    input.addEventListener("change", () => { state.switches[label] = input.checked; });
+    row.append(element("span", "", label), input);
+    return row;
+  }
+
+  function sampleSection(label, ...controls) {
+    const section = element("section", "sample-section");
+    section.append(element("strong", "", label), ...controls);
+    return section;
+  }
+
+  function sampleSearch(label, value, update) {
+    const field = sampleField(label, value, "search");
+    const input = field.lastElementChild;
+    input.placeholder = label;
+    field.firstElementChild.hidden = true;
+    input.addEventListener("input", () => update(input.value));
+    return field;
+  }
+
+  function renderNamedPanel(panel) {
+    const list = element("div", "sample-scroll");
+    if (panel === "Output") {
+      renderOutput(list); return;
+    }
+    if (panel !== "Toolbox") {
+      const header = element("div", "drawer-actions");
+      header.append(button(panel + " options", "sample-settings", "ellipsis", "control icon-only", { iconOnly: true }));
+      drawerBody.append(header);
+    }
+    drawerBody.append(list);
+    if (panel === "Properties") renderProperties(list);
+    else if (panel === "Toolbox") renderToolbox(list);
+    else if (panel === "Viewport") renderViewport(list);
+    else if (panel === "Terrain Editor") renderTerrain(list);
+    else renderExample(panel, list);
+  }
+
+  function renderProperties(list) {
+    const selected = locate(state.selection)?.item;
+    const visibleFields = () => {
+      list.replaceChildren();
+      if (!selected) return;
+      for (const [title, fields] of [
+        ["Data", [["Name", selected.label, "text"]]],
+        ["Appearance", [["Color", "#a3a2a5", "color"], ["Material", "Plastic", "text"]]],
+        ["Transform", [["Position", "0, 0, 0", "text"], ["Size", "4, 1, 2", "text"]]],
+        ["Behavior", [["Anchored", true, "checkbox"]]],
+      ]) {
+        const matching = fields.filter(([name]) => name.toLowerCase().includes(state.propertyQuery.toLowerCase()));
+        if (!matching.length) continue;
+        const group = element("details", "sample-section");
+        group.open = true;
+        group.append(element("summary", "control", title));
+        for (const [label, value, kind] of matching) {
+          const input = kind === "checkbox" ? sampleSwitch(label, state.switches[label] ?? value) : sampleField(label, selected[label] ?? value, kind);
+          input.lastElementChild.addEventListener("change", event => {
+            selected[label] = event.target.value;
+            if (label === "Name" && event.target.value.trim()) selected.label = event.target.value.trim();
+          });
+          group.append(input);
+        }
+        list.append(group);
+      }
+      if (!list.childElementCount) list.append(element("p", "drawer-notice", "Nenhuma propriedade encontrada."));
+    };
+    drawerBody.insertBefore(sampleSearch("Filter Properties", state.propertyQuery, value => {
+      state.propertyQuery = value; visibleFields();
+    }), list);
+    visibleFields();
+  }
+
+  function renderToolbox(list) {
+    const tabs = element("div", "sample-strip");
+    const entries = [["Loja", "store"], ["Inventário", "package"], ["Recentes", "clock"], ["Criações", "hammer"]];
+    tabs.append(...entries.map(([label, icon]) => button(label, "toolbox-tab:" + label, icon,
+      "control", { pressed: label === state.toolboxTab })));
+    const filter = element("div", "sample-strip toolbox-filter");
+    filter.append(sampleSearch("Buscar", state.toolboxQuery, value => { state.toolboxQuery = value; }),
+      button("Buscar", "toolbox-search", "search", "control icon-only", { iconOnly: true }),
+      button("Opções", "toolbox-options", "sliders-horizontal", "control icon-only", { iconOnly: true, pressed: state.toolboxOptions }));
+    drawerBody.insertBefore(tabs, list);
+    drawerBody.insertBefore(filter, list);
+    if (state.toolboxOptions) {
+      list.append(button("Arquivo local", "open-file"), button("Inserir ID", "sample:Inserir ID"));
+      if (state.toolboxTab !== "Recentes") {
+        list.append(...data.toolboxCategories.map(category => button(category, "toolbox-category:" + category, null, "control", { pressed: category === state.toolboxCategory })));
+      }
+      if (state.toolboxTab === "Loja") list.append(button("Verificados", "toolbox-verified", null, "control", { pressed: state.toolboxVerified }));
+    } else if (["Inventário", "Criações"].includes(state.toolboxTab)) {
+      list.append(button("Conectar conta Roblox", "account"));
+    } else if (state.toolboxCategory === "Modelos" && (state.toolboxTab !== "Recentes" || state.toolboxRecent)
+               && "SpawnLocation".toLowerCase().includes(state.toolboxQuery.toLowerCase())) {
+      const card = element("article", "toolbox-card surface");
+      if (state.toolboxDetail) card.append(button("Voltar à lista", "toolbox-detail", "arrow-left"));
+      const thumbnail = button("SpawnLocation", "toolbox-detail", null, "toolbox-thumb", { iconOnly: true });
+      const icon = element("img");
+      icon.src = data.classIcons.SpawnLocation; icon.alt = "";
+      thumbnail.append(icon);
+      card.append(thumbnail, element("strong", "", "SpawnLocation"), element("small", "", "Modelo de exemplo"),
+        button(state.toolboxBusy ? "Aguarde…" : "Adicionar", "toolbox-insert", null, "control selected",
+          { disabled: state.toolboxBusy }));
+      list.append(card);
+    }
+  }
+
+  function renderOutput(list) {
+    const scroll = drawer.querySelector(".drawer-tabs");
+    scroll.append(sampleSearch("Search Output", state.outputQuery, value => {
+      state.outputQuery = value; renderOutputEntries(list);
+    }));
+    scroll.append(...data.outputFilters.map(label => button(label, "output-level:" + label, null, "control", { pressed: state.outputFilter === label })));
+    scroll.append(button(state.outputContext, "output-context", "chevron-down"), button("Clear", "output-clear"),
+      button("Output settings", "output-settings", "ellipsis", "control icon-only", { iconOnly: true }),
+      button(state.outputCollapsed ? "Expand Output" : "Collapse Output", "output-collapse"));
+    if (!state.outputCollapsed) {
+      drawerBody.append(list);
+      renderOutputEntries(list);
+    }
+  }
+
+  function renderOutputEntries(list) {
+    list.replaceChildren(...state.outputEntries
+      .filter(([level, context, message]) => (state.outputFilter === "All" || level === state.outputFilter)
+        && (state.outputContext === "All Contexts" || context === state.outputContext)
+        && message.toLowerCase().includes(state.outputQuery.toLowerCase()))
+      .map(([level, context, message]) => element("div", "output-entry", level + " · " + message)));
+    if (!list.childElementCount) list.append(element("p", "drawer-notice", "No entries match this filter."));
+  }
+
+  function renderViewport(list) {
+    for (const [group, labels] of Object.entries(data.viewportGroups)) {
+      list.append(sampleSection(group, ...labels.map(label => sampleSwitch(label, state.switches[label] ?? label === "Orientation Indicator"))));
+    }
+  }
+
+  function renderTerrain(list) {
+    const tabs = element("div", "sample-strip");
+    tabs.append(...Object.keys(data.terrainTools).map(label => button(label, "terrain-tab:" + label, null, "control", { pressed: state.terrainTab === label })));
+    const grid = element("div", "sample-grid");
+    grid.append(...data.terrainTools[state.terrainTab].map(([label, icon]) => button(label, "terrain-tool:" + label, icon, "control", { pressed: state.terrainTool === label })));
+    list.append(tabs, grid);
+    if (["Draw", "Sculpt", "Smooth", "Paint", "Flatten"].includes(state.terrainTool)) {
+      list.append(sampleSection("Brush", sampleField("Brush Size", state.examples.brushSize || "12", "number"),
+        sampleSwitch("Ignore Water", state.switches["Ignore Water"]), sampleSwitch("Ignore Parts", state.switches["Ignore Parts"])));
+    }
+  }
+
+  function renderExample(panel, list) {
+    const sections = data.panelExamples[panel];
+    if (!sections) {
+      list.append(element("p", "drawer-notice", "Conteúdo interno reservado para outro lote."));
+      return;
+    }
+    renderExampleSections(sections, list);
+  }
+
+  function renderExampleSections(sections, holder) {
+    for (const [title, controls] of sections) {
+      const rows = controls.map(([type, label, value]) => {
+        if (type === "switch") return sampleSwitch(label, state.switches[label] ?? Boolean(value));
+        if (type === "field") return sampleField(label, value || "");
+        if (type === "status") return element("p", "drawer-notice", label);
+        return button(label, "sample:" + label, value || null);
+      });
+      holder.append(sampleSection(title, ...rows));
+    }
   }
 
   function copyObject(cut = false) {
@@ -632,7 +828,43 @@
       case "panel": setPanel(value); return;
       case "drawer-tab": if (state.panel !== value) setPanel(value); return;
       case "close-panel": setPanel(state.panel); return;
-      case "expand-panel": state.expanded = !state.expanded; renderDrawer(); return;
+      case "expand-panel":
+        state.expanded = !state.expanded; state.outputCollapsed = false; renderDrawer(); return;
+      case "sample-settings": openPopup("panel-options", trigger, 250,
+        [button("Fechar painel", "close-panel", null, "menu-row")], true); return;
+      case "toolbox-tab": state.toolboxTab = value; state.toolboxDetail = false; renderDrawer(); return;
+      case "toolbox-search": state.toolboxDetail = false; state.toolboxOptions = false; renderDrawer(); return;
+      case "toolbox-category": state.toolboxCategory = value; renderDrawer(); return;
+      case "toolbox-verified": state.toolboxVerified = !state.toolboxVerified; renderDrawer(); return;
+      case "toolbox-options": state.toolboxOptions = !state.toolboxOptions; state.toolboxDetail = false; renderDrawer(); return;
+      case "toolbox-detail": state.toolboxDetail = !state.toolboxDetail; renderDrawer(); return;
+      case "toolbox-insert": {
+        if (state.toolboxBusy) return;
+        state.toolboxBusy = true; renderDrawer();
+        setTimeout(() => {
+          state.toolboxBusy = false; state.toolboxRecent = true;
+          addObject("SpawnLocation");
+          if (state.panel === "Toolbox") renderDrawer();
+          announce("SpawnLocation adicionada ao projeto de exemplo.");
+        }, 230);
+        return;
+      }
+      case "output-level": state.outputFilter = value; renderDrawer(); return;
+      case "output-context": openPopup("output-context", trigger, 240,
+        menuItems(data.outputContexts, "output-context-value:", null, { [state.outputContext]: true })); return;
+      case "output-context-value": closePopup(); state.outputContext = value; renderDrawer(); return;
+      case "output-clear": state.outputEntries = []; renderDrawer(); return;
+      case "output-collapse": state.outputCollapsed = !state.outputCollapsed; renderDrawer(); return;
+      case "output-settings": {
+        const values = ["Show Timestamp", "Show Context", "Show Source", "Show Tables Expanded by Default",
+          "Show Memory Address for Expandable Tables", "Log Mode"];
+        openPopup("output-settings", trigger, 280, menuItems(values, "sample-switch:", null,
+          Object.fromEntries(values.map(label => [label, Boolean(state.switches[label])]))));
+        return;
+      }
+      case "sample-switch": state.switches[value] = !state.switches[value]; closePopup(); return;
+      case "terrain-tab": state.terrainTab = value; state.terrainTool = ""; renderDrawer(); return;
+      case "terrain-tool": state.terrainTool = value; renderDrawer(); return;
       case "explorer-settings": openPopup("explorer-settings", trigger, 250, [
         button("Fechar painel", "close-panel", null, "menu-row"),
         button("Show all services", "all-services", null, "menu-row", { checked: state.allServices }),
@@ -754,16 +986,19 @@
   const grip = drawer.querySelector(".drawer-grip");
   let drag = null;
   grip.addEventListener("pointerdown", event => {
-    if (root.clientWidth < 700 || state.expanded || state.panel === "Output") return;
-    drag = { x: event.clientX, width: drawer.offsetWidth };
+    if (state.expanded || (root.clientWidth < 700 && state.panel !== "Output")) return;
+    drag = { x: event.clientX, y: event.clientY, width: drawer.offsetWidth, height: drawer.offsetHeight };
     grip.setPointerCapture(event.pointerId);
   });
   grip.addEventListener("pointermove", event => {
     if (!drag) return;
-    state.width = drag.width + drag.x - event.clientX;
+    if (state.panel === "Output") {
+      state.outputHeight = Math.max(96, drag.height + drag.y - event.clientY);
+      if (state.outputCollapsed) { state.outputCollapsed = false; renderDrawer(); }
+    } else state.width = drag.width + drag.x - event.clientX;
     sizeLayout();
   });
-  for (const event of ["pointercancel", "lostpointercapture"]) grip.addEventListener(event, () => { drag = null; });
+  for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) grip.addEventListener(event, () => { drag = null; });
   new ResizeObserver(sizeLayout).observe(root);
   root.querySelector(".scene-image").src = data.images[0];
   hydrateButtons();

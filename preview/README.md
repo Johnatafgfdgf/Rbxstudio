@@ -5,7 +5,8 @@ os raios, os tempos de animação e os ícones vêm das mesmas fontes usadas pel
 O navegador usa uma Baseplate de exemplo. Desfazer, seleção e navegação da prévia
 operam sobre esse exemplo. Arquivos, Vulkan, Toolbox on-line e Roblox requerem o app.
 
-A página em `preview/index.html` é a prévia histórica de antes dessa edição.
+A página em `preview/mobile-ui.html` acompanha o trabalho atual. A de
+`preview/index.html` é a prévia histórica de antes dessa edição.
 
 Abra `preview/index.html` no navegador ou use um serviço de visualização de HTML hospedado no GitHub. Não há dependências externas ou necessidade de instalar APK.
 

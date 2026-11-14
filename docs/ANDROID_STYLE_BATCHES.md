@@ -8,7 +8,7 @@ especializados fazem parte da revisão como componentes das superfícies.
 | Lote | Superfícies | Implementação |
 | --- | --- | --- |
 | 1 | Início, Menu (File, Edit, Model, View), Ferramentas, Painéis, Explorer | Estilo Android aplicado e prévia interativa exercitada no navegador. |
-| 2 | Properties, Toolbox, Output, Viewport, Terrain Editor | Pendente. |
+| 2 | Properties, Toolbox, Output, Viewport, Terrain Editor | Estilo Android aplicado. Prévia exercitada por toque, incluindo filtros, recolher Output e alternar a ferramenta de terreno. |
 | 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Pendente. |
 | 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Pendente. |
 | 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Pendente. |
@@ -31,3 +31,18 @@ Validação da prévia em Chromium com seis larguras e movimento reduzido.
 Cobertura de navegação de Início, quatro menus, sete abas de Ferramentas,
 21 entradas de Painéis e 19 ações de contexto do Explorer. O APK e os handlers
 nativos exigem uma rodada própria de validação em Android.
+
+## Lote 2
+
+| Superfície | Controle e posição | Handler ou estado |
+| --- | --- | --- |
+| Properties | Busca no topo. Categorias recolhíveis e campos na coluna | `panels::properties`, `toggle_category`, `properties::edit` |
+| Toolbox | Loja, Inventário, Recentes e Criações no topo. Opções na busca. Adicionar abaixo da miniatura | `Toolbox::{show_collection,search,import_asset}`; `finish_toolbox_review` |
+| Output | Busca, filtros, contexto, Clear, opções e recolher no cabeçalho inferior rolável | `output_filter`, `output_context`, `output.clear`, `output_collapsed` |
+| Viewport | Seções Rendering, Camera, Overlays, Dragging & Snapping e Performance | `viewport_toggles`, `set_dragger`, `set_perf_metric` |
+| Terrain Editor | Guias Create e Edit. Ferramentas em grade e parâmetros existentes abaixo | `terrain.tab`, `use_terrain_tool`, `tool_sections` |
+
+O seletor de categorias, a busca, a inserção e o desfazer da Toolbox foram
+exercitados com dados locais da prévia. A revisão Luau e o importador reais
+exigem Android. O Output usa o estado de recolhimento existente e deixa
+Expandir, Recolher e Fechar disponíveis mesmo com o histórico recolhido.

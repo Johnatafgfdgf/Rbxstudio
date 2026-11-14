@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the first Android design review from the prepared rbx-native source."""
+"""Assemble the Android design review from the prepared rbx-native source."""
 
 import argparse
 import base64
@@ -22,7 +22,7 @@ KIT_ICON_NAMES = {
     "list-tree", "magnet", "maximize-2", "menu", "minimize-2", "mouse-pointer-2",
     "move-3d", "package", "panels-top-left", "play", "plus", "redo-2", "rotate-3d",
     "rotate-cw", "save", "scaling", "search", "sliders-horizontal", "trash", "undo-2",
-    "user", "wrench", "x", "clock",
+    "user", "wrench", "x", "clock", "arrow-left", "hammer", "store",
 }
 CLASSES = (
     "Workspace", "Terrain", "Camera", "Part", "SpawnLocation", "Players", "Lighting",
@@ -88,6 +88,10 @@ def insert_items(name):
     ]
 
 
+def match_labels(source, enum_name):
+    return re.findall(rf'{enum_name}::\w+ => "([^"]+)"', source)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--kit-assets", required=True, type=Path,
@@ -127,10 +131,22 @@ def main():
     inserts["UI"].insert(2, ["AdGui", "megaphone", False])
     template_labels = re.findall(r'Template::\w+ => "([^"]+)"', rust("home/template.rs").split("pub(crate) fn create", 1)[0])
     templates = list(zip(template_labels[:3], template_labels[3:], strict=True))
+    terrain = rust("terrain.rs")
+    terrain_labels = dict(re.findall(r'TerrainTool::(\w+) => "([^"]+)"', terrain.split("fn label", 1)[1].split("fn hint", 1)[0]))
+    terrain_icons = dict(re.findall(r'TerrainTool::(\w+) => IconName::(\w+)', terrain))
+    terrain_tools = {
+        name.title(): [[terrain_labels[tool], kebab(terrain_icons[tool])]
+                       for tool in re.findall(r'TerrainTool::(\w+)', terrain.split(f"const {name}:", 1)[1].split("];", 1)[0])]
+        for name in ("CREATE", "EDIT")
+    }
+    toolbox = rust("shell/toolbox.rs")
+    output = rust("shell/output/filter.rs")
+    viewport = rust("shell/viewport_dock/toggles.rs")
 
     icon_names = KIT_ICON_NAMES | {row[1] for row in explorer_rows}
     icon_names |= {row[1] for rows in inserts.values() for row in rows if row[1]}
     icon_names |= {row[1] for groups in catalog["tools"].values() for group in groups for row in group}
+    icon_names |= {icon for rows in terrain_tools.values() for _, icon in rows}
     for name in sorted(icon_names):
         icon = args.kit_assets / "assets/icons" / (name + ".svg")
         css.append(f"--icon-{name}: url({data_url(icon.read_bytes())})")
@@ -154,6 +170,15 @@ def main():
     data = {
         "menus": extract_menus(), "panels": panels, "tabs": tabs, "tools": catalog["tools"],
         "inserts": inserts, "templates": templates, "explorerRows": explorer_rows,
+        "terrainTools": terrain_tools,
+        "outputFilters": match_labels(output, "OutputFilter"),
+        "outputContexts": match_labels(output, "ContextFilter"),
+        "toolboxCategories": re.findall(r'StoreCategory::\w+, "([^"]+)"', toolbox.split("const CATEGORIES", 1)[1].split("];", 1)[0]),
+        "viewportGroups": {
+            name: re.findall(r'\(\s*"([^"]+)"', viewport.split(f"let {variable}:", 1)[1].split("];", 1)[0])
+            for name, variable in [("Camera", "camera"), ("Overlays", "overlays"), ("Dragging & Snapping", "dragging")]
+        },
+        "panelExamples": catalog.get("panelExamples", {}),
         "classIcons": class_icons("dark"), "lightClassIcons": class_icons("light"),
         "images": [thumbnail(args.templates / name, width) for name, width in [
             ("baseplate.png", 637), ("classic-baseplate.png", 180), ("flat-terrain.png", 180)
@@ -179,7 +204,7 @@ def main():
     args.output.write_text(
         '<!doctype html>\n<html lang="pt-BR"><meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
-        '<title>Rbx Studio · revisão 1</title>\n'
+        '<title>Rbx Studio · revisão Android</title>\n'
         '<style>html,body{margin:0;background:#0b1322}#rbx-mobile-review{--frame-height:100dvh}</style>\n'
         + fragment + "</html>\n"
     )
