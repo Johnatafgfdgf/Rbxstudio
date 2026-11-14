@@ -1547,7 +1547,7 @@ diff --git a/crates/rbx_studio/src/launcher/home_window/view.rs b/crates/rbx_stu
                                      .pb(px(32.))
                                      .child(page),
                              ),
-@@ -144,9 +188,184 @@
+@@ -144,9 +188,185 @@
              .when(!picker, |this| this.child(disclaimer()))
              .children(menu)
              .children(dialog)
@@ -1716,6 +1716,7 @@ diff --git a/crates/rbx_studio/src/launcher/home_window/view.rs b/crates/rbx_stu
 +            .child(div().flex_1())
 +            .child(
 +                h_flex()
++                    .id("mobile-home-connect-action")
 +                    .h(px(36.))
 +                    .px(px(11.))
 +                    .items_center()
