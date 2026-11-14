@@ -1442,89 +1442,304 @@ index 9fd59e0..8a8df5b 100644
              .ok_or_else(|| "no config directory to create the place in".to_string())
              .and_then(|path| template.create(&path).map(|()| path));
 diff --git a/crates/rbx_studio/src/launcher/home_window/view.rs b/crates/rbx_studio/src/launcher/home_window/view.rs
-index 7a9fec1..2ae3144 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view.rs
-@@ -42,12 +42,19 @@ pub(super) struct Grid {
+@@ -42,12 +42,19 @@
  
  /// `clamp(floor((content + 16) / 192), 3, 8)`.
  pub(super) fn columns(content: f32) -> usize {
--    (((content + GAP) / 192.).floor() as usize).clamp(3, 8)
 +    let fitting = ((content + GAP) / 192.).floor() as usize;
 +    if cfg!(target_os = "android") {
 +        fitting.clamp(1, 4)
 +    } else {
 +        fitting.clamp(3, 8)
 +    }
+-    (((content + GAP) / 192.).floor() as usize).clamp(3, 8)
  }
  
  impl Grid {
--    fn new(window: &Window, sidebar: f32) -> Self {
--        let content = (f32::from(window.viewport_size().width) - sidebar - 64.).max(300.);
 +    fn new(window: &Window, sidebar: f32, padding: f32) -> Self {
 +        let minimum = if cfg!(target_os = "android") { 1. } else { 300. };
 +        let content =
 +            (f32::from(window.viewport_size().width) - sidebar - padding * 2.).max(minimum);
+-    fn new(window: &Window, sidebar: f32) -> Self {
+-        let content = (f32::from(window.viewport_size().width) - sidebar - 64.).max(300.);
          let columns = columns(content);
          let card = (content - GAP * (columns as f32 - 1.)) / columns as f32;
          Grid {
-@@ -83,7 +90,17 @@ impl HomeWindow {
+@@ -83,7 +90,11 @@
          }
          self.sync_creator_select(window, cx);
          let picker = self.pick.is_some();
--        let grid = Grid::new(window, if picker { 0. } else { SIDEBAR });
 +        let size = window.viewport_size();
-+        let compact = cfg!(target_os = "android") && size.height < px(480.) && !picker;
-+        let sidebar = if picker {
-+            0.
-+        } else if compact {
-+            (f32::from(size.width) * 0.27).clamp(132., SIDEBAR)
-+        } else {
-+            SIDEBAR
-+        };
++        let compact = cfg!(target_os = "android") && !picker;
++        let sidebar = if picker || compact { 0. } else { SIDEBAR };
 +        let padding = if compact { 16. } else { 32. };
 +        let grid = Grid::new(window, sidebar, padding);
+-        let grid = Grid::new(window, if picker { 0. } else { SIDEBAR });
          let crumb = match self.page {
              _ if picker => "Link to a Roblox place",
              Page::Home => "Home",
-@@ -91,7 +108,7 @@ impl HomeWindow {
+@@ -91,12 +102,45 @@
              Page::MyGames => "My Games",
          };
          let page = match self.page {
--            Page::Home => self.home_page(&grid, cx),
 +            Page::Home => self.home_page(&grid, compact, cx),
+-            Page::Home => self.home_page(&grid, cx),
              Page::Recent => self.recent_page(&grid, cx),
              Page::MyGames => self.games_page(&grid, cx),
          };
-@@ -124,7 +141,7 @@ impl HomeWindow {
+         let dialog = self.dialog_view(cx);
+         let menu = self.recent_menu_view(cx);
++        if compact {
++            // Render the real GPUI launcher as a mobile screen. No desktop
++            // title bar, side rail, or independent HTML clone is involved.
++            return div()
++                .relative()
++                .size_full()
++                .flex()
++                .flex_col()
++                .bg(rgb(0x0C1524))
++                .font_family(tokens::font_ui())
++                .text_color(tokens::text())
++                .text_size(px(13.))
++                .child(self.mobile_home_header(crumb, cx))
++                .child(
++                    div()
++                        .id("mobile-home-content")
++                        .flex_1()
++                        .min_h_0()
++                        .overflow_y_scroll()
++                        .child(
++                            v_flex()
++                                .gap(px(12.))
++                                .px(px(16.))
++                                .pt(px(12.))
++                                .pb(px(16.))
++                                .child(page),
++                        ),
++                )
++                .child(self.mobile_home_nav(cx))
++                .children(menu)
++                .children(dialog)
++                .into_any_element();
++        }
+         div()
+             .relative()
+             .size_full()
+@@ -124,7 +168,7 @@
                      .flex_1()
                      .min_h_0()
                      .items_stretch()
--                    .when(!picker, |this| this.child(self.sidebar(cx)))
 +                    .when(!picker, |this| this.child(self.sidebar(sidebar, cx)))
+-                    .when(!picker, |this| this.child(self.sidebar(cx)))
                      .child(
                          div()
                              .id("home-main")
-@@ -134,8 +151,8 @@ impl HomeWindow {
+@@ -134,8 +178,8 @@
                              .child(
                                  v_flex()
                                      .gap(px(20.))
--                                    .pt(px(24.))
--                                    .px(px(32.))
 +                                    .pt(px(if compact { 16. } else { 24. }))
 +                                    .px(px(padding))
+-                                    .pt(px(24.))
+-                                    .px(px(32.))
                                      .pb(px(32.))
                                      .child(page),
                              ),
-@@ -350,7 +367,7 @@ fn disclaimer() -> impl IntoElement {
+@@ -144,9 +188,184 @@
+             .when(!picker, |this| this.child(disclaimer()))
+             .children(menu)
+             .children(dialog)
++            .into_any_element()
+     }
+ }
+ 
++
++impl HomeWindow {
++    /// Android-native launcher's toolbar. The actions use the same handlers
++    /// as the original sidebar, so creating/opening a place stays functional.
++    fn mobile_home_header(&self, crumb: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
++        let heading = match crumb {
++            "Home" => "Início",
++            "Recent" => "Recentes",
++            "My Games" => "Meus jogos",
++            other => other,
++        };
++        let account_label = if self.has_key() { "Conta" } else { "Configurar conta" };
++        h_flex()
++            .id("mobile-home-header")
++            .h(px(58.))
++            .flex_none()
++            .items_center()
++            .gap(px(11.))
++            .px(px(18.))
++            .bg(rgb(0x0C1C2C))
++            .border_b_1()
++            .border_color(rgb(0x274158))
++            .child(crate::shell::chrome::logo(22.).text_color(rgb(0x30C8E7)))
++            .child(
++                ui::text(16., 23.)
++                    .font_weight(FontWeight::BOLD)
++                    .text_color(rgb(0xF0F7FF))
++                    .child("Rbx Studio"),
++            )
++            .child(div().h(px(24.)).w(px(1.)).bg(rgb(0x37546A)))
++            .child(
++                ui::text(15., 23.)
++                    .font_weight(FontWeight::SEMIBOLD)
++                    .text_color(rgb(0xD8EAF5))
++                    .child(heading),
++            )
++            .child(div().flex_1())
++            .child(
++                h_flex()
++                    .id("mobile-home-open-file")
++                    .h(px(42.))
++                    .px(px(12.))
++                    .items_center()
++                    .gap(px(7.))
++                    .rounded(px(12.))
++                    .bg(rgb(0x182E42))
++                    .border_1()
++                    .border_color(rgb(0x35516A))
++                    .cursor_pointer()
++                    .child(ui::icon("folder-open", 17.))
++                    .child("Abrir")
++                    .on_click(cx.listener(|this, _, _, cx| this.open_file(cx))),
++            )
++            .child(
++                h_flex()
++                    .id("mobile-home-account")
++                    .h(px(42.))
++                    .px(px(12.))
++                    .items_center()
++                    .gap(px(7.))
++                    .rounded(px(12.))
++                    .bg(rgb(0x182E42))
++                    .border_1()
++                    .border_color(rgb(0x35516A))
++                    .cursor_pointer()
++                    .child(ui::icon("user", 17.))
++                    .child(account_label)
++                    .on_click(cx.listener(|this, _, window, cx| {
++                        if this.has_key() {
++                            this.manage_key(cx);
++                        } else {
++                            this.set_up_key(window, cx);
++                        }
++                    })),
++            )
++    }
++
++    /// One row of thumb-friendly navigation, present on all launcher pages.
++    /// It replaces the left desktop navigation while keeping every route.
++    fn mobile_home_nav(&self, cx: &mut Context<Self>) -> impl IntoElement {
++        let item = |id: &'static str,
++                    glyph: &'static str,
++                    title: &'static str,
++                    page: Page,
++                    cx: &mut Context<Self>| {
++            let active = self.page == page;
++            h_flex()
++                .id(id)
++                .flex_1()
++                .h(px(44.))
++                .items_center()
++                .justify_center()
++                .gap(px(8.))
++                .rounded(px(13.))
++                .cursor_pointer()
++                .bg(if active { rgb(0x184C63) } else { rgb(0x14243A) })
++                .text_color(if active { rgb(0x4BDDF2) } else { rgb(0xA8BDD0) })
++                .child(ui::icon(glyph, 17.))
++                .child(title)
++                .on_click(cx.listener(move |this, _, _, cx| {
++                    this.page = page;
++                    cx.notify();
++                }))
++        };
++        h_flex()
++            .id("mobile-home-bottom-navigation")
++            .h(px(56.))
++            .flex_none()
++            .items_center()
++            .gap(px(8.))
++            .px(px(8.))
++            .my(px(6.))
++            .mx(px(14.))
++            .rounded(px(18.))
++            .bg(rgb(0x14243A))
++            .border_1()
++            .border_color(rgb(0x30465D))
++            .child(item("mobile-home-nav", "house", "Início", Page::Home, cx))
++            .child(item("mobile-recent-nav", "clock", "Recentes", Page::Recent, cx))
++            .child(item("mobile-games-nav", "gamepad-2", "Meus jogos", Page::MyGames, cx))
++            .child(
++                h_flex()
++                    .id("mobile-account-nav")
++                    .flex_1()
++                    .h(px(44.))
++                    .items_center()
++                    .justify_center()
++                    .gap(px(8.))
++                    .rounded(px(13.))
++                    .cursor_pointer()
++                    .text_color(rgb(0xA8BDD0))
++                    .child(ui::icon("user", 17.))
++                    .child("Conta")
++                    .on_click(cx.listener(|this, _, window, cx| {
++                        if this.has_key() { this.manage_key(cx); }
++                        else { this.set_up_key(window, cx); }
++                    })),
++            )
++    }
++
++    pub(super) fn mobile_key_hint(&self, cx: &mut Context<Self>) -> impl IntoElement {
++        h_flex()
++            .id("mobile-home-connect")
++            .min_h(px(48.))
++            .items_center()
++            .gap(px(11.))
++            .px(px(14.))
++            .py(px(8.))
++            .rounded(px(14.))
++            .bg(rgb(0x172C41))
++            .border_1()
++            .border_color(rgb(0x33536A))
++            .child(ui::icon("key-round", 18.).text_color(rgb(0x32C7E4)))
++            .child(
++                ui::text(11.5, 17.)
++                    .text_color(rgb(0xC2D5E3))
++                    .child("Arquivos locais funcionam sem conta. Conecte sua chave para publicar no Roblox."),
++            )
++            .child(div().flex_1())
++            .child(
++                h_flex()
++                    .h(px(36.))
++                    .px(px(11.))
++                    .items_center()
++                    .rounded(px(11.))
++                    .bg(rgb(0x1D5266))
++                    .text_color(rgb(0xE2F8FF))
++                    .cursor_pointer()
++                    .child("Conectar")
++                    .on_click(cx.listener(|this, _, window, cx| this.set_up_key(window, cx))),
++            )
++    }
++}
++
+ /// A 30 % accent segment sliding along a 6 px track (still under reduced
+ /// motion). The download is one blocking request with no running total,
+ /// so a determinate bar would have nothing to show.
+@@ -350,7 +569,7 @@
          .border_t_1()
          .border_color(tokens::border())
          .child(ui::text(10.5, 14.).text_color(tokens::text3()).child(
--            "RbxNative is an unofficial community project. It isn\u{2019}t affiliated with or endorsed by Roblox Corporation.",
 +            "Rbx Studio · Editor móvel independente",
+-            "RbxNative is an unofficial community project. It isn\u{2019}t affiliated with or endorsed by Roblox Corporation.",
          ))
  }
- 
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/pages.rs b/crates/rbx_studio/src/launcher/home_window/view/pages.rs
 index d5f11b3..2d8c36e 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/pages.rs
