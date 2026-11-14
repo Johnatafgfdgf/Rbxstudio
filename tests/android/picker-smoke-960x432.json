@@ -1,0 +1,24 @@
+{
+  "screenshot_size": [960, 432],
+  "steps": [
+    {
+      "name": "use-local-projects",
+      "tap": [340, 402],
+      "settle": 12
+    },
+    {
+      "name": "open-file-picker",
+      "tap": [590, 261],
+      "expect": {"activity": "com.android.documentsui.picker.PickActivity"},
+      "timeout": 60,
+      "settle": 40
+    },
+    {
+      "name": "cancel-file-picker",
+      "key": "KEYCODE_BACK",
+      "expect": {"activity": "dev.gpui.mobile.GpuiActivity"},
+      "timeout": 60,
+      "settle": 10
+    }
+  ]
+}

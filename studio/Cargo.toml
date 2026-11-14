@@ -1,0 +1,26 @@
+[package]
+name = "rbx_android_studio"
+version = "0.4.0"
+edition = "2021"
+license = "MIT AND Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The editor's original lock uses the 0.6.1 macro API with gpui-component 0.6.1.
+gpui-component-macros = "=0.6.1"
+rbx_studio = { path = "../upstream/rbx-native/crates/rbx_studio" }
+rook-render = { path = "../upstream/rook/crates/rook-render" }
+rook-view = { path = "../upstream/rook/crates/rook-view" }
+rbx_android_core = { path = "../core" }
+
+[target.'cfg(target_os = "android")'.dependencies]
+gpui-mobile = { package = "gpui-pre-mobile", path = "../upstream/gpui-mobile", default-features = false, features = ["url_launcher", "file_selector", "clipboard", "path_provider", "shared_preferences", "deeplink"] }
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = "0.15"
+log = "0.4"
+serde_json = "1"
+rust-embed = { version = "8", features = ["debug-embed"] }
+rook-audio = { path = "../upstream/rook/crates/rook-audio", features = ["output"] }
+rook-platform = { path = "../upstream/rook/crates/rook-platform", features = ["std-host"] }
