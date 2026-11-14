@@ -144,7 +144,7 @@ try{localStorage.setItem("rbxstudio-preview-v1",JSON.stringify(c))}catch(_){}
 }
 try{const old=JSON.parse(localStorage.getItem("rbxstudio-preview-v1")||"{}");for(const k of Object.keys(cfg))if(old[k]!==undefined)cfg[k]=old[k]}catch(_){}
 $("homeBtn").onclick=()=>setView("home");
-$("menuBtn").onclick=()=>{setView("editor");state.menu=state.menu?null:"main";state.ribbon=false;render()};
+$("menuBtn").onclick=()=>{const wasOpen=!!state.menu;setView("editor");state.menu=wasOpen?null:"main";state.ribbon=false;render()};
 $("toolsBtn").onclick=()=>{setView("editor");state.ribbon=!state.ribbon;state.menu=null;render()};
 $("panelsBtn").onclick=()=>{setView("editor");state.menu=null;state.panel=state.panel?null:"Explorer";render()};
 $("saveBtn").onclick=()=>action("Salvar");
