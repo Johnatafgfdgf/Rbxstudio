@@ -1,0 +1,147 @@
+[
+  {
+    "path": "save.rs",
+    "sha256": "f27072755fce7f67564fac0b7c99b78fd262ff3ab25a0fdb06199832561d89d1",
+    "adapted": true
+  },
+  {
+    "path": "history.rs",
+    "sha256": "8bd818c4af6f47404b25a4c846e9fd83d78fb710330ba9a08761917912cc869f",
+    "adapted": true
+  },
+  {
+    "path": "home/template.rs",
+    "sha256": "8f42c7eec37a74e56a1d3504be00c85da96b4f4bc6fe8d5cab54ada23ebfc3e5",
+    "adapted": true
+  },
+  {
+    "path": "script_editor/source.rs",
+    "sha256": "8a1f27057fdc3f21c3e7def4f770730291d6f613195e6fbb9f7e40f6310305a2",
+    "adapted": true
+  },
+  {
+    "path": "properties.rs",
+    "sha256": "6d28c9a9f79b8695163974d9d980a7d98b36c414c42480f11ccc51876cc4cd9b",
+    "adapted": true
+  },
+  {
+    "path": "properties/attributes/replication.rs",
+    "sha256": "bd5b84e6f40e448134d4cb712fb717fb74ff5573b2c5c31c4df18cfdd621c74c",
+    "adapted": true
+  },
+  {
+    "path": "properties/attributes.rs",
+    "sha256": "6cc76eca862a239850157edcf61e01ab250bc4b20b9e552a568efc6ee8c58dac",
+    "adapted": true
+  },
+  {
+    "path": "properties/common.rs",
+    "sha256": "a2046ca4d9ee3d6e13048ff915fd21e2d07710f28d46263a32273169be85bc07",
+    "adapted": true
+  },
+  {
+    "path": "properties/computed/assembly.rs",
+    "sha256": "5264fd2f6c3ed2c8ceb5faf033b4f85008f4cd9f750c649b4bb5d4f78b7ae1b7",
+    "adapted": false
+  },
+  {
+    "path": "properties/computed/materials.rs",
+    "sha256": "fe7bf12dd405621bdf2ee76523626f5b10373e663e6ca4c52e3a80e3cca30f74",
+    "adapted": false
+  },
+  {
+    "path": "properties/computed.rs",
+    "sha256": "f00e8a86114296f24a19f3a0c78d77dff973e61df7e31107611dbcf483512f62",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/authority.rs",
+    "sha256": "ee1a52f246835a0cbe50ade3454ddb2c076a89a032728bb6ad432171cc267660",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/content.rs",
+    "sha256": "e80bfd5f65a7379acbae486b07ee6b7c06b0a9e17a4c743f766c2f55a323f96c",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/font.rs",
+    "sha256": "c2e7727024ebe2de0b0b664e85752268d13d838195c7ec4d326627304ba513ae",
+    "adapted": false
+  },
+  {
+    "path": "properties/edit/many.rs",
+    "sha256": "0cf15c0561ffa68b9087194e3b98c98d95de341dcaf2c05acc96f0b99b90c75b",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/orientation.rs",
+    "sha256": "ea8876c3c6abcc78dd9e19ffdd626306f038fcb34d14007b30ef7a3614f20e66",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/pivot.rs",
+    "sha256": "1e818e8e264c2d9724574da97856370f694bdbd5a6866f7c2fa4a9a0d475f10e",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/reference.rs",
+    "sha256": "daaa02d0014238b161129441a444e294d9d8e23fd111dcb9aa1c109a19f6bd62",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit/sequence.rs",
+    "sha256": "819169f9b87473269d53a122e3a25dff1605c1e729592e44e0d66c649ecc6cd2",
+    "adapted": true
+  },
+  {
+    "path": "properties/edit.rs",
+    "sha256": "20eec38684fdf0cabd7f1cb71e7fe02f9550eef448b06950661443d05f639d95",
+    "adapted": true
+  },
+  {
+    "path": "properties/folder_row.rs",
+    "sha256": "224fd1a7c2cb6e29137ea77c138b99f50b20377f855b8ea71505192ca207ef12",
+    "adapted": true
+  },
+  {
+    "path": "properties/material_colors.rs",
+    "sha256": "12e46a00bc8d29816510e1a83b96f4f294643592bdec871af2404bc3e947f627",
+    "adapted": true
+  },
+  {
+    "path": "properties/ranges.rs",
+    "sha256": "e5d7f99396106f698fb24c8c0b70e8a70a1ffc44ba912e46a9625707a9c32b48",
+    "adapted": true
+  },
+  {
+    "path": "properties/sheet.rs",
+    "sha256": "86d06a1152c45396b06d8dd75a6ceff125d27627506e5dd210b33e8619ceb46c",
+    "adapted": true
+  },
+  {
+    "path": "transform/frame.rs",
+    "sha256": "80fb2b4100633f96bac10bd5c7de7346f259205705b3eea96bdbcb0a570fe136",
+    "adapted": false
+  },
+  {
+    "path": "transform/targets.rs",
+    "sha256": "ae676d9dc95085543b0f8c7c796b83e08dd8a0342de1ab62442e053ca146529a",
+    "adapted": false
+  },
+  {
+    "path": "terrain/dom.rs",
+    "sha256": "69f0c82d9c8c7ae3090f7a4e43c8f28fe36b02efdfbd5033b993bd4f1b10a2bc",
+    "adapted": true
+  },
+  {
+    "path": "workspace_view/gizmo/scale.rs",
+    "sha256": "2ff1e6550db47ac261fd4bf229a801aea26c9d71dbcaf8a634c201bc37d8f08c",
+    "adapted": true
+  },
+  {
+    "path": "workspace_view/gizmo.rs (Drag and Change)",
+    "sha256": "4f1f52303759783cb860c0e7bfec3c4695eba1bb18db193a751f0ea02a130f00",
+    "adapted": true
+  }
+]

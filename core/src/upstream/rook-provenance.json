@@ -1,0 +1,27 @@
+[
+  {
+    "path": "crates/rook-lua/src/api/methods/characters/rigs.rs",
+    "sha256": "eac935da2433bd05e83b5dba94e0193c425a54bf6fc95aac45413a6066e96d2f",
+    "adapted": true
+  },
+  {
+    "path": "crates/rook-lua/src/api/properties.rs",
+    "sha256": "c0a6f825d3a30f437157e21660cc53e392e79c57a55cdea446260e7d87ff5ae9",
+    "adapted": true
+  },
+  {
+    "path": "crates/rook-lua/src/api/methods/characters.rs",
+    "sha256": "978c4fc40d7c7d0ba51b20922d8d0600b5239972e371c34f0d7eb514de5df982",
+    "adapted": true
+  },
+  {
+    "path": "crates/rook-lua/src/api/methods/characters/spawning.rs",
+    "sha256": "781e27f35f617bfce92c444176ba5b01d41a72c04d67a5d31bc78c8f7f709600",
+    "adapted": true
+  },
+  {
+    "path": "crates/rook-lua/src/api/methods/characters/movement.rs",
+    "sha256": "81e0c6dc3bd6df56e321f6a295a59a7b253e35cfbdac3a0d758dd48d56cc616c",
+    "adapted": true
+  }
+]
