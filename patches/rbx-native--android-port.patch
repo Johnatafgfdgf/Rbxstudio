@@ -3439,6 +3439,121 @@ index 95a97abc..0f1a6939 100644
          .child(Icon::new(IconName::LoaderCircle).size(px(12.)))
          .child(label)
  }
+diff --git a/crates/rbx_studio/src/shell/avatar_dock/view.rs b/crates/rbx_studio/src/shell/avatar_dock/view.rs
+index bedf574e..16c8b6d3 100644
+--- a/crates/rbx_studio/src/shell/avatar_dock/view.rs
++++ b/crates/rbx_studio/src/shell/avatar_dock/view.rs
+@@ -7,7 +7,7 @@ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+ use crate::avatar_settings::{set_avatar_type, Preset, Rules, AVATAR_TYPE};
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::super::layout::Panel;
+ use super::super::{chrome, menu, Shell};
+@@ -60,6 +60,7 @@ impl Shell {
+                     .flex_1()
+                     .min_h_0()
+                     .w_full()
++                    .when(cfg!(target_os = "android"), |body| body.flex_col())
+                     .child(self.avatar_sidebar(cx))
+                     .child(
+                         div()
+@@ -69,8 +70,10 @@ impl Shell {
+                                 self.avatar.tab.label()
+                             )))
+                             .flex_1()
++                            .min_h_0()
+                             .min_w_0()
+                             .h_full()
++                            .when(cfg!(target_os = "android"), |body| body.h_auto())
+                             .overflow_y_scroll()
+                             .child(v_flex().w_full().pb(px(12.)).children(content)),
+                     ),
+@@ -108,7 +111,7 @@ impl Shell {
+ 
+     /// Preset (every tab but General, where the cards are the preset) and
+     /// the Preview switch.
+-    fn avatar_top_bar(&self, cx: &mut Context<Self>) -> Div {
++    fn avatar_top_bar(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+         let preset = Preset::detect(&Rules::find(&self.dom), &self.dom);
+         let picker = (self.avatar.tab != Tab::General).then(|| {
+             let items = Preset::ALL
+@@ -132,6 +135,8 @@ impl Shell {
+                 .cursor_pointer()
+                 .text_size(tokens::text_sm())
+                 .text_color(tokens::text())
++                .when(cfg!(target_os = "android"), |picker| picker.h(px(48.))
++                    .min_w(px(110.)).map(style::control))
+                 .child(preset.map_or("-", Preset::label))
+                 .child(
+                     Icon::new(IconName::ChevronDown)
+@@ -151,6 +156,7 @@ impl Shell {
+                 ))
+         });
+         h_flex()
++            .id("avatar-topbar")
+             .w_full()
+             .h(px(38.))
+             .flex_none()
+@@ -159,6 +165,7 @@ impl Shell {
+             .justify_between()
+             .border_b_1()
+             .border_color(tokens::border())
++            .when(cfg!(target_os = "android"), |bar| bar.h(px(48.)).overflow_x_scroll().gap(px(8.)))
+             .child(div().children(picker))
+             .child(
+                 h_flex()
+@@ -179,7 +186,7 @@ impl Shell {
+             )
+     }
+ 
+-    fn avatar_sidebar(&self, cx: &mut Context<Self>) -> Div {
++    fn avatar_sidebar(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+         let hidden = self.avatar.sidebar_hidden;
+         let entry = |tab: Tab, icon: IconName, cx: &mut Context<Self>| {
+             let on = self.avatar.tab == tab;
+@@ -198,6 +205,9 @@ impl Shell {
+                     tokens::text2()
+                 })
+                 .when(on, |this| this.bg(tokens::accent_soft()))
++                .when(cfg!(target_os = "android"), |tab| tab
++                    .flex_none().min_w(px(48.)).h(px(48.)).map(style::control)
++                    .when(on, style::selected).aria_label(tab.label()).aria_selected(on))
+                 .when(!on, |this| {
+                     this.hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+                 })
+@@ -220,6 +230,9 @@ impl Shell {
+             .cursor_pointer()
+             .text_size(tokens::text_sm())
+             .text_color(tokens::text3())
++            .when(cfg!(target_os = "android"), |button| button
++                .flex_none().min_w(px(48.)).h(px(48.)).map(style::control)
++                .aria_label(if hidden { "Mostrar rótulos" } else { "Recolher rótulos" }))
+             .hover(|this| tokens::hover_fx(this).bg(tokens::hover()))
+             .on_click(cx.listener(|shell, _, _, cx| {
+                 shell.avatar.sidebar_hidden = !shell.avatar.sidebar_hidden;
+@@ -233,8 +246,9 @@ impl Shell {
+                 })
+                 .size(px(16.)),
+             )
+-            .when(!hidden, |this| this.child("Hide Sidebar"));
++            .when(!hidden, |this| this.child(if cfg!(target_os = "android") { "Recolher" } else { "Hide Sidebar" }));
+         v_flex()
++            .id("avatar-section-tabs")
+             .h_full()
+             .flex_none()
+             .w(if hidden { px(46.) } else { px(150.) })
+@@ -242,6 +256,8 @@ impl Shell {
+             .gap(px(2.))
+             .border_r_1()
+             .border_color(tokens::border())
++            .when(cfg!(target_os = "android"), |tabs| tabs
++                .flex_row().w_full().h_auto().overflow_x_scroll())
+             .child(entry(Tab::General, IconName::Settings, cx))
+             .child(entry(Tab::Body, IconName::PersonStanding, cx))
+             .child(entry(Tab::Clothing, IconName::Shirt, cx))
 diff --git a/crates/rbx_studio/src/shell/chrome.rs b/crates/rbx_studio/src/shell/chrome.rs
 index c3419fab..58d5b3e4 100644
 --- a/crates/rbx_studio/src/shell/chrome.rs
@@ -4136,6 +4251,79 @@ index 34a2d76f..d1b43540 100644
              Some(group) => group.panels.push(panel),
              None => groups.push(Group::new(panel)),
          }
+diff --git a/crates/rbx_studio/src/shell/localization.rs b/crates/rbx_studio/src/shell/localization.rs
+index 0ca08d5a..a9121887 100644
+--- a/crates/rbx_studio/src/shell/localization.rs
++++ b/crates/rbx_studio/src/shell/localization.rs
+@@ -186,9 +186,11 @@ impl Shell {
+         };
+         let locale = state.locale;
+         let mut header = h_flex()
++            .id("localization-toolbar")
+             .w_full()
+             .flex_none()
+             .gap(px(4.))
++            .when(cfg!(target_os = "android"), |bar| bar.overflow_x_scroll())
+             .child(tab(
+                 "localization-tab-overflow",
+                 format!("Overflow {}", overflowing.len()),
+diff --git a/crates/rbx_studio/src/shell/loren_panel/view.rs b/crates/rbx_studio/src/shell/loren_panel/view.rs
+index f36dbb0a..35cae80b 100644
+--- a/crates/rbx_studio/src/shell/loren_panel/view.rs
++++ b/crates/rbx_studio/src/shell/loren_panel/view.rs
+@@ -2,11 +2,12 @@
+ //! cycles and problems.
+ 
+ use gpui_kit::component::{h_flex, v_flex};
++use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ use rbx_loren::graph::{Graph, Kind, Node, Severity};
+ 
+ use crate::shell::Shell;
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ const EMPTY: &str = "This place has no Loren Services or Controllers. Start one from Home \u{203a} New \u{203a} Loren project, or run rbxstudio loren init.";
+ 
+@@ -26,7 +27,11 @@ impl Shell {
+             .child(header(cx));
+         if graph.nodes.is_empty() {
+             return body
+-                .child(div().text_color(tokens::text_muted()).child(EMPTY))
++                .child(div().text_color(tokens::text_muted())
++                    .when(cfg!(target_os = "android"), |notice| notice.map(style::field).p(px(8.)))
++                    .child(if cfg!(target_os = "android") {
++                        "Este projeto ainda não contém Services ou Controllers do Loren. O modelo Loren project fica em Início › Novo."
++                    } else { EMPTY }))
+                 .into_any_element();
+         }
+         body = body.child(
+@@ -34,6 +39,7 @@ impl Shell {
+                 .w_full()
+                 .items_start()
+                 .gap(px(16.))
++                .when(cfg!(target_os = "android"), |graph| graph.flex_col().gap(px(8.)))
+                 .child(column(
+                     "Server",
+                     Kind::Service,
+@@ -83,6 +89,8 @@ fn header(cx: &mut Context<Shell>) -> impl IntoElement {
+                 .id("loren-credit")
+                 .cursor_pointer()
+                 .text_color(tokens::accent_line())
++                .when(cfg!(target_os = "android"), |button| button
++                    .min_h(px(48.)).flex().items_center().px(px(8.)).map(style::control))
+                 .hover(|this| this.underline())
+                 .child(rbx_loren::CREDIT)
+                 .on_click(cx.listener(|_, _, _, cx| cx.open_url(rbx_loren::REPOSITORY_URL))),
+@@ -90,7 +98,7 @@ fn header(cx: &mut Context<Shell>) -> impl IntoElement {
+         .child(
+             div()
+                 .text_color(tokens::text_muted())
+-                .child("Optional: ignore it and nothing changes."),
++                .child(if cfg!(target_os = "android") { "Framework opcional." } else { "Optional: ignore it and nothing changes." }),
+         )
+ }
+ 
 diff --git a/crates/rbx_studio/src/shell/mcp.rs b/crates/rbx_studio/src/shell/mcp.rs
 index 38c9fd93..580df6d0 100644
 --- a/crates/rbx_studio/src/shell/mcp.rs
@@ -4195,7 +4383,7 @@ index 38c9fd93..580df6d0 100644
  
      fn mcp_studio(&self) -> Studio {
 diff --git a/crates/rbx_studio/src/shell/menu.rs b/crates/rbx_studio/src/shell/menu.rs
-index bdb7f0e2..99f47157 100644
+index bdb7f0e2..08a38aef 100644
 --- a/crates/rbx_studio/src/shell/menu.rs
 +++ b/crates/rbx_studio/src/shell/menu.rs
 @@ -31,7 +31,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -4225,7 +4413,7 @@ index bdb7f0e2..99f47157 100644
              MenuId::ExplorerOverflow => "menu-explorer",
              MenuId::PropertiesOverflow => "menu-properties",
              MenuId::ViewportOverflow => "menu-viewport",
-@@ -353,24 +357,34 @@ fn popover(
+@@ -353,24 +357,37 @@ fn popover(
      let cursor = clamp(shell.menu_nav.cursor.filter(|_| open), len);
      let scroll = shell.menu_nav.scroll.clone();
  
@@ -4245,7 +4433,10 @@ index bdb7f0e2..99f47157 100644
 +            | MenuId::PlaytestsOverflow | MenuId::SecurityAuditOverflow | MenuId::CollaboratorsOverflow
 +            | MenuId::ScriptAnalysisOverflow | MenuId::WatchOverflow | MenuId::CallStackOverflow
 +            | MenuId::TestsOverflow | MenuId::ArgonOverflow | MenuId::ArgonSyncPriority
-+            | MenuId::ArgonDisplayPrompts | MenuId::ArgonLogLevel);
++            | MenuId::ArgonDisplayPrompts | MenuId::ArgonLogLevel
++            | MenuId::WallyOverflow | MenuId::WallyVersion(_) | MenuId::LorenOverflow
++            | MenuId::AvatarOverflow | MenuId::AvatarPreset | MenuId::AvatarLimit
++            | MenuId::LocalizationOverflow);
 +    let on_open_change = {
              let handle = handle.clone();
 -            move |open, window, cx| {
@@ -4269,7 +4460,7 @@ index bdb7f0e2..99f47157 100644
                      }
                      shell.open_menu = open.then_some(menu);
                      shell.menu_nav.cursor = (open && keyboard)
-@@ -379,19 +393,21 @@ fn popover(
+@@ -379,19 +396,21 @@ fn popover(
                      cx.notify();
                  });
              }
@@ -4297,7 +4488,7 @@ index bdb7f0e2..99f47157 100644
                  .on_key_down(move |event: &KeyDownEvent, _, cx| {
                      let Some(movement) = Move::of(&event.keystroke, true) else {
                          return;
-@@ -425,15 +441,46 @@ fn popover(
+@@ -425,15 +444,46 @@ fn popover(
                          action(shell, cx);
                          cx.notify();
                      });
@@ -4353,7 +4544,7 @@ index bdb7f0e2..99f47157 100644
  }
  
  /// The gap `gpui_base`'s popup keeps from each window edge when it clamps a
-@@ -474,7 +521,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
+@@ -474,7 +524,7 @@ fn menu_surface(shell: Entity<Shell>, items: &[Item], cursor: Option<usize>) ->
                  .my(px(3.))
                  .bg(tokens::border())
                  .into_any_element(),
@@ -4362,7 +4553,7 @@ index bdb7f0e2..99f47157 100644
          }
      }))
  }
-@@ -500,7 +547,7 @@ pub(super) fn surface() -> Div {
+@@ -500,7 +550,7 @@ pub(super) fn surface() -> Div {
  /// action and closes the menu. A real click holds for roughly that long
  /// anyway, and tying the flash to the press means it can never outlive the
  /// menu it is confirming.
@@ -4371,7 +4562,7 @@ index bdb7f0e2..99f47157 100644
      let enabled = item.is_enabled();
      let action = item.action.clone();
  
-@@ -511,6 +558,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -511,6 +561,7 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
          enabled,
          item.checked,
      )
@@ -4379,7 +4570,7 @@ index bdb7f0e2..99f47157 100644
      // The keyboard's highlight wears the hover's surface, and the pointer
      // moves it: one row is "the one Enter runs", however it got there.
      .when(highlighted, |this| this.bg(tokens::hover()))
-@@ -542,6 +590,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
+@@ -542,6 +593,12 @@ fn row(shell: Entity<Shell>, index: usize, item: &Item, highlighted: bool) -> im
      })
  }
  
@@ -4392,7 +4583,7 @@ index bdb7f0e2..99f47157 100644
  /// One menu row's chrome, without a handler on it. Shared with the
  /// Explorer's context menu (see [`surface`]).
  pub(super) fn row_chrome(
-@@ -554,7 +608,7 @@ pub(super) fn row_chrome(
+@@ -554,7 +611,7 @@ pub(super) fn row_chrome(
      h_flex()
          .id(id.into())
          .w_full()
@@ -4403,10 +4594,10 @@ index bdb7f0e2..99f47157 100644
          .gap(px(6.))
 diff --git a/crates/rbx_studio/src/shell/mobile.rs b/crates/rbx_studio/src/shell/mobile.rs
 new file mode 100644
-index 00000000..ec44bb9e
+index 00000000..97bf1763
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile.rs
-@@ -0,0 +1,596 @@
+@@ -0,0 +1,575 @@
 +use gpui_kit::assets::IconName;
 +use gpui_kit::component::{h_flex, v_flex, Icon};
 +use gpui_kit::prelude::FluentBuilder as _;
@@ -4428,16 +4619,6 @@ index 00000000..ec44bb9e
 +pub(super) enum Sheet {
 +    Main,
 +    Tools,
-+}
-+
-+fn styled_drawer(panel: Panel) -> bool {
-+    matches!(
-+        panel,
-+        Panel::Explorer | Panel::Properties | Panel::Toolbox | Panel::Output |
-+        Panel::Viewport | Panel::TerrainEditor | Panel::InputActions | Panel::Layers |
-+        Panel::Playtests | Panel::SecurityAudit | Panel::Collaborators | Panel::ScriptAnalysis |
-+        Panel::Watch | Panel::CallStack | Panel::Tests | Panel::Argon
-+    )
 +}
 +
 +impl Shell {
@@ -4524,13 +4705,9 @@ index 00000000..ec44bb9e
 +    }
 +
 +    fn mobile_resize_handle(&self, bottom: bool, cx: &mut Context<Self>) -> impl IntoElement {
-+        let styled = self.mobile_panel.is_some_and(styled_drawer);
 +        div().id("mobile-drawer-resize-handle").h(px(16.)).w_full().flex_none()
-+            .bg(if styled { rgba(0x00000000) } else { tokens::border() })
 +            .flex().items_center().justify_center()
-+            .when(styled, |handle| handle.child(
-+                div().w(px(30.)).h(px(3.)).rounded_full().bg(style::border()),
-+            ))
++            .child(div().w(px(30.)).h(px(3.)).rounded_full().bg(style::border()))
 +            .role(Role::Button).aria_label("Redimensionar painel")
 +            .on_touch_drag(cx.listener(move |shell, event: &TouchDragEvent, window, cx| {
 +                window.prevent_default();
@@ -4708,9 +4885,8 @@ index 00000000..ec44bb9e
 +        let drawer_width = mobile_metrics::drawer_width(width, self.mobile_drawer_width, self.mobile_panel_expanded);
 +        let code_focused = self.mobile_code_focused(window);
 +        let panel = (!code_focused).then_some(self.mobile_panel).flatten();
-+        let motion = self.mobile_drawer_motion.frame(panel.filter(|p| styled_drawer(*p)), window);
-+        let motion = motion.filter(|frame| panel.is_none_or(|p| p == frame.value) && !code_focused);
-+        let panel = panel.or(motion.as_ref().map(|frame| frame.value));
++        let motion = self.mobile_drawer_motion.frame(panel, window).filter(|_| !code_focused);
++        let panel = motion.as_ref().map(|frame| frame.value);
 +        let output = panel == Some(Panel::Output);
 +        let available_height = (f32::from(window.viewport_size().height) - 60.).max(0.);
 +        let drawer_height = if output && self.output_collapsed {
@@ -4859,7 +5035,6 @@ index 00000000..ec44bb9e
 +    ) -> AnyElement {
 +        let (trailing, body) =
 +            self.panel_parts(panel, panel == Panel::Output && self.output_collapsed, window, cx);
-+        let styled = styled_drawer(panel);
 +        let output = panel == Panel::Output;
 +        let (header_controls, trailing) = if output { (trailing, None) } else { (None, trailing) };
 +        let mut tabs = h_flex()
@@ -4903,19 +5078,14 @@ index 00000000..ec44bb9e
 +            .min_h_0()
 +            .overflow_hidden()
 +            .occlude()
-+            .bg(tokens::dock())
-+            .border_l_1()
-+            .border_color(tokens::border())
-+            .when(styled, |drawer| {
-+                drawer.map(style::surface).text_color(style::text())
-+            })
++            .map(style::surface).text_color(style::text())
 +            .child(self.mobile_resize_handle(panel == Panel::Output, cx))
 +            .child(
 +                h_flex().w_full().h(px(TOUCH_TARGET))
 +                    .flex_none()
 +                    .items_center()
 +                    .border_b_1()
-+                    .border_color(if styled { style::border() } else { tokens::border() })
++                    .border_color(style::border())
 +                    .child(tabs)
 +                    .when(f32::from(window.viewport_size().width) >= 700., |bar| {
 +                        bar.child(
@@ -5843,6 +6013,90 @@ index 4b57a654..2e378f97 100644
          .text_size(tokens::text_xs())
          .line_height(tokens::line_xs())
          .map(|this| {
+diff --git a/crates/rbx_studio/src/shell/plugins/widgets.rs b/crates/rbx_studio/src/shell/plugins/widgets.rs
+index 3bf299e6..ab9ca322 100644
+--- a/crates/rbx_studio/src/shell/plugins/widgets.rs
++++ b/crates/rbx_studio/src/shell/plugins/widgets.rs
+@@ -10,6 +10,7 @@ use std::rc::Rc;
+ use std::time::Duration;
+ 
+ use gpui_kit::component::{h_flex, v_flex};
++use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ use rbx_dom::Ref;
+ use rbx_lua::plugin::{GuiEvent, GuiEventKind, Input, LayoutBox, UiId, WidgetKind};
+@@ -21,7 +22,7 @@ mod pointer;
+ 
+ use super::{float, render};
+ use crate::shell::{Panel, Shell};
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ use crate::workspace_view::input::wheel_scroll;
+ use pointer::Grab;
+ pub(super) use pointer::Pointer;
+@@ -109,6 +110,7 @@ impl Shell {
+             let empty = div()
+                 .p(px(12.))
+                 .text_color(tokens::text2())
++                .when(cfg!(target_os = "android"), style::field)
+                 .child("No plugin widget is open.");
+             return (None, Some(empty.into_any_element()));
+         };
+@@ -131,7 +133,10 @@ impl Shell {
+         }
+ 
+         let tabs = h_flex()
++            .id("plugin-widget-tabs")
+             .w_full()
++            .flex_none()
++            .when(cfg!(target_os = "android"), |tabs| tabs.overflow_x_scroll().gap(px(4.)))
+             .border_b_1()
+             .border_color(tokens::border())
+             .children(docked.iter().map(|(id, title, _)| {
+@@ -142,9 +147,12 @@ impl Shell {
+                     .text_color(tokens::text2())
+                     .hover(|s| s.text_color(tokens::text()))
+                     .child("×")
+-                    .on_mouse_down(
+-                        MouseButton::Left,
+-                        cx.listener(move |shell, _: &MouseDownEvent, _, cx| {
++                    .when(cfg!(target_os = "android"), |button| button
++                        .size(px(48.)).flex_none().flex().items_center().justify_center()
++                        .aria_label("Fechar extensão").role(Role::Button)
++                        .map(style::control))
++                    .on_click(
++                        cx.listener(move |shell, _: &ClickEvent, _, cx| {
+                             cx.stop_propagation();
+                             shell.plugin_input(Input::WidgetClosed(id), cx);
+                         }),
+@@ -159,6 +167,9 @@ impl Shell {
+                     } else {
+                         tokens::text2()
+                     })
++                    .when(cfg!(target_os = "android"), |tab| tab
++                        .flex_none().min_h(px(48.)).items_center().map(style::field)
++                        .when(id == current, style::selected).aria_selected(id == current))
+                     .hover(|s| s.bg(tokens::hover_subtle()))
+                     .child(title.clone())
+                     .child(close)
+@@ -166,7 +177,7 @@ impl Shell {
+                         shell.plugins.widgets.current = Some(id);
+                         cx.notify();
+                     }));
+-                if id == current {
++                if id == current && !cfg!(target_os = "android") {
+                     tab.border_b_2().border_color(tokens::tab_active_bar())
+                 } else {
+                     tab
+@@ -175,7 +186,7 @@ impl Shell {
+         let surface = self.widget_surface(current, window, cx);
+         let content = v_flex()
+             .size_full()
+-            .bg(tokens::dock())
++            .when(!cfg!(target_os = "android"), |body| body.bg(tokens::dock()))
+             .child(tabs)
+             .child(div().flex_1().min_h_0().w_full().child(surface));
+         (None, Some(content.into_any_element()))
 diff --git a/crates/rbx_studio/src/shell/query_select.rs b/crates/rbx_studio/src/shell/query_select.rs
 index 98c13daf..2d31bfe9 100644
 --- a/crates/rbx_studio/src/shell/query_select.rs
@@ -8610,6 +8864,52 @@ index 80823fe9..1d64bee3 100644
                  .text_size(tokens::text_md())
                  .line_height(tokens::line_md())
                  .text_color(tokens::text2())
+diff --git a/crates/rbx_studio/src/shell/wally_dock/rail.rs b/crates/rbx_studio/src/shell/wally_dock/rail.rs
+index 933358f9..217e11d6 100644
+--- a/crates/rbx_studio/src/shell/wally_dock/rail.rs
++++ b/crates/rbx_studio/src/shell/wally_dock/rail.rs
+@@ -7,7 +7,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
+ use gpui_kit::prelude::FluentBuilder as _;
+ use gpui_kit::*;
+ 
+-use crate::tokens;
++use crate::{mobile_style as style, tokens};
+ 
+ use super::super::wally_sync::Page;
+ use super::super::Shell;
+@@ -122,6 +122,8 @@ impl Shell {
+                     }
+                 })
+                 .child(label)
++                .when(cfg!(target_os = "android"), |tab| tab.h(px(48.))
++                    .map(style::control).when(selected, style::selected).aria_selected(selected))
+                 .children(count_badge(page, counts, px(5.)))
+         });
+         v_flex()
+@@ -137,6 +139,7 @@ impl Shell {
+                     .gap(px(2.))
+                     .rounded(tokens::radius())
+                     .bg(tokens::field_select())
++                    .when(cfg!(target_os = "android"), |bar| bar.h(px(52.)).map(style::field))
+                     .children(segments),
+             )
+     }
+@@ -162,6 +165,7 @@ impl Shell {
+             .border_1()
+             .border_color(tokens::border())
+             .text_color(tokens::text3())
++            .when(cfg!(target_os = "android"), |field| field.h(px(48.)).map(style::field))
+             .child(Icon::new(IconName::Search).size(px(13.)))
+             .child(
+                 div().flex_1().min_w_0().h_full().child(
+@@ -179,6 +183,7 @@ impl Shell {
+                     .id("wally-clear")
+                     .flex_none()
+                     .size(px(20.))
++                    .when(cfg!(target_os = "android"), |button| button.size(px(44.)))
+                     .flex()
+                     .items_center()
+                     .justify_center()
 diff --git a/crates/rbx_studio/src/shell/workspace.rs b/crates/rbx_studio/src/shell/workspace.rs
 index e0d7689a..17b3b9b0 100644
 --- a/crates/rbx_studio/src/shell/workspace.rs

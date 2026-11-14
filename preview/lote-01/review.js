@@ -687,6 +687,14 @@
       return;
     }
     renderExampleSections(sections, list);
+    if (panel === "Localization") {
+      if (state.examples.Localization === "Strings 0") {
+        list.append(button("Nothing new to write", "", null, "control", { disabled: true }));
+      } else {
+        list.append(sampleSwitch("Pseudo-localize", state.switches["Pseudo-localize"]),
+          sampleSwitch("Right to left", state.switches["Right to left"]));
+      }
+    }
     if (panel === "Collaborators" && state.examples.advanced) {
       list.append(sampleSection("Owner setup", button("Auto", "sample:Auto"),
         sampleField("Relay", state.examples.relay || ""), button("Save to place", "sample:Save to place")));
@@ -700,8 +708,11 @@
         if (type === "field") return sampleField(label, value || "");
         if (type === "status") return element("p", "drawer-notice", label);
         if (type === "choice") {
-          const current = state.examples[title] ?? (title === "Speed" ? "1×" : "Off");
-          return button(label, "sample-choice:" + title + "|" + label, null, "control", { pressed: current === label });
+          const group = title || state.panel;
+          const defaults = { Speed: "1×", Watch: "Variables", Heat: "Off", Record: "Off",
+            Wally: "Home", Avatar: "General", Localization: "Overflow 0" };
+          const current = state.examples[group] ?? defaults[group];
+          return button(label, "sample-choice:" + group + "|" + label, null, "control", { pressed: current === label });
         }
         if (label === "Advanced ▸") {
           return button(state.examples.advanced ? "Advanced ▾" : label, "sample-advanced", null, "control",

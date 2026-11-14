@@ -60,6 +60,21 @@
     ],
     "Argon": [
       ["Argon", [["field", "Host", "127.0.0.1"], ["field", "Port", "8000"], ["button", "Connect"]]]
+    ],
+    "Wally": [
+      ["", [["field", "Search packages"], ["choice", "Home"], ["choice", "Installed"], ["choice", "Updates"]]]
+    ],
+    "Plugin Widgets": [
+      ["", [["status", "No plugin widget is open."]]]
+    ],
+    "Loren": [
+      ["Loren", [["status", "Este projeto ainda não contém Services ou Controllers do Loren. O modelo Loren project fica em Início › Novo."]]]
+    ],
+    "Avatar Settings": [
+      ["Avatar", [["choice", "General"], ["choice", "Body"], ["choice", "Clothing"], ["choice", "Accessories"], ["choice", "Movement"]]]
+    ],
+    "Localization": [
+      ["Localization", [["choice", "Overflow 0"], ["choice", "Strings 0"]]]
     ]
   }
 }

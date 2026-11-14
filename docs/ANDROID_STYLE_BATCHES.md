@@ -11,7 +11,7 @@ especializados fazem parte da revisão como componentes das superfícies.
 | 2 | Properties, Toolbox, Output, Viewport, Terrain Editor | Estilo Android aplicado. Prévia exercitada por toque, incluindo filtros, recolher Output e alternar a ferramenta de terreno. |
 | 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Estilo Android aplicado. |
 | 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Estilo Android aplicado. |
-| 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Pendente. |
+| 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Estilo Android aplicado. Todas as 21 gavetas usam a mesma transição. |
 | 6 | Studio Settings, Game Settings | Pendente. Inclui revisão das superfícies secundárias. |
 
 ## Lote 1
@@ -69,3 +69,13 @@ Android. O botão de reprodução em Playtests continua dedicado a gravações l
 | Call Stack | Pilha e frame ativo no corpo da gaveta | `select_frame`, `stack_scroll` |
 | Tests | Rerun on save e Run all no topo. Execução individual na linha | `run_all_tests`, `rerun_on_save`, `tests_tree` |
 | Argon | Conexão e opções existentes, em coluna rolável | `argon_connect`, `argon_disconnect`, `argon_set` |
+
+## Lote 5
+
+| Superfície | Controle e posição | Handler ou estado |
+| --- | --- | --- |
+| Wally | Busca e abas Home, Installed e Updates na faixa superior | `wally_search_for`, `wally_set_page` |
+| Plugin Widgets | Abas roláveis e fechar junto ao título | `plugins.widgets.current`, `Input::WidgetClosed` |
+| Loren | Link do framework, listas Server e Client empilhadas. Estado vazio aponta para o modelo já disponível | `loren_body`, `loren_row_clicked` |
+| Avatar Settings | Abas General, Body, Clothing, Accessories e Movement em faixa rolável | `set_avatar_tab`, `apply_avatar_writes`, `sidebar_hidden` |
+| Localization | Modos Overflow e Strings, controles roláveis na mesma barra | `set_pseudo_locale`, `write_localization_table`, `localization.tab` |
