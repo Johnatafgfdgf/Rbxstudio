@@ -1,0 +1,29 @@
+[package]
+name = "rbx_android"
+version = "0.1.0"
+edition = "2021"
+license = "MIT AND Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rbx_assets.workspace = true
+rbx_android_core = { path = "../core" }
+rbx_viewer.workspace = true
+rbx_dom.workspace = true
+rbx_reflection.workspace = true
+rbx_lua.workspace = true
+glam.workspace = true
+serde_json.workspace = true
+wgpu = "30"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk = "0.9"
+ndk-sys = "0.6"
+raw-window-handle = "0.6"
+winit = { version = "0.30", features = ["android-native-activity"] }
+android_logger = "0.15"
+log = "0.4"
+

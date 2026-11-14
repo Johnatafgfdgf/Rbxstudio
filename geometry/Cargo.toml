@@ -1,0 +1,7 @@
+[package]
+name = "rook_geometry_bridge"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+[dependencies]
+rbx_mesh = {path="../upstream/rbx-native/crates/rbx_mesh"}
