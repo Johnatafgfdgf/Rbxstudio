@@ -652,12 +652,27 @@
   }
 
   function renderExample(panel, list) {
+    if (panel === "Playtests") {
+      const sections = [
+        ["", [["button", "Play", "play"]]],
+        ["Speed", [["choice", "0.5×"], ["choice", "1×"], ["choice", "2×"], ["choice", "4×"]]],
+        ["Heat", [["choice", "Off"], ["choice", "Presence"], ["choice", "Deaths"], ["choice", "Stuck"]]],
+        ["Record", [["choice", "Off"], ["choice", "5 Hz"], ["choice", "10 Hz"], ["choice", "20 Hz"]]],
+      ];
+      renderExampleSections(sections, list);
+      list.append(element("p", "drawer-notice", "Nenhuma gravação. Este painel recebe dados de sessões de Play local."));
+      return;
+    }
     const sections = data.panelExamples[panel];
     if (!sections) {
       list.append(element("p", "drawer-notice", "Conteúdo interno reservado para outro lote."));
       return;
     }
     renderExampleSections(sections, list);
+    if (panel === "Collaborators" && state.examples.advanced) {
+      list.append(sampleSection("Owner setup", button("Auto", "sample:Auto"),
+        sampleField("Relay", state.examples.relay || ""), button("Save to place", "sample:Save to place")));
+    }
   }
 
   function renderExampleSections(sections, holder) {
@@ -666,6 +681,14 @@
         if (type === "switch") return sampleSwitch(label, state.switches[label] ?? Boolean(value));
         if (type === "field") return sampleField(label, value || "");
         if (type === "status") return element("p", "drawer-notice", label);
+        if (type === "choice") {
+          const current = state.examples[title] ?? (title === "Speed" ? "1×" : "Off");
+          return button(label, "sample-choice:" + title + "|" + label, null, "control", { pressed: current === label });
+        }
+        if (label === "Advanced ▸") {
+          return button(state.examples.advanced ? "Advanced ▾" : label, "sample-advanced", null, "control",
+            { pressed: Boolean(state.examples.advanced) });
+        }
         return button(label, "sample:" + label, value || null);
       });
       holder.append(sampleSection(title, ...rows));
@@ -863,6 +886,11 @@
         return;
       }
       case "sample-switch": state.switches[value] = !state.switches[value]; closePopup(); return;
+      case "sample-choice": {
+        const [title, label] = value.split("|");
+        state.examples[title] = label; renderDrawer(); return;
+      }
+      case "sample-advanced": state.examples.advanced = !state.examples.advanced; renderDrawer(); return;
       case "terrain-tab": state.terrainTab = value; state.terrainTool = ""; renderDrawer(); return;
       case "terrain-tool": state.terrainTool = value; renderDrawer(); return;
       case "explorer-settings": openPopup("explorer-settings", trigger, 250, [

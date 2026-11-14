@@ -33,5 +33,21 @@
   },
   "inserts": {
     "Import": [["Model", null, "Model"], ["Mesh", null, "Mesh"], ["Image", null, "Image"]]
+  },
+  "panelExamples": {
+    "Input Actions": [
+      ["0 contexts · 0 actions", [["button", "Check"], ["button", "New InputContext"]]],
+      ["No input contexts yet", [["status", "An InputContext groups actions and the bindings that trigger them."]]]
+    ],
+    "Layers": [
+      ["Layers", [["button", "+ Layer"], ["button", "Assign selection"], ["status", "No layers yet"]]],
+      ["Notes", [["button", "Pin note"], ["status", "No notes"]]]
+    ],
+    "Security Audit": [
+      ["Security Audit", [["status", "Nenhum problema no projeto de exemplo."], ["button", "Re-run"]]]
+    ],
+    "Collaborators": [
+      ["Collaborators", [["switch", "Share my presence"], ["button", "Advanced ▸"]]]
+    ]
   }
 }

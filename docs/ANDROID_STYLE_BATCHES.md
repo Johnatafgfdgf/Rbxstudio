@@ -9,7 +9,7 @@ especializados fazem parte da revisão como componentes das superfícies.
 | --- | --- | --- |
 | 1 | Início, Menu (File, Edit, Model, View), Ferramentas, Painéis, Explorer | Estilo Android aplicado e prévia interativa exercitada no navegador. |
 | 2 | Properties, Toolbox, Output, Viewport, Terrain Editor | Estilo Android aplicado. Prévia exercitada por toque, incluindo filtros, recolher Output e alternar a ferramenta de terreno. |
-| 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Pendente. |
+| 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Estilo Android aplicado. |
 | 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Pendente. |
 | 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Pendente. |
 | 6 | Studio Settings, Game Settings | Pendente. Inclui revisão das superfícies secundárias. |
@@ -46,3 +46,16 @@ O seletor de categorias, a busca, a inserção e o desfazer da Toolbox foram
 exercitados com dados locais da prévia. A revisão Luau e o importador reais
 exigem Android. O Output usa o estado de recolhimento existente e deixa
 Expandir, Recolher e Fechar disponíveis mesmo com o histórico recolhido.
+
+## Lote 3
+
+| Superfície | Controle e posição | Handler ou estado |
+| --- | --- | --- |
+| Input Actions | Check e New InputContext no topo. Tabela rolável e inspetor abaixo | `input_toolbar`, `input_table`, `input_inspector` |
+| Layers | Criar, atribuir e fixar nota na barra rolável. Camada ativa destacada | `add_layer`, `assign_selection_to_active_layer`, `pin_note` |
+| Playtests | Play da gravação, velocidade, mapas e taxa de amostragem | `playtests_toggle_play`, `speed`, `playtests_set_heat`, `playtests_set_rate` |
+| Security Audit | Re-run junto do resumo. Resultados roláveis e links para o código | `queue_audit`, `reveal`, `select` |
+| Collaborators | Compartilhamento e status, relay em Advanced | `set_team_presence_enabled`, `toggle_presence_advanced`, `save_presence_relay` |
+
+O comando New InputContext da barra substitui sua duplicação no estado vazio
+Android. O botão de reprodução em Playtests continua dedicado a gravações locais.
