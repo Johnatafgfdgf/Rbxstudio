@@ -1,0 +1,64 @@
+[workspace]
+resolver = "2"
+members = ["core", "native", "geometry", "studio", "player"]
+exclude = ["upstream/gpui-mobile", "platform/gpui-platform", "platform/gpui-wgpu", "upstream/rbx-native", "upstream/rook", "upstream/rbx-native/crates/*", "upstream/rook/crates/*"]
+
+[profile.dev]
+codegen-units = 1
+debug = 0
+opt-level = 1
+
+[profile.dev.build-override]
+codegen-units = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev.package.rbx_viewer]
+codegen-units = 1
+
+[profile.dev.package.rbx_studio]
+codegen-units = 64
+opt-level = 1
+
+[profile.dev.package.rbx_android]
+opt-level = 3
+codegen-units = 1
+
+[profile.dev.package.rbx_android_core]
+opt-level = 3
+codegen-units = 1
+
+[profile.dev.package.rbx_lua]
+codegen-units = 1
+
+[profile.release]
+debug = 0
+opt-level = 2
+lto = "thin"
+codegen-units = 8
+strip = "debuginfo"
+
+[workspace.dependencies]
+rbx_assets = { path = "upstream/rbx-native/crates/rbx_assets" }
+rbx_animation = { path = "upstream/rbx-native/crates/rbx_animation" }
+rbx_dom = { path = "upstream/rbx-native/crates/rbx_dom" }
+rbx_binary = { path = "upstream/rbx-native/crates/rbx_binary" }
+rbx_xml = { path = "upstream/rbx-native/crates/rbx_xml" }
+rbx_reflection = { path = "upstream/rbx-native/crates/rbx_reflection", features = ["embedded-dump"] }
+rbx_viewer = { path = "upstream/rbx-native/crates/rbx_viewer" }
+rbx_lua = { path = "upstream/rbx-native/crates/rbx_lua" }
+rbx_terrain = { path = "upstream/rbx-native/crates/rbx_terrain" }
+rook-physics = { path = "upstream/rook/crates/rook-physics" }
+rook-dom = { path = "upstream/rook/crates/rook-dom" }
+rook-types = { path = "upstream/rook/crates/rook-types" }
+rook-reflection = { path = "upstream/rook/crates/rook-reflection" }
+glam = "0.33"
+serde_json = "1"
+
+
+[patch.crates-io]
+gpui-pre = { path = "upstream/rbx-native/vendor/gpui-pre" }
+gpui-base = { path = "upstream/rbx-native/vendor/gpui-base" }
+gpui-pre-platform = { path = "platform/gpui-platform" }
+gpui-pre-wgpu = { path = "platform/gpui-wgpu" }

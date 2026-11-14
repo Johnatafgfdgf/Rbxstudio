@@ -1,0 +1,40 @@
+[package]
+name = "rbx_android_core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT AND Apache-2.0"
+
+[dependencies]
+rbx_assets.workspace = true
+rbx_cloud = { path = "../upstream/rbx-native/crates/rbx_cloud" }
+rbx_animation.workspace = true
+rook-engine = { path = "../upstream/rook/crates/rook-engine" }
+rook-lua = { path = "../upstream/rook/crates/rook-lua" }
+rook-content = { path = "../upstream/rook/crates/rook-content" }
+log = "0.4"
+rbx_dom.workspace = true
+rbx_binary.workspace = true
+rbx_xml.workspace = true
+rbx_reflection.workspace = true
+rbx_viewer.workspace = true
+rbx_lua.workspace = true
+rbx_terrain.workspace = true
+rook-physics.workspace = true
+rook-dom.workspace = true
+rook-types.workspace = true
+rook-reflection.workspace = true
+rook-formats = { path = "../upstream/rook/crates/rook-formats" }
+rook-platform = { path = "../upstream/rook/crates/rook-platform", features = ["std-host"] }
+glam.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+rbx_audit = { path = "../upstream/rbx-native/crates/rbx_audit" }
+mlua = { version = "0.12", features = ["luau", "vendored"] }
+rook-view = { path = "../upstream/rook/crates/rook-view" }
+rook-render = { path = "../upstream/rook/crates/rook-render" }
+zip = {version="8",default-features=false,features=["deflate"]}
+rook_geometry_bridge = {path="../geometry"}
+tempfile = "3"
+png = "0.18"
+

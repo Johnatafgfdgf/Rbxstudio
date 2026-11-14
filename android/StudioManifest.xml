@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="16" android:versionName="0.6.10">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <queries><package android:name="com.roblox.client" /></queries>
+    <uses-feature android:glEsVersion="0x00030001" android:required="false" />
+    <application android:label="Rbx Studio" android:icon="@drawable/rbx_mobile_icon" android:theme="@style/StudioTheme" android:debuggable="true" android:allowBackup="false" android:extractNativeLibs="true" android:usesCleartextTraffic="false" android:hardwareAccelerated="true">
+        <activity android:name="dev.gpui.mobile.GpuiActivity" android:exported="true" android:launchMode="singleTask" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density" android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="android.app.lib_name" android:value="rbx_android_studio" />
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <activity android:name="dev.gpui.mobile.GpuiPickerActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name="com.rbxnative.androidport.RookPlayerActivity" android:process=":rook" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density" android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="android.app.lib_name" android:value="rbx_android_player" />
+        </activity>
+    </application>
+</manifest>
