@@ -48,6 +48,18 @@
     ],
     "Collaborators": [
       ["Collaborators", [["switch", "Share my presence"], ["button", "Advanced ▸"]]]
+    ],
+    "Script Analysis": [
+      ["Script Analysis", [["status", "No problems found"]]]
+    ],
+    "Call Stack": [
+      ["Call Stack", [["status", "Values show while a debugged script is paused"]]]
+    ],
+    "Tests": [
+      ["No tests found", [["switch", "Rerun on save"], ["button", "Run all", "play"]]]
+    ],
+    "Argon": [
+      ["Argon", [["field", "Host", "127.0.0.1"], ["field", "Port", "8000"], ["button", "Connect"]]]
     ]
   }
 }

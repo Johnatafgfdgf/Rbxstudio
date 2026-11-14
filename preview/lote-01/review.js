@@ -652,6 +652,24 @@
   }
 
   function renderExample(panel, list) {
+    if (panel === "Watch") {
+      const active = state.examples.Watch ?? "Variables";
+      renderExampleSections([["Watch", [["choice", "Variables"], ["choice", "My Watches"]]]], list);
+      if (active === "My Watches") {
+        const values = state.examples.watches ?? [];
+        values.forEach((value, index) => list.append(sampleSection(value, button("Remove watch", "watch-remove:" + index, "x", "control icon-only", { iconOnly: true }))));
+        const field = sampleField("Add a watch expression", "");
+        field.lastElementChild.addEventListener("keydown", event => {
+          if (event.key !== "Enter" || !event.target.value.trim()) return;
+          state.examples.watches = [...values, event.target.value.trim()];
+          renderDrawer();
+        });
+        list.append(field);
+      } else {
+        list.append(element("p", "drawer-notice", "Values show while a debugged script is paused"));
+      }
+      return;
+    }
     if (panel === "Playtests") {
       const sections = [
         ["", [["button", "Play", "play"]]],
@@ -691,7 +709,8 @@
         }
         return button(label, "sample:" + label, value || null);
       });
-      holder.append(sampleSection(title, ...rows));
+      holder.append(title ? sampleSection(title, ...rows) : element("div", "sample-strip"));
+      if (!title) holder.lastElementChild.append(...rows);
     }
   }
 
@@ -891,6 +910,7 @@
         state.examples[title] = label; renderDrawer(); return;
       }
       case "sample-advanced": state.examples.advanced = !state.examples.advanced; renderDrawer(); return;
+      case "watch-remove": state.examples.watches.splice(Number(value), 1); renderDrawer(); return;
       case "terrain-tab": state.terrainTab = value; state.terrainTool = ""; renderDrawer(); return;
       case "terrain-tool": state.terrainTool = value; renderDrawer(); return;
       case "explorer-settings": openPopup("explorer-settings", trigger, 250, [

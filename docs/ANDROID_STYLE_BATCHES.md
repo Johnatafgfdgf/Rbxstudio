@@ -10,7 +10,7 @@ especializados fazem parte da revisão como componentes das superfícies.
 | 1 | Início, Menu (File, Edit, Model, View), Ferramentas, Painéis, Explorer | Estilo Android aplicado e prévia interativa exercitada no navegador. |
 | 2 | Properties, Toolbox, Output, Viewport, Terrain Editor | Estilo Android aplicado. Prévia exercitada por toque, incluindo filtros, recolher Output e alternar a ferramenta de terreno. |
 | 3 | Input Actions, Layers, Playtests, Security Audit, Collaborators | Estilo Android aplicado. |
-| 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Pendente. |
+| 4 | Script Analysis, Watch, Call Stack, Tests, Argon | Estilo Android aplicado. |
 | 5 | Wally, Plugin Widgets, Loren, Avatar Settings, Localization | Pendente. |
 | 6 | Studio Settings, Game Settings | Pendente. Inclui revisão das superfícies secundárias. |
 
@@ -59,3 +59,13 @@ Expandir, Recolher e Fechar disponíveis mesmo com o histórico recolhido.
 
 O comando New InputContext da barra substitui sua duplicação no estado vazio
 Android. O botão de reprodução em Playtests continua dedicado a gravações locais.
+
+## Lote 4
+
+| Superfície | Controle e posição | Handler ou estado |
+| --- | --- | --- |
+| Script Analysis | Retry junto do resumo quando há falha. Lista de diagnósticos rolável | `ensure_luau_lsp`, `restart_luau_lsp`, `reveal_problem` |
+| Watch | Variables e My Watches no topo, campo de expressão no rodapé | `debug.tab`, `watch_input`, `request_watch_values` |
+| Call Stack | Pilha e frame ativo no corpo da gaveta | `select_frame`, `stack_scroll` |
+| Tests | Rerun on save e Run all no topo. Execução individual na linha | `run_all_tests`, `rerun_on_save`, `tests_tree` |
+| Argon | Conexão e opções existentes, em coluna rolável | `argon_connect`, `argon_disconnect`, `argon_set` |
