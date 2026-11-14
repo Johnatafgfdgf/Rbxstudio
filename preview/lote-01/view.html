@@ -1,0 +1,61 @@
+<section id="rbx-mobile-review">
+  <main class="app" data-page="home">
+    <div class="home-screen">
+      <header class="home-top">
+        <span class="mark" aria-hidden="true"></span>
+        <strong class="studio-name">Rbx Studio</strong>
+        <h1 id="rbx-page-title">Início</h1>
+        <span class="spacer"></span>
+        <button class="control" data-action="open-file" data-icon="folder-open" data-compact aria-label="Abrir">Abrir</button>
+        <button class="control" data-action="account" data-icon="user" data-compact aria-label="Configurar conta">Configurar conta</button>
+      </header>
+      <div class="home-body" id="rbx-home-body"></div>
+      <nav class="home-nav surface" aria-label="Navegação inicial">
+        <button class="control flat" data-action="home-tab:home" data-icon="house" aria-pressed="true">Início</button>
+        <button class="control flat" data-action="home-tab:recent" data-icon="clock" aria-pressed="false">Recentes</button>
+        <button class="control flat" data-action="home-tab:games" data-icon="gamepad-2" aria-pressed="false">Meus jogos</button>
+        <button class="control flat" data-action="account" data-icon="user">Conta</button>
+      </nav>
+    </div>
+    <div class="editor-screen" hidden>
+      <header class="editor-top">
+        <nav class="main-actions" aria-label="Comandos do editor">
+          <button class="control" data-action="menu" data-icon="menu" data-compact aria-expanded="false">Menu</button>
+          <button class="control" data-action="tools" data-icon="wrench" data-compact aria-expanded="false">Ferramentas</button>
+          <button class="control" data-action="panels" data-icon="panels-top-left" data-compact aria-expanded="false">Painéis</button>
+          <span class="tool-divider" aria-hidden="true"></span>
+          <div class="transform-wide" aria-label="Ferramentas 3D"></div>
+          <button class="control icon-only transform-compact" data-action="active-tool" data-icon="mouse-pointer-2" aria-label="Ferramenta ativa"></button>
+          <button class="control icon-only" data-action="transform-options" data-icon="ellipsis" aria-label="Opções de transformação"></button>
+        </nav>
+        <button class="control fixed-action" data-action="save" data-icon="save" data-compact>Salvar</button>
+        <button class="control primary fixed-action" data-action="play" data-icon="play" data-compact>Play</button>
+      </header>
+      <div class="workspace">
+        <figure class="scene" aria-label="Prévia da Baseplate">
+          <img class="scene-image" alt="" draggable="false">
+        </figure>
+        <aside class="drawer surface" id="rbx-drawer" aria-label="Painel do editor" hidden>
+          <div class="drawer-grip" role="separator" aria-label="Redimensionar painel" aria-orientation="vertical"></div>
+          <div class="drawer-header">
+            <div class="drawer-tabs"></div>
+            <button class="control icon-only" data-action="expand-panel" data-icon="maximize-2" aria-label="Ampliar painel"></button>
+            <button class="control icon-only" data-action="close-panel" data-icon="x" aria-label="Fechar painel"></button>
+          </div>
+          <div id="rbx-drawer-body"></div>
+        </aside>
+        <div class="shade" id="rbx-shade" hidden></div>
+        <div class="sheet surface" id="rbx-sheet" hidden></div>
+        <div class="popup surface" id="rbx-popup" hidden></div>
+      </div>
+    </div>
+    <div class="dialog-shade" id="rbx-dialog-shade" hidden>
+      <div class="dialog surface" role="dialog" aria-modal="true" aria-labelledby="rbx-dialog-title">
+        <h2 id="rbx-dialog-title"></h2>
+        <p id="rbx-dialog-message"></p>
+        <div class="dialog-actions"></div>
+      </div>
+    </div>
+    <output class="toast" id="rbx-status" role="status"></output>
+  </main>
+</section>
