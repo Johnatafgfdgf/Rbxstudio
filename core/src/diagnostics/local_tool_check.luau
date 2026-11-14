@@ -1,0 +1,28 @@
+local p = game.Players.LocalPlayer
+local tool = p.Character.ClientOnly
+local hand = p.Character:FindFirstChild("RightHand") or p.Character:FindFirstChild("Right Arm")
+local joint = hand:FindFirstChild("RightGrip")
+assert(joint and joint.Part1 == tool.Handle, "Tool local sem RightGrip")
+assert(joint.C1 == tool.Grip, "Grip dinâmico ignorado")
+assert((tool.Handle.Position - hand.Position).Magnitude < 4, "Handle local não segue a mão")
+assert(tool:GetAttribute("Uses") == 1, "Tool:Activate não disparou")
+p.Character.Humanoid:UnequipTools()
+assert(tool.Parent == p.Backpack and not hand:FindFirstChild("RightGrip"), "Desequipar deixou a junta")
+p.Character.Humanoid:EquipTool(tool)
+tool:Destroy()
+assert(not hand:FindFirstChild("RightGrip"), "Destroy deixou junta fantasma")
+local missing = Instance.new("Tool", p.Backpack)
+local equips, unequips, activations = 0, 0, 0
+missing.Equipped:Connect(function() equips += 1 end)
+missing.Unequipped:Connect(function() unequips += 1 end)
+missing.Activated:Connect(function() activations += 1 end)
+p.Character.Humanoid:EquipTool(missing)
+missing:Activate()
+p.Character.Humanoid:UnequipTools()
+assert(equips == 0 and unequips == 0 and activations == 0, "Tool sem Handle disparou eventos apesar de RequiresHandle")
+missing.RequiresHandle = false
+p.Character.Humanoid:EquipTool(missing)
+missing:Activate()
+missing:Deactivate()
+p.Character.Humanoid:UnequipTools()
+assert(equips == 1 and unequips == 1 and activations == 1, "Tool sem Handle com RequiresHandle=false não funcionou")
