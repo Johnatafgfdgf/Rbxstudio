@@ -1,0 +1,20 @@
+[package]
+name = "rbx_android_player"
+version = "0.4.0"
+edition = "2021"
+license = "MIT AND Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+rook-player = { path = "../upstream/rook/apps/rook-player", default-features = false }
+rbx_android_core = { path = "../core" }
+rook-platform = { path = "../upstream/rook/crates/rook-platform", features = ["std-host"] }
+rook-engine = { path = "../upstream/rook/crates/rook-engine" }
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = "0.15"
+jni = "0.21"
+log = "0.4"
+serde_json = "1"
+anyhow = "1"
