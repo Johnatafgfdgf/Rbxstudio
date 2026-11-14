@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="1" android:versionName="host-services-test">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
+    <instrumentation android:name=".StudioServicesTest" android:targetPackage="com.rbxnative.androidport" android:functionalTest="true" />
+    <application android:label="Host services test" android:theme="@android:style/Theme.Material.NoActionBar" android:debuggable="true" android:allowBackup="false">
+        <activity android:name=".ServiceTestActivity" android:exported="false" />
+        <provider android:name=".ServiceTestDocuments" android:authorities="com.rbxnative.androidport.servicefixtures" android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true"><intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter></provider>
+    </application>
+</manifest>
