@@ -14,7 +14,7 @@ NDK=pathlib.Path(os.environ.get("ANDROID_NDK_HOME",SDK/"android-ndk-r28c"))
 BUILD=ROOT/"android/build"
 DIST=ROOT/"dist"
 studio=os.environ.get("PORT_APP")=="studio"
-version="0.6.10" if studio else "0.3"
+version="0.6.11" if studio else "0.3"
 library_name="rbx_android_studio" if studio else "rbx_android"
 BT=SDK/"build-tools/35.0.0"
 PLATFORM=SDK/"platforms/android-35/android.jar"

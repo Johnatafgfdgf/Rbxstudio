@@ -55,10 +55,10 @@ index d9be8ff..9f2e7d2 100644
          deliverResult(uris);
 diff --git a/src/android/ime.rs b/src/android/ime.rs
 new file mode 100644
-index 0000000..6a6cd59
+index 0000000..53c010b
 --- /dev/null
 +++ b/src/android/ime.rs
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,447 @@
 +//! NativeActivity's key queue does not carry Android IME text transactions.
 +//! Keep the GPUI input handler on its native thread and route the Activity's
 +//! InputConnection requests through the same foreground queue as other UI work.
@@ -240,6 +240,20 @@ index 0000000..6a6cd59
 +    };
 +    platform.foreground_executor().dispatch_on_main_thread(f);
 +    true
++}
++
++
++#[unsafe(no_mangle)]
++pub extern "system" fn Java_dev_gpui_mobile_GpuiActivity_nativeEditorImeBounds(
++    _env: EnvUnowned<'_>,
++    _class: JObject<'_>,
++    visible_bottom: jint,
++) {
++    enqueue(move || {
++        if let Some(window) = host::platform().and_then(|p| p.primary_window()) {
++            window.set_ime_visible_height(visible_bottom);
++        }
++    });
 +}
 +
 +enum Edit {
@@ -1143,7 +1157,7 @@ index 0000000..cc3d8e6
 +    }).map_err(anyhow::Error::msg)
 +}
 diff --git a/src/android/window.rs b/src/android/window.rs
-index 849a2d1..c77abcd 100644
+index 849a2d1..1ae2212 100644
 --- a/src/android/window.rs
 +++ b/src/android/window.rs
 @@ -55,6 +55,14 @@ use std::sync::{Arc, OnceLock};
@@ -1161,7 +1175,7 @@ index 849a2d1..c77abcd 100644
  /// Lightweight, owned window handle for wgpu surface creation.
  /// Stores the raw ANativeWindow pointer and implements the traits
  /// required by `WgpuRenderer::new` (`Clone + Debug + Send + Sync + 'static`).
-@@ -285,6 +293,8 @@ struct WindowState {
+@@ -285,10 +293,14 @@ struct WindowState {
  
      /// The wgpu renderer from `gpui_wgpu`.  `None` while the surface is unavailable.
      renderer: Option<WgpuRenderer>,
@@ -1170,7 +1184,13 @@ index 849a2d1..c77abcd 100644
  
      /// Cached display geometry.
      width: i32,
-@@ -390,11 +400,13 @@ impl AndroidWindow {
+     height: i32,
++    // Physical coordinate of the top of a bottom-docked keyboard, or zero.
++    ime_visible_height: i32,
+     scale_factor: f32,
+ 
+     /// Safe area insets in physical (device) pixels.
+@@ -390,14 +402,17 @@ impl AndroidWindow {
          .context("failed to create gpui_wgpu renderer")?;
  
          let id = native_window.ptr().as_ptr() as u64;
@@ -1184,7 +1204,11 @@ index 849a2d1..c77abcd 100644
              width,
              height,
              scale_factor,
-@@ -426,6 +438,7 @@ impl AndroidWindow {
++            ime_visible_height: 0,
+             safe_area_insets: SafeAreaInsets::default(),
+             appearance: WindowAppearance::Light,
+             is_active: true,
+@@ -426,9 +441,11 @@ impl AndroidWindow {
              native_window: None,
              gpu_context: Rc::new(RefCell::new(None)),
              renderer: None,
@@ -1192,7 +1216,11 @@ index 849a2d1..c77abcd 100644
              width,
              height,
              scale_factor,
-@@ -451,6 +464,52 @@ impl AndroidWindow {
++            ime_visible_height: 0,
+             safe_area_insets: SafeAreaInsets::default(),
+             appearance: WindowAppearance::Light,
+             is_active: false,
+@@ -451,6 +468,67 @@ impl AndroidWindow {
  
      // ── window lifecycle ──────────────────────────────────────────────────────
  
@@ -1223,10 +1251,25 @@ index 849a2d1..c77abcd 100644
 +        to.atlas = from.atlas.clone();
 +        to.width = from.width;
 +        to.height = from.height;
++        to.ime_visible_height = from.ime_visible_height;
 +        to.scale_factor = from.scale_factor;
 +        to.safe_area_insets = from.safe_area_insets;
 +        to.appearance = from.appearance;
 +        to.transparent = from.transparent;
++    }
++
++    /// The IME can cover an edge-to-edge NativeActivity without resizing
++    /// its surface. Restrict GPUI's layout and leave the drawable untouched.
++    pub(super) fn set_ime_visible_height(&self, height: i32) {
++        let changed = {
++            let mut state = self.state.lock();
++            let changed = state.ime_visible_height != height;
++            state.ime_visible_height = height;
++            changed
++        };
++        if changed {
++            self.notify_geometry();
++        }
 +    }
 +
 +    /// Restored windows may have last laid out before a rotation or IME resize.
@@ -1245,7 +1288,7 @@ index 849a2d1..c77abcd 100644
      /// Called when `APP_CMD_INIT_WINDOW` fires and a new `NativeWindow` is
      /// available (e.g. after returning from the background).
      pub fn init_window(&self, native_window: NativeWindow, gpu_context: GpuContext) -> Result<()> {
-@@ -499,6 +558,7 @@ impl AndroidWindow {
+@@ -499,6 +577,7 @@ impl AndroidWindow {
                  gpu_context
              };
              let renderer = Self::create_renderer(&native_window, ctx, width, height, transparent)?;
@@ -1253,7 +1296,7 @@ index 849a2d1..c77abcd 100644
              state.renderer = Some(renderer);
              log::info!(
                  "AndroidWindow::init_window — created new renderer {}×{}",
-@@ -521,8 +581,8 @@ impl AndroidWindow {
+@@ -521,8 +600,8 @@ impl AndroidWindow {
      /// Called when `APP_CMD_TERM_WINDOW` fires and the surface is about to be
      /// destroyed.
      ///
@@ -1264,7 +1307,7 @@ index 849a2d1..c77abcd 100644
      pub fn term_window(&self) {
          let mut state = self.state.lock();
  
-@@ -932,11 +992,7 @@ impl AndroidWindow {
+@@ -932,11 +1011,7 @@ impl AndroidWindow {
  
      /// Returns the sprite atlas from the renderer, if available.
      pub fn sprite_atlas(&self) -> Option<Arc<dyn PlatformAtlas>> {
@@ -1277,7 +1320,7 @@ index 849a2d1..c77abcd 100644
      }
  
      /// Returns GPU specs from the renderer, if available.
-@@ -1089,7 +1145,8 @@ impl Drop for AndroidWindow {
+@@ -1089,7 +1164,8 @@ impl Drop for AndroidWindow {
  pub struct AndroidPlatformWindow {
      window: Arc<AndroidWindow>,
      display: Option<Rc<dyn PlatformDisplay>>,
@@ -1287,7 +1330,7 @@ index 849a2d1..c77abcd 100644
      title: String,
      /// Shared momentum scrolling state — used by both the touch callback
      /// (to start/cancel flings) and the frame callback (to pump inertia).
-@@ -1110,7 +1167,8 @@ impl AndroidPlatformWindow {
+@@ -1110,7 +1186,8 @@ impl AndroidPlatformWindow {
          Self {
              window,
              display,
@@ -1297,7 +1340,7 @@ index 849a2d1..c77abcd 100644
              title: String::new(),
              momentum: Arc::new(Mutex::new(MomentumState {
                  velocity_tracker: VelocityTracker::new(),
-@@ -1151,6 +1209,15 @@ impl HasWindowHandle for AndroidPlatformWindow {
+@@ -1151,6 +1228,15 @@ impl HasWindowHandle for AndroidPlatformWindow {
      }
  }
  
@@ -1313,7 +1356,25 @@ index 849a2d1..c77abcd 100644
  impl HasDisplayHandle for AndroidPlatformWindow {
      fn display_handle(
          &self,
-@@ -1226,11 +1293,34 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1184,7 +1270,16 @@ impl PlatformWindow for AndroidPlatformWindow {
+     }
+ 
+     fn content_size(&self) -> gpui::Size<gpui::Pixels> {
+-        self.bounds().size
++        let state = self.window.state.lock();
++        let height = if state.ime_visible_height > 0 {
++            state.height.min(state.ime_visible_height)
++        } else {
++            state.height
++        };
++        gpui::size(
++            gpui::px(state.width as f32 / state.scale_factor),
++            gpui::px(height as f32 / state.scale_factor),
++        )
+     }
+ 
+     fn resize(&mut self, _size: gpui::Size<gpui::Pixels>) {
+@@ -1226,11 +1321,34 @@ impl PlatformWindow for AndroidPlatformWindow {
      }
  
      fn set_input_handler(&mut self, input_handler: PlatformInputHandler) {
@@ -1350,7 +1411,7 @@ index 849a2d1..c77abcd 100644
      }
  
      fn prompt(
-@@ -1246,8 +1336,9 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1246,8 +1364,9 @@ impl PlatformWindow for AndroidPlatformWindow {
      }
  
      fn activate(&self) {
@@ -1362,7 +1423,7 @@ index 849a2d1..c77abcd 100644
      }
  
      fn is_active(&self) -> bool {
-@@ -1310,6 +1401,7 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1310,6 +1429,7 @@ impl PlatformWindow for AndroidPlatformWindow {
          // on the struct so on_request_frame can capture it.
          let input_cb = Arc::clone(&self.momentum_input_cb);
  
@@ -1370,7 +1431,7 @@ index 849a2d1..c77abcd 100644
          self.window.on_request_frame(move || {
              // ── Drain coalesced touch-scroll deltas ──────────────────
              // The touch callback accumulates scroll deltas into
-@@ -1423,6 +1515,8 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1423,6 +1543,8 @@ impl PlatformWindow for AndroidPlatformWindow {
                  require_presentation: true,
                  force_render: text_dirty,
              });
@@ -1379,7 +1440,7 @@ index 849a2d1..c77abcd 100644
          });
      }
  
-@@ -1443,245 +1537,106 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1443,245 +1565,106 @@ impl PlatformWindow for AndroidPlatformWindow {
              Box::new(move |input: gpui::PlatformInput| -> DispatchEventResult { cb.lock()(input) })
          };
  
@@ -1698,21 +1759,21 @@ index 849a2d1..c77abcd 100644
 +                        events.push(gpui::PlatformInput::Pinch(gpui::PinchEvent {
 +                            position, delta, phase, ..Default::default()
 +                        }));
-+                    }
+                     }
+-
+-                    _ => {} // Unknown action, ignore
 +                    if contacts.is_empty() {
 +                        *multi = false;
 +                        *primary = None;
 +                        preserve_primary_touch(false);
-                     }
--
--                    _ => {} // Unknown action, ignore
++                    }
 +                }
 +                for event in events {
 +                    let _ = cb.lock()(event);
                  }
              });
          }
-@@ -1689,7 +1644,8 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1689,7 +1672,8 @@ impl PlatformWindow for AndroidPlatformWindow {
          // ── Key events → PlatformInput ───────────────────────────────────
          {
              let cb = Arc::clone(&input_cb);
@@ -1722,7 +1783,7 @@ index 849a2d1..c77abcd 100644
                  use crate::android::keyboard::{
                      android_key_to_keystroke, AKEY_EVENT_ACTION_DOWN, AKEY_EVENT_ACTION_UP,
                  };
-@@ -1724,6 +1680,13 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1724,6 +1708,13 @@ impl PlatformWindow for AndroidPlatformWindow {
                      None => return, // Modifier-only or unmapped key
                  };
  
@@ -1736,7 +1797,7 @@ index 849a2d1..c77abcd 100644
                  let event = if key_event.action == AKEY_EVENT_ACTION_DOWN {
                      gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
                          keystroke,
-@@ -1736,9 +1699,25 @@ impl PlatformWindow for AndroidPlatformWindow {
+@@ -1736,9 +1727,25 @@ impl PlatformWindow for AndroidPlatformWindow {
                      return; // ACTION_MULTIPLE or unknown
                  };
  
@@ -1764,7 +1825,7 @@ index 849a2d1..c77abcd 100644
          }
      }
  
-@@ -2067,7 +2046,13 @@ impl WindowList {
+@@ -2067,7 +2074,13 @@ impl WindowList {
  
      /// Returns the first (primary) window, if any.
      pub fn primary(&self) -> Option<&Arc<AndroidWindow>> {

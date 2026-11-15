@@ -60,7 +60,7 @@ jobs:
       PORT_ARCH: x86_64-linux-android
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
-      STUDIO_APK_VERSION: '0.6.10'
+      STUDIO_APK_VERSION: '0.6.11'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,7 +106,7 @@ jobs:
           STUDIO_INSPECT_VIEWPORT: ${{ github.ref_name == 'verify/android-menus' && '0' || '1' }}
           STUDIO_COMPACT_LAYOUT: '1'
           STUDIO_CAPTURE_MOBILE_MENUS: ${{ github.ref_name == 'verify/android-menus' && '1' || '0' }}
-          STUDIO_APK_VERSION: '0.6.10'
+          STUDIO_APK_VERSION: '0.6.11'
         with:
           api-level: 35
           target: default

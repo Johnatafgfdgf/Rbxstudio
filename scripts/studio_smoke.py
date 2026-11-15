@@ -156,7 +156,25 @@ def capture_mobile_chrome(frame, pid):
             raise RuntimeError(f'{name} did not visibly open after tapping the toolbar')
         if name == 'panels':
             tap(x + round(12 * scale), top + round(82 * scale))
-            capture('mobile-explorer.png')
+            explorer = capture('mobile-explorer.png')
+            if os.environ.get('STUDIO_APK_VERSION') == '0.6.11':
+                tap(x, row_y)
+                tap(x + round(12 * scale), top + round(127 * scale))
+                stacked = capture('mobile-explorer-properties.png')
+                dock_bounds = (right - round(width * 0.35), top + round(105 * scale), right, bottom)
+                difference = ImageChops.difference(explorer.crop(dock_bounds), stacked.crop(dock_bounds))
+                changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+                if changed < 1000:
+                    raise RuntimeError('Showing Properties did not change the Explorer dock')
+                before_camera = logs().count('RBX_ANDROID_TOUCH_LOOK')
+                adb('shell', 'input', 'swipe', str(left + round(width * 0.32)),
+                    str(top + round((bottom - top) * 0.52)), str(left + round(width * 0.47)),
+                    str(top + round((bottom - top) * 0.64)), '680')
+                time.sleep(2)
+                capture('mobile-camera-with-panels.png')
+                if logs().count('RBX_ANDROID_TOUCH_LOOK') <= before_camera:
+                    raise RuntimeError('The scene did not receive the camera gesture with panels open')
+                touches.append({'button': 'Explorer + Properties and scene drag', 'changed_pixels': changed})
         else:
             tap(x, row_y)
     (OUT / 'mobile-menu-touches.json').write_text(json.dumps(touches, indent=2) + '\n')
