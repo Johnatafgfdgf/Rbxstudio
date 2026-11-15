@@ -55,16 +55,13 @@ def compare(name, before, after, bounds, minimum):
 # The startup smoke has just opened Explorer and returned from Android Home.
 try:
     before = shot('touch-explorer-before')
+    touch(1020, 125)
+    toolbox = shot('touch-toolbox')
+    compare('open Toolbox tab', before, toolbox, (827, 157, 1264, 525), 2000)
+    touch(873, 125)
     touch(858, 322)
     expanded = shot('touch-explorer-expanded')
     compare('expand Workspace', before, expanded, (827, 291, 1264, 495), 400)
-    touch(995, 324)
-    touch(852, 533)
-    actions = shot('touch-explorer-actions')
-    compare('Explorer selection menu', expanded, actions, (815, 158, 1268, 497), 1000)
-    touch(735, 450)
-    touch(1016, 126)
-    shot('touch-toolbox')
     touch(1243, 126)
 
     touch(178, 34)
@@ -79,15 +76,28 @@ try:
     swipe(350, 504, 150)
     panels_after = shot('touch-panels-scrolled')
     compare('scroll panels', panels_before, panels_after, (265, 86, 552, 545), 600)
+    swipe(350, 150, 504)
     touch(308, 34)
 
-    touch(55, 34)
-    menu = shot('touch-main-menu')
     for name, x in [('file', 48), ('edit', 117), ('model', 199), ('view', 282)]:
+        touch(55, 34)
+        menu = shot(f'touch-main-menu-before-{name}')
         touch(x, 118)
         popup = shot(f'touch-menu-{name}')
         compare(f'open {name}', menu, popup, (7, 152, 545, 510), 1500)
-        touch(x, 118)
+        # Popups can be clamped up over their triggers on short windows.
+        # Toggle the top-level sheet, which always stays above the popup.
+        touch(55, 34)
+        closed = shot(f'touch-menu-{name}-closed')
+        compare(f'close {name}', popup, closed, (7, 152, 545, 510), 1500)
+
+    touch(308, 34)
+    touch(323, 116)
+    explorer = shot('touch-explorer-returned')
+    touch(995, 324)
+    touch(852, 533)
+    actions = shot('touch-explorer-actions')
+    compare('Explorer selection menu', explorer, actions, (815, 158, 1268, 497), 1000)
 finally:
     (output / 'native-menu-gestures.json').write_text(json.dumps(results, indent=2) + '\n')
 
