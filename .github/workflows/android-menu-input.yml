@@ -1,0 +1,64 @@
+name: Android menu touch and scroll verification
+
+on:
+  push:
+    branches: [verify/android-menus]
+    paths:
+      - .github/workflows/android-menu-input.yml
+      - tests/android/native_menu_gestures.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  menu-input:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      STUDIO_APK_VERSION: '0.6.10'
+      STUDIO_SKIP_RESUME: '1'
+      STUDIO_SKIP_SETUP: '1'
+      STUDIO_REQUIRE_EDITOR: '1'
+      STUDIO_CAPTURE_MOBILE_MENUS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: rbxstudio-native-ui-evidence
+          run-id: '43657602163'
+          github-token: ${{ github.token }}
+      - name: Verify the exact compiled APK
+        run: |
+          cd dist
+          echo 'e6ea057f06a6b25a79ae1bee4dc44fb3e005ac2c282e4cffb78f0492d06ef2a7  rbx-native-android-0.6.10-x86_64-debug.apk' | sha256sum -c -
+          mv original-studio-test/capture-manifest.json native-build.json
+          rm -r original-studio-test
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: python3 -m pip install Pillow
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disk-size: 2048M
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -gpu lavapipe -noaudio -no-boot-anim -no-snapshot -camera-back none -memory 3072 -partition-size 2048
+          disable-animations: true
+          script: python3 tests/android/native_menu_gestures.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-native-menu-touch-evidence
+          path: |
+            dist/native-build.json
+            dist/original-studio-test/
+          retention-days: 14
