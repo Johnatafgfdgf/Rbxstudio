@@ -1361,7 +1361,7 @@ index 7959db1..63c3ce7 100644
          form.name
              .update(cx, |input, cx| input.set_value("", window, cx));
 diff --git a/crates/rbx_studio/src/launcher/home_window/open.rs b/crates/rbx_studio/src/launcher/home_window/open.rs
-index 9fd59e0..bf8475a 100644
+index 9fd59e0..78722c3 100644
 --- a/crates/rbx_studio/src/launcher/home_window/open.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/open.rs
 @@ -157,6 +157,9 @@ impl HomeWindow {
@@ -1428,7 +1428,7 @@ index 9fd59e0..bf8475a 100644
 +                };
 +                let _ = this.update(cx, |home, cx| {
 +                    if let Some(Dialog::Opening { stage, .. }) = &mut home.dialog {
-+                        *stage = "Montando o editor, os scripts e o Explorer…";
++                        *stage = "Preparando o Explorer e o editor de scripts…";
 +                        cx.notify();
 +                    }
 +                });
@@ -3546,10 +3546,10 @@ index 0000000..d79ea99
 +    }
 +}
 diff --git a/crates/rbx_studio/src/recovery.rs b/crates/rbx_studio/src/recovery.rs
-index cbb6bbf..34594ea 100644
+index cbb6bbf..de14919 100644
 --- a/crates/rbx_studio/src/recovery.rs
 +++ b/crates/rbx_studio/src/recovery.rs
-@@ -145,6 +145,20 @@ pub(crate) struct Leftover {
+@@ -145,6 +145,24 @@ pub(crate) struct Leftover {
      /// The original place's name (the copy's stem before " (recovery ").
      pub(crate) name: String,
      pub(crate) modified: SystemTime,
@@ -3564,13 +3564,17 @@ index cbb6bbf..34594ea 100644
 +}
 +
 +pub(crate) fn remove_copy(copy: &Path) -> std::io::Result<()> {
-+    std::fs::remove_file(copy)?;
++    if let Err(error) = std::fs::remove_file(copy)
++        && error.kind() != std::io::ErrorKind::NotFound
++    {
++        return Err(error);
++    }
 +    let _ = std::fs::remove_file(preview_path(copy));
 +    Ok(())
  }
  
  /// The copies in `folder` that nothing is writing, newest first: those
-@@ -160,13 +174,23 @@ pub(crate) fn leftovers(folder: &Path) -> Vec<Leftover> {
+@@ -160,13 +178,23 @@ pub(crate) fn leftovers(folder: &Path) -> Vec<Leftover> {
              let path = entry.path();
              let file = entry.file_name().to_string_lossy().into_owned();
              let (name, _) = file.split_once(" (recovery ")?;
@@ -3596,7 +3600,7 @@ index cbb6bbf..34594ea 100644
                  path,
              })
          })
-@@ -188,15 +212,22 @@ fn is_held(copy: &Path) -> bool {
+@@ -188,15 +216,22 @@ fn is_held(copy: &Path) -> bool {
          .is_ok_and(|lock| matches!(lock.try_lock(), Err(TryLockError::WouldBlock)))
  }
  
@@ -3627,7 +3631,7 @@ index cbb6bbf..34594ea 100644
  }
  
  /// A temp file `save::save` left behind (`<name>.tmp-<pid>`), when the
-@@ -344,9 +375,12 @@ mod tests {
+@@ -344,9 +379,12 @@ mod tests {
          assert_eq!(found[0].name, "Tower");
          assert_eq!(found[1].name, "Obby");
  
@@ -12331,7 +12335,7 @@ index a2c9d70..4968a98 100644
          match mode {
 diff --git a/crates/rbx_studio/src/workspace_view/resolution.rs b/crates/rbx_studio/src/workspace_view/resolution.rs
 new file mode 100644
-index 0000000..d845ec6
+index 0000000..ab1f3ce
 --- /dev/null
 +++ b/crates/rbx_studio/src/workspace_view/resolution.rs
 @@ -0,0 +1,52 @@
@@ -12366,7 +12370,7 @@ index 0000000..d845ec6
 +    }
 +
 +    pub(crate) fn from_value(value: &str) -> Option<Self> {
-+        Self::MOBILE_OPTIONS.into_iter().find(|option| option.value() == value)
++        Self::MOBILE_OPTIONS.iter().copied().find(|option| option.value() == value)
 +    }
 +
 +    /// Fit within the preset and the actual view. Picking still uses the
