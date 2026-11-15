@@ -2198,7 +2198,7 @@ index 58f53066..d412703b 100644
                      )
                      .child(self.status_card(cx))
 diff --git a/crates/rbx_studio/src/launcher/ui.rs b/crates/rbx_studio/src/launcher/ui.rs
-index a669dbc8..54cf5fad 100644
+index a669dbc8..0fe48844 100644
 --- a/crates/rbx_studio/src/launcher/ui.rs
 +++ b/crates/rbx_studio/src/launcher/ui.rs
 @@ -7,7 +7,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -2261,7 +2261,7 @@ index a669dbc8..54cf5fad 100644
                  .w(px(width))
                  .border_1()
                  .border_color(tokens::border2())
-@@ -332,8 +340,12 @@ pub(crate) fn dialog(
+@@ -332,6 +340,9 @@ pub(crate) fn dialog(
                      inset: false,
                  }])
                  .overflow_hidden()
@@ -2270,10 +2270,15 @@ index a669dbc8..54cf5fad 100644
 +                    .overflow_y_scroll().map(style::surface).shadow(Vec::<BoxShadow>::new()))
                  .child(
                      h_flex()
-+                        .id("launcher-dialog-footer")
                          .items_start()
-                         .gap(px(14.))
-                         .pt(px(20.))
+@@ -360,6 +371,7 @@ pub(crate) fn dialog(
+                 .children(body)
+                 .child(
+                     h_flex()
++                        .id("launcher-dialog-footer")
+                         .h(px(60.))
+                         .items_center()
+                         .justify_end()
 @@ -369,8 +381,11 @@ pub(crate) fn dialog(
                          .border_t_1()
                          .border_color(tokens::border())
@@ -3567,10 +3572,14 @@ index 259dd588..c92da21c 100644
              .track_scroll(&self.argon_ui.body_scroll)
              .scrollbar_y(&self.argon_ui.body_scroll)
 diff --git a/crates/rbx_studio/src/shell/argon_dock/actions.rs b/crates/rbx_studio/src/shell/argon_dock/actions.rs
-index 95a97abc..0f1a6939 100644
+index 95a97abc..4c1696f2 100644
 --- a/crates/rbx_studio/src/shell/argon_dock/actions.rs
 +++ b/crates/rbx_studio/src/shell/argon_dock/actions.rs
-@@ -8,6 +8,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
+@@ -5,9 +5,11 @@
+ use gpui_kit::assets::IconName;
+ use gpui_kit::component::input::Input;
+ use gpui_kit::component::{h_flex, v_flex, Icon};
++use gpui_kit::prelude::FluentBuilder;
  use gpui_kit::*;
  
  use crate::tokens;
@@ -3578,7 +3587,7 @@ index 95a97abc..0f1a6939 100644
  
  use super::super::Shell;
  use super::connection::View;
-@@ -164,6 +165,8 @@ fn primary_button(id: &'static str, label: &'static str, tab: isize) -> Stateful
+@@ -164,6 +166,8 @@ fn primary_button(id: &'static str, label: &'static str, tab: isize) -> Stateful
          .font_weight(tokens::WEIGHT_BOLD)
          .text_color(tokens::black())
          .cursor_pointer()
@@ -3587,7 +3596,7 @@ index 95a97abc..0f1a6939 100644
          .hover(|this| tokens::hover_fx(this).bg(tokens::accent_hover()))
          .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
          .child(label)
-@@ -188,6 +191,7 @@ fn secondary_button(id: &'static str, label: &'static str, tab: isize) -> Statef
+@@ -188,6 +192,7 @@ fn secondary_button(id: &'static str, label: &'static str, tab: isize) -> Statef
          .font_weight(tokens::WEIGHT_SEMIBOLD)
          .text_color(tokens::text())
          .cursor_pointer()
@@ -3595,7 +3604,7 @@ index 95a97abc..0f1a6939 100644
          .hover(|this| tokens::hover_fx(this).bg(tokens::secondary_hover()))
          .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
          .tooltip(move |window, cx| super::super::tooltip::text(label, window, cx))
-@@ -211,6 +215,7 @@ fn disabled_button(id: &'static str, label: &'static str) -> Stateful<Div> {
+@@ -211,6 +216,7 @@ fn disabled_button(id: &'static str, label: &'static str) -> Stateful<Div> {
          .line_height(tokens::line_action())
          .font_weight(tokens::WEIGHT_SEMIBOLD)
          .text_color(tokens::text3())
@@ -3604,7 +3613,7 @@ index 95a97abc..0f1a6939 100644
          .child(label)
  }
 diff --git a/crates/rbx_studio/src/shell/avatar_dock/view.rs b/crates/rbx_studio/src/shell/avatar_dock/view.rs
-index bedf574e..16c8b6d3 100644
+index bedf574e..8228c9ce 100644
 --- a/crates/rbx_studio/src/shell/avatar_dock/view.rs
 +++ b/crates/rbx_studio/src/shell/avatar_dock/view.rs
 @@ -7,7 +7,7 @@ use gpui_kit::prelude::FluentBuilder as _;
@@ -3682,7 +3691,7 @@ index bedf574e..16c8b6d3 100644
                      tokens::text2()
                  })
                  .when(on, |this| this.bg(tokens::accent_soft()))
-+                .when(cfg!(target_os = "android"), |tab| tab
++                .when(cfg!(target_os = "android"), |button| button
 +                    .flex_none().min_w(px(48.)).h(px(48.)).map(style::control)
 +                    .when(on, style::selected).aria_label(tab.label()).aria_selected(on))
                  .when(!on, |this| {
@@ -5657,10 +5666,18 @@ index 00000000..e6e48552
 +    preferred.clamp(96_f32.min(height), (height * 0.65).max(96_f32.min(height)))
 +}
 diff --git a/crates/rbx_studio/src/shell/output.rs b/crates/rbx_studio/src/shell/output.rs
-index d4eba18c..36405667 100644
+index d4eba18c..65330979 100644
 --- a/crates/rbx_studio/src/shell/output.rs
 +++ b/crates/rbx_studio/src/shell/output.rs
-@@ -276,7 +276,10 @@ impl Shell {
+@@ -24,6 +24,7 @@ use rbx_lua::PrintPart;
+ 
+ use crate::shell::chrome::ScrollbarY as _;
+ use gpui_kit::component::v_flex;
++use gpui_kit::prelude::FluentBuilder;
+ use gpui_kit::*;
+ 
+ use crate::tokens;
+@@ -276,7 +277,10 @@ impl Shell {
              div()
                  .id("output-log")
                  .flex_1()
