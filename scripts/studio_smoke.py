@@ -105,6 +105,62 @@ def dismiss_fullscreen_hint():
         adb('shell', 'input', 'tap', '890', '247')
         time.sleep(2)
 
+def capture_mobile_chrome(frame, pid):
+    from io import BytesIO
+    from PIL import Image, ImageChops
+
+    left, top, right, bottom = frame
+    width = right - left
+    scale = int(adb('shell', 'wm', 'density').split()[-1]) / 160
+
+    def capture(file_name):
+        png = adb('exec-out', 'screencap', '-p', binary=True)
+        (OUT / file_name).write_bytes(png)
+        return Image.open(BytesIO(png)).convert('RGB')
+
+    def tap(x, y):
+        adb('shell', 'input', 'tap', str(x), str(y))
+        time.sleep(1.3)
+        healthy(logs())
+        if adb('shell', 'pidof', PACKAGE).strip() != pid:
+            raise RuntimeError('The editor exited during the menu probe')
+
+    scene = capture('mobile-scene.png')
+    y = top + round(11 * scale)
+    runs = []
+    begin = None
+    # Each rounded button is filled in this lane. Detect the actual gaps so
+    # translation and font metrics do not have to match a fixed X coordinate.
+    for x in range(left, right):
+        red, green, blue = scene.getpixel((x, y))
+        filled = green >= 34 and blue >= 44 and blue > red + 10
+        if filled and begin is None:
+            begin = x
+        if not filled and begin is not None:
+            if x - begin >= round(36 * scale):
+                runs.append((begin, x))
+            begin = None
+    if len(runs) < 3:
+        raise RuntimeError('Menu, Ferramentas and Painéis could not be located in the captured toolbar')
+    row_y = top + round(26 * scale)
+    touches = []
+    for name, (begin, end) in zip(('menu', 'tools', 'panels'), runs[:3], strict=True):
+        x = (begin + end) // 2
+        tap(x, row_y)
+        opened = capture(f'mobile-{name}.png')
+        bounds = (left, top + round(52 * scale), right, min(bottom, top + round(310 * scale)))
+        difference = ImageChops.difference(scene.crop(bounds), opened.crop(bounds))
+        changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+        touches.append({'button': name, 'tap': [x, row_y], 'changed_pixels': changed})
+        if changed < width:
+            raise RuntimeError(f'{name} did not visibly open after tapping the toolbar')
+        if name == 'panels':
+            tap(x + round(12 * scale), top + round(82 * scale))
+            capture('mobile-explorer.png')
+        else:
+            tap(x, row_y)
+    (OUT / 'mobile-menu-touches.json').write_text(json.dumps(touches, indent=2) + '\n')
+
 try:
     version = os.environ.get('STUDIO_APK_VERSION', '0.6.7')
     apk = ROOT / f'dist/rbx-native-android-{version}-x86_64-debug.apk'
@@ -199,7 +255,15 @@ try:
         if frame is None: raise RuntimeError('The original native window bounds are missing')
         left, top, right, bottom = map(int, frame.groups())
         (OUT / 'native-content-frame.txt').write_text(str((left, top, right, bottom)))
-        adb('shell', 'input', 'tap', str(left + 120), str(top + 145))
+        inspect_mobile = os.environ.get('STUDIO_CAPTURE_MOBILE_MENUS') == '1'
+        if inspect_mobile:
+            # "Novo jogo" was visible at (1159, 152) on the preceding
+            # native Home capture with the same logical landscape size.
+            x = left + round((right - left) * 1159 / 1280)
+            y = top + round((bottom - top) * 152 / 576)
+            adb('shell', 'input', 'tap', str(x), str(y))
+        else:
+            adb('shell', 'input', 'tap', str(left + 120), str(top + 145))
         # The original editor creates a second GPU device and its real scene
         # pipelines here; SwiftShader can take longer than a UI transition.
         require_editor = os.environ.get('STUDIO_REQUIRE_EDITOR') == '1'
@@ -220,6 +284,8 @@ try:
             raise RuntimeError('The original loader did not apply the requested initial quality')
         if 'rbxview:' not in logs():
             raise RuntimeError('New place never initialized its original viewer; the UI may be blocked')
+        if inspect_mobile:
+            capture_mobile_chrome((left, top, right, bottom), original_pid)
         if os.environ.get('STUDIO_TEST_CAMERA') == '1':
             adb('shell', 'input', 'touchscreen', 'swipe', '590', '269', '705', '296', '1800')
             time.sleep(5)

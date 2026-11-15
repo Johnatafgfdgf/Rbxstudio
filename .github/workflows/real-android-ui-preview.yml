@@ -3,7 +3,7 @@ name: Rbx Studio - real Android UI screenshots
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, verify/android-menus]
     paths:
       - .github/workflows/real-android-ui-preview.yml
       - android/**
@@ -23,6 +23,34 @@ permissions:
   contents: read
 
 jobs:
+  signing-tools:
+    name: Provide SDK tools for local APK verification
+    if: github.ref_name == 'verify/android-menus'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Collect official Android build tools
+        run: |
+          sdkmanager 'build-tools;35.0.0'
+          mkdir -p signing-tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt" signing-tools/
+          cd signing-tools
+          sha256sum apksigner.jar zipalign aapt > sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-sdk-35-local-verification
+          path: signing-tools
+          retention-days: 7
+
   real-native-ui:
     name: Build genuine GPUI Android app and capture its pixels
     runs-on: ubuntu-24.04
@@ -75,8 +103,9 @@ jobs:
           STUDIO_SKIP_RESUME: '1'
           STUDIO_SKIP_SETUP: '1'
           STUDIO_REQUIRE_EDITOR: '1'
-          STUDIO_INSPECT_VIEWPORT: '1'
+          STUDIO_INSPECT_VIEWPORT: ${{ github.ref_name == 'verify/android-menus' && '0' || '1' }}
           STUDIO_COMPACT_LAYOUT: '1'
+          STUDIO_CAPTURE_MOBILE_MENUS: ${{ github.ref_name == 'verify/android-menus' && '1' || '0' }}
           STUDIO_APK_VERSION: '0.6.10'
         with:
           api-level: 35
