@@ -45,7 +45,7 @@ pub extern "system" fn Java_com_rbxnative_androidport_MainActivity_nativeInit(
 ) {
     android_logger::init_once(
         android_logger::Config::default()
-            .with_tag("RbxNative")
+            .with_tag("RbxStudio")
             .with_max_level(log::LevelFilter::Info),
     );
     let files = match env.get_string(&files) {
@@ -75,11 +75,11 @@ pub extern "system" fn Java_com_rbxnative_androidport_MainActivity_nativeInit(
         rbx_android_core::resources::begin_background_preparation();
         let (sender, receiver) = mpsc::channel();
         let snapshot = Arc::new(RwLock::new(
-            json!({"status":"Inicializando núcleo rbx-native…"}).to_string(),
+            json!({"status":"Inicializando o RBX Studio…"}).to_string(),
         ));
         let shared = snapshot.clone();
         thread::Builder::new()
-            .name("rbx-native-render".into())
+            .name("rbx-studio-render".into())
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     run(receiver, files, shared.clone())
