@@ -2562,7 +2562,7 @@ index a669dbc..cb2426f 100644
 diff --git a/crates/rbx_studio/src/launcher/wizard.rs b/crates/rbx_studio/src/launcher/wizard.rs
 --- a/crates/rbx_studio/src/launcher/wizard.rs
 +++ b/crates/rbx_studio/src/launcher/wizard.rs
-@@ -1,379 +1,400 @@
+@@ -1,379 +1,404 @@
 -//! The first-launch setup wizard: Welcome, Create a
 -//! key (the Dashboard walk-through with its three-slide carousel), Paste
 -//! and check, Done. Skip for now goes to Home without a key.
