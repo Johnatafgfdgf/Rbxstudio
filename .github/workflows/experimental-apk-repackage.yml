@@ -56,6 +56,9 @@ jobs:
                   (target / lib).write_bytes(archive.read(inside))
                   print('Reused', inside, 'bytes', (target / lib).stat().st_size)
           PY
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Apply original native-source patches before checking licenses
+        run: python3 scripts/prepare.py
       - name: Repackage with separate experimental Android package ID
         run: python3 scripts/package_apk.py
       - name: Verify APK installs beside original Studio
