@@ -12424,7 +12424,7 @@ new file mode 100644
 index 0000000..065c065
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile.rs
-@@ -0,0 +1,381 @@
+@@ -0,0 +1,395 @@
 +use gpui_kit::assets::IconName;
 +use gpui_kit::component::{h_flex, v_flex, Icon};
 +use gpui_kit::prelude::FluentBuilder as _;
@@ -12440,6 +12440,7 @@ index 0000000..065c065
 +use crate::transform::{Action, Tool};
 +
 +mod dock;
++mod ai;
 +pub(super) use dock::Docks;
 +
 +pub(super) const TOUCH_TARGET: f32 = 48.;
@@ -12582,7 +12583,17 @@ index 0000000..065c065
 +                        cx.notify();
 +                    })),
 +            )
-+            .child(self.mobile_panel_picker("mobile-panels", compact, cx));
++            .child(self.mobile_panel_picker("mobile-panels", compact, cx))
++            .child(compact_action("mobile-ai", IconName::Bot, "IA", compact)
++                .aria_expanded(self.ai_panel_open)
++                .when(self.ai_panel_open, selected)
++                .on_click(cx.listener(|shell, _, _, cx| {
++                    shell.ai_panel_open = !shell.ai_panel_open;
++                    shell.mobile_menu_open = false;
++                    shell.ribbon_tools_open = false;
++                    shell.open_menu = None;
++                    cx.notify();
++                })));
 +
 +        if self.document == Document::Viewport {
 +            if mobile_metrics::compact_tools(width) {
@@ -12753,6 +12764,9 @@ index 0000000..065c065
 +                            .when(!frame.interactive, |sheet| sheet.child(div().absolute().inset_0().occlude())),
 +                    ),
 +            );
++        }
++        if self.ai_panel_open {
++            workspace = workspace.child(self.mobile_ai_panel(window, cx));
 +        }
 +        workspace.into_any_element()
 +    }
@@ -22067,5 +22081,161 @@ new file mode 100644
 +        for tool in ["execute_luau", "insert_asset", "upload_image", "save_place", "new_tool"] {
 +            assert!(risk(tool).needs_approval(true));
 +        }
++    }
++}
+diff --git a/crates/rbx_studio/src/shell/mobile/ai.rs b/crates/rbx_studio/src/shell/mobile/ai.rs
+new file mode 100644
+--- /dev/null
++++ b/crates/rbx_studio/src/shell/mobile/ai.rs
+@@ -0,0 +1,151 @@
++//! Mobile AI control center. It is a real MCP connection to the active
++//! editor, not a mock chat. Remote model execution lives in the MCP client.
++//! Dangerous requests go through the on-screen approval queue.
++use gpui_kit::assets::IconName;
++use gpui_kit::component::{h_flex, v_flex};
++use gpui_kit::prelude::FluentBuilder as _;
++use gpui_kit::*;
++
++use super::{compact_action, selected};
++use crate::mobile_style as style;
++use crate::shell::Shell;
++
++impl Shell {
++    pub(super) fn mobile_ai_panel(
++        &self,
++        window: &Window,
++        cx: &mut Context<Self>,
++    ) -> Div {
++        let screen_width = f32::from(window.viewport_size().width);
++        let width = (screen_width * 0.48).clamp(286., 520.).min((screen_width - 16.).max(1.));
++        let active = self.mcp.is_some();
++        let pending_count = self.ai_pending.len();
++        let studio = self.mcp.as_ref().map(|server| server.endpoint());
++        let place = self.path.file_name()
++            .map(|name| name.to_string_lossy().into_owned())
++            .unwrap_or_else(|| "Projeto local".to_owned());
++        let status = if active {
++            format!("MCP local ativo • {} solicitação(ões) pendente(s)", pending_count)
++        } else {
++            "Desconectado • nenhuma IA controla o projeto".to_owned()
++        };
++        let info = studio.map(|endpoint| format!(
++            "Sessão: {} • Porta local: {}",
++            endpoint.studio_id, endpoint.port,
++        ));
++        let trusted = self.ai_trust_local_edits;
++        v_flex()
++            .id("mobile-ai-panel")
++            .absolute()
++            .right(px(7.))
++            .top(px(7.))
++            .bottom(px(7.))
++            .w(px(width))
++            .occlude()
++            .overflow_hidden()
++            .map(style::surface)
++            .child(
++                h_flex()
++                    .h(px(52.))
++                    .flex_none()
++                    .items_center()
++                    .px(px(12.))
++                    .gap(px(8.))
++                    .border_b_1()
++                    .border_color(style::border())
++                    .child(v_flex()
++                        .flex_1()
++                        .min_w_0()
++                        .child(div().text_size(px(17.)).font_weight(FontWeight::SEMIBOLD)
++                            .text_color(style::text()).child("Assistente IA"))
++                        .child(div().text_size(px(11.)).text_color(style::muted())
++                            .child("Conexão e permissões do editor")))
++                    .child(compact_action("mobile-ai-close", IconName::X, "Fechar", true)
++                        .on_click(cx.listener(|shell, _, _, cx| {
++                            shell.ai_panel_open = false;
++                            cx.notify();
++                        }))),
++            )
++            .child(
++                v_flex()
++                    .id("mobile-ai-content")
++                    .flex_1()
++                    .min_h_0()
++                    .overflow_y_scroll()
++                    .p(px(12.))
++                    .gap(px(14.))
++                    .text_color(style::text())
++                    .child(v_flex()
++                        .gap(px(6.))
++                        .child(div().font_weight(FontWeight::SEMIBOLD).child("Projeto ativo"))
++                        .child(div().text_color(style::muted()).child(place))
++                        .child(div().text_size(px(12.)).text_color(style::muted()).child(status))
++                        .children(info.map(|text| div().text_size(px(11.))
++                            .text_color(style::muted()).child(text)))
++                        .child(compact_action(
++                            "mobile-ai-connect",
++                            if active { IconName::X } else { IconName::Check },
++                            if active { "Desconectar IA" } else { "Ativar servidor MCP" },
++                            false,
++                        ).on_click(cx.listener(|shell, _, _, cx| shell.ai_toggle_connection(cx)))))
++                    .child(v_flex()
++                        .gap(px(7.))
++                        .child(div().font_weight(FontWeight::SEMIBOLD)
++                            .child("Permissões"))
++                        .child(div().text_size(px(12.)).text_color(style::muted())
++                            .child("Leitura do Explorer, scripts e cena: permitida na conexão autorizada. Mudanças exigem sua aprovação."))
++                        .child(compact_action(
++                            "mobile-ai-local-edits",
++                            if trusted { IconName::Check } else { IconName::Wrench },
++                            if trusted { "Edição local liberada nesta sessão" } else { "Autorizar edição local nesta sessão" },
++                            false,
++                        )
++                        .when(trusted, selected)
++                        .on_click(cx.listener(|shell, _, _, cx| shell.ai_toggle_trust(cx))))
++                        .child(div().text_size(px(11.)).text_color(style::muted())
++                            .child("Executar Luau, importar modelos, salvar e publicar continuam exigindo confirmação individual.")))
++                    .children(self.ai_pending.front().map(|pending| {
++                        let tool = pending.tool.clone();
++                        let target = pending.target.clone();
++                        let risk = pending.risk.label();
++                        v_flex()
++                            .id("mobile-ai-approval")
++                            .gap(px(8.))
++                            .p(px(10.))
++                            .map(style::surface)
++                            .child(div().font_weight(FontWeight::SEMIBOLD)
++                                .child("Autorização necessária"))
++                            .child(div().text_size(px(12.))
++                                .child(format!("{tool} • {risk}")))
++                            .child(div().text_size(px(12.))
++                                .text_color(style::muted())
++                                .child(format!("Destino: {target}")))
++                            .child(h_flex().gap(px(6.))
++                                .child(compact_action(
++                                    "mobile-ai-deny", IconName::X, "Recusar", false,
++                                ).on_click(cx.listener(|shell, _, _, cx| shell.ai_deny_next(cx))))
++                                .child(compact_action(
++                                    "mobile-ai-approve", IconName::Check, "Permitir uma vez", false,
++                                ).map(style::primary).on_click(
++                                    cx.listener(|shell, _, _, cx| shell.ai_approve_next(cx)))))
++                    }))
++                    .child(v_flex()
++                        .gap(px(5.))
++                        .child(div().font_weight(FontWeight::SEMIBOLD)
++                            .child("Ferramentas do editor"))
++                        .child(div().text_size(px(12.)).text_color(style::muted())
++                            .child("A IA conectada pode inspecionar objetos, procurar scripts, editar Luau, consultar a Toolbox, inserir modelos aprovados, capturar a cena 3D e iniciar testes. Usa o mesmo projeto, seleção e histórico de desfazer do editor."))
++                        .child(div().text_size(px(12.)).text_color(style::muted())
++                            .child("Para conversar, é necessário conectar um cliente de IA compatível com MCP ao servidor local. Não há um modelo de IA incluído no APK.")))
++                    .child(v_flex()
++                        .gap(px(5.))
++                        .child(div().font_weight(FontWeight::SEMIBOLD)
++                            .child("Atividade da sessão"))
++                        .children(self.ai_events.iter().rev().take(6).map(|entry| {
++                            div().text_size(px(11.))
++                                .text_color(style::muted())
++                                .child(entry.clone())
++                        }))),
++            )
 +    }
 +}
