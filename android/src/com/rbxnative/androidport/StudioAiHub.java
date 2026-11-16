@@ -237,6 +237,28 @@ public final class StudioAiHub extends Activity {
     private Button refresh, send, save, cancel;
     private final List<String> models = new ArrayList<>();
 
+    private static final class ApiHttpException extends IOException {
+        final int code;
+        ApiHttpException(int code, String message) { super(message); this.code = code; }
+        boolean canSwitchFreeModel() {
+            return code == 402 || code == 429 || code == 502 || code == 503 ||
+                    code == 504 || code == 529;
+        }
+    }
+
+    private static final class ModelRoute {
+        String active;
+        final String backup;
+        boolean switched;
+        int requests;
+        ModelRoute(String active, String backup) {
+            this.active = active;
+            this.backup = backup;
+        }
+    }
+
+
+
     /** Model tiers are metadata, not guarantees about an account's actual billing. */
     private static final class ModelEntry {
         final String id;
@@ -1022,7 +1044,7 @@ public final class StudioAiHub extends Activity {
     }
 
     /** Bounded read-only agent loop with explicit project-disclosure consent. */
-    private AgentOutcome runReadOnlyAgent(int p, String key, String model,
+    private AgentOutcome runReadOnlyAgent(int p, String key, ModelRoute route,
             List<String[]> turns, long epoch, boolean codeConsent,
             boolean allowProposals, boolean allowParts) throws Exception {
         int last = turns.size() - 1;
@@ -1048,8 +1070,8 @@ public final class StudioAiHub extends Activity {
                 if (epoch == requestEpoch && !isFinishing())
                     status.setText("Agente investigando • etapa " + stage + "/" + MAX_AGENT_CALLS);
             });
-            JSONObject result = request(p, key, messageUrl(p, model),
-                    makeBody(p, model, turns, allowProposals));
+            JSONObject result = requestModelWithFreeFallback(p, key, route,
+                    turns, allowProposals, epoch, MAX_AGENT_CALLS);
             if (epoch != requestEpoch) throw new IOException("Cancelado");
             String response = extractText(p, result).trim();
             JSONObject decision;
@@ -1780,8 +1802,7 @@ public final class StudioAiHub extends Activity {
 
     private void sendMessage() {
         final int p = provider;
-        final String model = modelPicker.getSelectedItem() == null ? ""
-                : modelPicker.getSelectedItem().toString();
+        final String model = selectedModelId();
         final String question = prompt.getText().toString().trim();
         if (!models.contains(model) || question.isEmpty() ||
                 !model.matches("[a-zA-Z0-9_./:-]{1,180}")) {
@@ -1796,6 +1817,7 @@ public final class StudioAiHub extends Activity {
         final boolean codeConsent = agent && includeProject.isChecked() && includeCode.isChecked();
         final boolean allowProposals = agent && codeConsent && proposeEdits.isChecked();
         final boolean allowParts = agent && includeProject.isChecked() && proposeParts.isChecked();
+        final ModelRoute route = new ModelRoute(model, selectedBackupModel(model));
         if (proposeEdits.isChecked() && !codeConsent) {
             status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
             return;
@@ -1828,21 +1850,22 @@ public final class StudioAiHub extends Activity {
                 final PartProposal proposedPart;
                 final PartChangeProposal proposedPartChange;
                 if (agent) {
-                    AgentOutcome outcome = runReadOnlyAgent(p, key, model, turns,
+                    AgentOutcome outcome = runReadOnlyAgent(p, key, route, turns,
                             epoch, codeConsent, allowProposals, allowParts);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
                     proposedPartChange = outcome.partChange;
-                    usage = proposedPartChange != null ? " • prévia de mudança 3D" :
+                    usage = (proposedPartChange != null ? " • prévia de mudança 3D" :
                             proposedPart != null ? " • prévia de peça 3D" :
-                            proposed == null ? " • somente leitura" : " • prévia de edição";
+                            proposed == null ? " • somente leitura" : " • prévia de edição") +
+                            (route.switched ? " • reserva automática" : "");
                 } else {
                     proposed = null;
                     proposedPart = null;
                     proposedPartChange = null;
-                    JSONObject result = request(p, key, messageUrl(p, model),
-                            makeBody(p, model, turns, false));
+                    JSONObject result = requestModelWithFreeFallback(p, key, route,
+                            turns, false, epoch, 2);
                     answer = extractText(p, result);
                     usage = usageSummary(p, result);
                 }
@@ -1869,7 +1892,8 @@ public final class StudioAiHub extends Activity {
                             proposeParts.isChecked() ? proposedPartChange : null;
                     renderPendingEdit();
                     prompt.setText("");
-                    setBusy(false, "Resposta recebida de " + model + usage);
+                    setBusy(false, "Resposta recebida de " + route.active + usage +
+                            (route.switched ? " • modelo gratuito de reserva" : ""));
                 });
             } catch (Exception problem) {
                 runOnUiThread(() -> {
@@ -1885,6 +1909,44 @@ public final class StudioAiHub extends Activity {
 
     private void conversationDisplay(String value) {
         conversation.setText(value);
+    }
+
+    /**
+     * At most one switch for the whole request. The backup is explicitly
+     * free/free-tier-marked in the live catalog; never attempt an unknown paid
+     * model. Agent call budget includes this extra request.
+     */
+    private JSONObject requestModelWithFreeFallback(int p, String key, ModelRoute route,
+            List<String[]> turns, boolean proposalMode, long epoch,
+            int maxRequests) throws Exception {
+        if (route.requests >= maxRequests) {
+            throw new IOException("Limite de chamadas de IA atingido (incluindo reserva).");
+        }
+        route.requests++;
+        try {
+            return request(p, key, messageUrl(p, route.active),
+                    makeBody(p, route.active, turns, proposalMode));
+        } catch (ApiHttpException error) {
+            if (!error.canSwitchFreeModel() || route.switched ||
+                    route.backup.isEmpty() || route.backup.equals(route.active) ||
+                    route.requests >= maxRequests || epoch != requestEpoch) {
+                throw error;
+            }
+            route.switched = true;
+            // Do not automatically retry a payment-required error with a
+            // model of unknown price. The backup was selected from free tiers.
+            String backup = route.backup;
+            runOnUiThread(() -> {
+                if (epoch == requestEpoch && !isFinishing()) {
+                    status.setText("Limite/indisponibilidade na API • tentando reserva: " + backup);
+                }
+            });
+            route.requests++;
+            JSONObject response = request(p, key, messageUrl(p, backup),
+                    makeBody(p, backup, turns, proposalMode));
+            route.active = backup;
+            return response;
+        }
     }
 
     private static String messageUrl(int p, String model) {
@@ -2003,10 +2065,14 @@ public final class StudioAiHub extends Activity {
             }
             int code = conn.getResponseCode();
             if (code < 200 || code >= 300) {
-                if (code == 401 || code == 403) throw new IOException("HTTP " + code +
-                        ": autenticação recusada, verifique a chave e as permissões.");
-                if (code == 429) throw new IOException("HTTP 429: limite de requisições ou créditos atingido.");
-                throw new IOException("HTTP " + code + ": o provedor recusou a solicitação.");
+                if (code == 401 || code == 403) throw new ApiHttpException(code, "HTTP " +
+                        code + ": autenticação recusada; verifique a chave e as permissões.");
+                if (code == 402) throw new ApiHttpException(code,
+                        "HTTP 402: sem créditos; não é permitido trocar para uma IA paga automaticamente.");
+                if (code == 429) throw new ApiHttpException(code,
+                        "HTTP 429: limite de requisições atingido, inclusive cotas gratuitas.");
+                throw new ApiHttpException(code,
+                        "HTTP " + code + ": o provedor recusou a solicitação.");
             }
             try (InputStream input = conn.getInputStream();
                  ByteArrayOutputStream data = new ByteArrayOutputStream()) {
