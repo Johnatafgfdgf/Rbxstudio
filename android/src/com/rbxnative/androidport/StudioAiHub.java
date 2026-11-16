@@ -27,9 +27,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Real, opt-in model hub for RBX Studio. Only inference and model discovery
- * happen here: a model reply MUST NOT be interpreted as a command to edit,
- * run Lua, import assets, access local files or publish Roblox content.
+ * Real, opt-in model hub for RBX Studio. Model outputs may ask for bounded
+ * reads and propose a single exact Luau edit, but cannot execute writes.
+ * User confirmation is required before the separate MCP write call.
+ * No model response may run Lua, import assets, read files outside MCP,
+ * or publish Roblox content.
  * Credentials are encrypted by StudioServices (Android Keystore) and never
  * included in project files, logs, model prompts or model listings.
  */
@@ -229,7 +231,7 @@ public final class StudioAiHub extends Activity {
         header.addView(title, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         Button back = button("Voltar ao editor");
-        back.setOnClickListener(v -> finish());
+        back.setOnClickListener(v -> requestClose());
         header.addView(back);
         add(root, header, 8);
         TextView notice = text("Chat por API real • Agente de leitura e propostas de edição com aprovação", 12, false);
@@ -456,6 +458,7 @@ public final class StudioAiHub extends Activity {
     }
 
     private void revokeKey() {
+        if (busy) return;
         try {
             StudioServices.credential(this, "delete", service(provider), "", "");
             apiKey.setText("");
@@ -533,7 +536,7 @@ public final class StudioAiHub extends Activity {
         });
     }
 
-    /** Real MCP read tools only; no command that changes the project is reachable. */
+    /** Validate model arguments before any MCP tool is selected. */
     private static String safeField(JSONObject input, String field, int limit,
             boolean required) throws Exception {
         Object raw = input.opt(field);
@@ -555,7 +558,7 @@ public final class StudioAiHub extends Activity {
     }
 
     /** The model cannot choose RPC method, studio ID, socket, credentials or arbitrary args. */
-    /** Read tools always have a fixed allowlist and schema, never arbitrary model-supplied RPC. */
+    /** Read tools have a fixed allowlist and schema, never arbitrary model-supplied RPC. */
     private String readOnlyMcp(String paired, String tool, JSONObject selection)
             throws Exception {
         JSONObject args = new JSONObject();
@@ -634,15 +637,15 @@ public final class StudioAiHub extends Activity {
         }
         if (reply.length() == 0) throw new IOException("Resposta MCP vazia");
         JSONObject message = new JSONObject(reply.toString());
-        if (message.has("error")) throw new IOException("Leitura recusada pelo editor");
+        if (message.has("error")) throw new IOException("Requisição MCP recusada pelo editor");
         JSONObject result = message.optJSONObject("result");
         if (result == null || result.optBoolean("isError")) {
-            throw new IOException("O editor recusou a leitura");
+            throw new IOException("O editor recusou a operação MCP");
         }
         JSONArray content = result.optJSONArray("content");
         if (content == null || content.length() == 0) throw new IOException("Ferramenta sem dados");
         String text = content.getJSONObject(0).optString("text", "");
-        if (text.isEmpty()) throw new IOException("Leitura vazia");
+        if (text.isEmpty()) throw new IOException("Resposta MCP vazia");
         return text.substring(0, Math.min(text.length(), 12000));
     }
 
@@ -952,7 +955,8 @@ public final class StudioAiHub extends Activity {
                                 .append(turn[1]).append("\n\n");
                     }
                     conversationDisplay(resultText.toString());
-                    pendingEdit = proposed;
+                    pendingEdit = includeProject.isChecked() && includeCode.isChecked() &&
+                            autoInspect.isChecked() && proposeEdits.isChecked() ? proposed : null;
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + model + usage);
@@ -1126,6 +1130,19 @@ public final class StudioAiHub extends Activity {
         }
         return "Falha de rede ou resposta incompatível. Confira a conexão e o modelo.";
     }
+
+    private void requestClose() {
+        if (!applyingEdit) { finish(); return; }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Operação MCP em andamento")
+                .setMessage("A edição pode ter sido enviada ao editor. Se sair agora, " +
+                        "o estado da operação ficará incerto; confira o script no Explorer.")
+                .setNegativeButton("Continuar nesta tela", null)
+                .setPositiveButton("Sair e verificar no editor", (dialog, which) -> finish())
+                .show();
+    }
+
+    @Override public void onBackPressed() { requestClose(); }
 
     @Override protected void onDestroy() {
         requestEpoch++;
