@@ -52,6 +52,10 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Verify original source and patch integrity
         run: python3 scripts/check_preparation.py
+      - name: Verify MCP agent approval policy
+        run: |
+          rustc --edition=2021 --test tests/mobile_ai_permissions.rs -o /tmp/rbx-mobile-agent-policy
+          /tmp/rbx-mobile-agent-policy
       - name: Build Android ARM64 Studio and local player
         run: python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
       - name: Package signed debug APK
