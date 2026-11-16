@@ -11454,7 +11454,7 @@ new file mode 100644
 index 0000000..db7d022
 --- /dev/null
 +++ b/crates/rbx_studio/src/workspace_view/android_input.rs
-@@ -0,0 +1,442 @@
+@@ -0,0 +1,454 @@
 +//! Android gestures use the same camera, picking and gizmo actions as the
 +//! desktop viewport. Only the gesture's starting panel claims it.
 +use super::*;
@@ -11487,6 +11487,8 @@ index 0000000..db7d022
 +
 +pub(super) struct Stick {
 +    offset: glam::Vec2,
++    // Floating thumb's base, relative to the lower-left of the viewport.
++    base: glam::Vec2,
 +    contact: Point<Pixels>,
 +    look: Option<Point<Pixels>>,
 +}
@@ -11834,39 +11836,55 @@ index 0000000..db7d022
 +    }
 +
 +    pub(super) fn android_flight_controls(&self, cx: &Context<Self>) -> impl IntoElement {
-+        const DIAMETER: f32 = 72.0;
-+        const RADIUS: f32 = 23.0;
-+        const THUMB: f32 = 28.0;
-+        let thumb = self
-+            .android_stick
-+            .as_ref()
-+            .map_or(glam::Vec2::ZERO, |s| s.offset)
-+            * RADIUS;
++        // Roblox-style dynamic stick: the first touch sets the base inside
++        // the lower-left movement zone, not at a permanent screen coordinate.
++        const AREA_WIDTH: f32 = 232.;
++        const AREA_HEIGHT: f32 = 214.;
++        const DIAMETER: f32 = 84.;
++        const RADIUS: f32 = 30.;
++        const THUMB: f32 = 30.;
++        let stick = self.android_stick.as_ref();
++        let origin = stick.map_or(glam::Vec2::new(54., 54.), |stick| stick.base);
++        let thumb = stick.map_or(glam::Vec2::ZERO, |stick| stick.offset) * RADIUS;
 +        let centre = (DIAMETER - THUMB) * 0.5;
 +        div()
 +            .absolute()
-+            .bottom(px(12.))
-+            .left(px(12.))
-+            .size(px(DIAMETER))
-+            .rounded_full()
-+            .border_1()
-+            .border_color(tokens::text().opacity(0.40))
-+            .bg(tokens::viewport_badge().opacity(0.65))
-+            .child(
-+                div()
++            .left(px(0.))
++            .bottom(px(0.))
++            .w(px(AREA_WIDTH))
++            .h(px(AREA_HEIGHT))
++            .child(div()
++                .absolute()
++                .left(px(origin.x - DIAMETER * 0.5))
++                .bottom(px(origin.y - DIAMETER * 0.5))
++                .size(px(DIAMETER))
++                .rounded_full()
++                .border_1()
++                .border_color(crate::mobile_style::accent().opacity(0.50))
++                .bg(crate::mobile_style::background().opacity(0.70))
++                .opacity(if stick.is_some() { 1. } else { 0.54 })
++                .child(div()
 +                    .absolute()
 +                    .left(px(centre + thumb.x))
 +                    .top(px(centre + thumb.y))
 +                    .size(px(THUMB))
 +                    .rounded_full()
-+                    .bg(tokens::text().opacity(0.78)),
-+            )
++                    .bg(crate::mobile_style::accent().opacity(0.88))))
 +            .on_touch_drag(cx.listener(|view, event: &TouchDragEvent, window, cx| {
 +                match event.phase {
 +                    TouchPhase::Started => {
 +                        window.focus(&view.focus, cx);
++                        let panel = view.panel.get();
++                        let scale = window.scale_factor();
++                        let local_x = f32::from(event.position.x) - panel.origin.0 as f32 / scale;
++                        let local_bottom = panel.size.1 as f32 / scale
++                            - (f32::from(event.position.y) - panel.origin.1 as f32 / scale);
 +                        view.android_stick = Some(Stick {
 +                            offset: glam::Vec2::ZERO,
++                            base: glam::Vec2::new(
++                                local_x.clamp(DIAMETER * 0.5, AREA_WIDTH - DIAMETER * 0.5),
++                                local_bottom.clamp(DIAMETER * 0.5, AREA_HEIGHT - DIAMETER * 0.5),
++                            ),
 +                            contact: event.position,
 +                            look: None,
 +                        });
@@ -11874,20 +11892,14 @@ index 0000000..db7d022
 +                        view.note_input();
 +                    }
 +                    TouchPhase::Moved => {
-+                        let Some(stick) = &mut view.android_stick else {
-+                            return;
-+                        };
++                        let Some(stick) = &mut view.android_stick else { return; };
 +                        let delta = event.position - event.start_position;
 +                        let offset = glam::Vec2::new(delta.x.into(), delta.y.into()) / RADIUS;
-+                        stick.offset = offset.clamp_length_max(1.0);
++                        stick.offset = offset.clamp_length_max(1.);
 +                        stick.contact = event.position;
 +                        let length = stick.offset.length();
-+                        let force =
-+                            stick.offset.normalize_or_zero() * ((length - 0.08) / 0.92).max(0.0);
-+                        view.pump.input(CameraInput::TouchMove {
-+                            x: force.x,
-+                            y: -force.y,
-+                        });
++                        let force = stick.offset.normalize_or_zero() * ((length - 0.08) / 0.92).max(0.);
++                        view.pump.input(CameraInput::TouchMove { x: force.x, y: -force.y });
 +                    }
 +                    TouchPhase::Ended | TouchPhase::Cancelled => view.release_android_flight(),
 +                }
