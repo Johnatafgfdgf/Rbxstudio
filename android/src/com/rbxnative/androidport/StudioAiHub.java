@@ -1132,10 +1132,8 @@ public final class StudioAiHub extends Activity {
             try {
                 ensurePartNameFree(paired, part);
                 if (epoch != requestEpoch) throw new IOException("Sessão alterada antes da criação");
-                JSONObject args = new JSONObject().put("datamodel_type", "Edit")
-                        .put("code", fixedPartCreateLuau(part));
-                // This is not an LLM-selected MCP tool. It runs only after Android approval.
-                String outcome = callMcp(paired, "execute_luau", args);
+                // Only the Android confirmation can select this fixed native operation.
+                String outcome = runApprovedPartCommand(paired, part, null);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -1153,6 +1151,219 @@ public final class StudioAiHub extends Activity {
                     setBusy(false, "Criação 3D não confirmada: " +
                             (problem.getMessage() == null ? "erro MCP" : problem.getMessage()) +
                             ". Verifique o Workspace antes de tentar novamente.");
+                });
+            }
+        });
+    }
+
+
+    /** Inspect returns a real JSON object, not a model-produced description. */
+    private static JSONObject verifiedPartInspection(String path, String text) throws Exception {
+        JSONObject result;
+        try { result = new JSONObject(text); }
+        catch (Exception ex) { throw new IOException("Inspeção MCP não é JSON válido", ex); }
+        if (!"Part".equals(result.optString("className", "")) ||
+                !path.equals(result.optString("path", "")) ||
+                !path.substring("Workspace.".length()).equals(result.optString("name", "")) ||
+                result.optJSONObject("properties") == null) {
+            // Multi-match responses have 'matches' instead of the required identity.
+            throw new IOException("O alvo não é uma Part única diretamente no Workspace");
+        }
+        return result.getJSONObject("properties");
+    }
+
+    /** The native MCP serializes Vector3/Color3 as three comma-separated numbers. */
+    private static double[] inspectedComponents(JSONObject properties, String field,
+            double min, double max) throws IOException {
+        Object raw = properties.opt(field);
+        if (!(raw instanceof String)) {
+            throw new IOException("Inspeção sem propriedade real: " + field);
+        }
+        String[] values = ((String) raw).split(",", -1);
+        if (values.length != 3) throw new IOException("Propriedade vetorial inválida: " + field);
+        double[] result = new double[3];
+        for (int i = 0; i < 3; i++) {
+            try { result[i] = Double.parseDouble(values[i].trim()); }
+            catch (NumberFormatException ex) {
+                throw new IOException("Número inválido na inspeção: " + field, ex);
+            }
+            if (!Double.isFinite(result[i]) || result[i] < min || result[i] > max) {
+                throw new IOException("Valor inválido na inspeção: " + field);
+            }
+        }
+        return result;
+    }
+
+    private static String[] inspectedPartFields(JSONObject props) throws IOException {
+        String[] keys = {"CFrame.Position", "Size", "Color", "CFrame.Rotation"};
+        String[] fields = new String[keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            Object raw = props.opt(keys[i]);
+            if (!(raw instanceof String) || ((String) raw).length() > 300) {
+                throw new IOException("Faltam valores reais do objeto: " + keys[i]);
+            }
+            fields[i] = (String) raw;
+        }
+        return fields;
+    }
+
+    private static int[] colorRgb(double[] linear) {
+        return new int[]{
+                (int) Math.round(linear[0] * 255),
+                (int) Math.round(linear[1] * 255),
+                (int) Math.round(linear[2] * 255)
+        };
+    }
+
+    private static int[] optionalUpdateColor(JSONObject input) throws IOException {
+        JSONArray rgb = input.optJSONArray("color");
+        if (rgb == null || rgb.length() != 3) throw new IOException("Cor RGB inválida");
+        int[] result = new int[3];
+        for (int i = 0; i < 3; i++) {
+            Object raw = rgb.opt(i);
+            if (!(raw instanceof Number)) throw new IOException("Cor RGB deve ter inteiros");
+            double n = ((Number) raw).doubleValue();
+            if (!Double.isFinite(n) || n < 0 || n > 255 || n != Math.floor(n)) {
+                throw new IOException("Cor RGB fora do limite");
+            }
+            result[i] = (int) n;
+        }
+        return result;
+    }
+
+    private static PartChangeProposal validatePartChangeProposal(JSONObject decision,
+            String inspectedPath, String inspectedText) throws Exception {
+        String path = safeField(decision, "path", 100, true);
+        if (!path.matches("Workspace\\.[A-Za-z][A-Za-z0-9_]{0,39}") ||
+                !path.equals(inspectedPath)) {
+            throw new IOException("Só é possível alterar uma Part inspecionada no Workspace");
+        }
+        JSONObject original = verifiedPartInspection(path, inspectedText);
+        double[] beforePosition = inspectedComponents(original, "CFrame.Position",
+                -1000000, 1000000);
+        double[] beforeSize = inspectedComponents(original, "Size", 0, 1000000);
+        double[] beforeColor = inspectedComponents(original, "Color", 0, 1);
+        String[] fingerprint = inspectedPartFields(original);
+        boolean move = decision.has("position");
+        boolean resize = decision.has("size");
+        boolean recolor = decision.has("color");
+        if (!move && !resize && !recolor) {
+            throw new IOException("Proposta 3D sem propriedades a alterar");
+        }
+        double[] position = move ? partVector(decision, "position", -256, 256) : null;
+        double[] size = resize ? partVector(decision, "size", 0.2, 64) : null;
+        int[] color = recolor ? optionalUpdateColor(decision) : null;
+        String reason = safeField(decision, "reason", 400, true);
+        return new PartChangeProposal(path, reason,
+                beforePosition, beforeSize, beforeColor, fingerprint, position, size, color);
+    }
+
+    private void verifyPartUnchanged(String paired, PartChangeProposal proposal)
+            throws Exception {
+        JSONObject select = new JSONObject().put("path", proposal.path);
+        JSONObject latest = verifiedPartInspection(proposal.path,
+                readOnlyMcp(paired, "inspect_instance", select));
+        if (!Arrays.equals(inspectedPartFields(latest), proposal.beforeFields)) {
+            throw new IOException("A peça mudou desde a proposta. Analise o objeto novamente.");
+        }
+    }
+
+    /** Only the verified Part may be changed; no model-supplied Luau is inserted. */
+    private static String fixedPartUpdateLuau(PartChangeProposal part) {
+        String name = part.path.substring("Workspace.".length());
+        StringBuilder code = new StringBuilder();
+        code.append("local ws = game:GetService(\"Workspace\")\n")
+                .append("local p = ws:FindFirstChild(\"").append(name).append("\")\n")
+                .append("if not p or not p:IsA(\"Part\") or p.Parent ~= ws then return \"INVALID_PART\" end\n")
+                .append("if (p.Position - Vector3.new(")
+                .append(luauVector(part.beforePosition))
+                .append(")).Magnitude > 0.005 then return \"STALE_PART\" end\n")
+                .append("if (p.Size - Vector3.new(")
+                .append(luauVector(part.beforeSize))
+                .append(")).Magnitude > 0.005 then return \"STALE_PART\" end\n")
+                .append("local oldColor = p.Color\n")
+                .append("if math.abs(oldColor.R - ").append(part.beforeColor[0])
+                .append(") > 0.005 or math.abs(oldColor.G - ").append(part.beforeColor[1])
+                .append(") > 0.005 or math.abs(oldColor.B - ").append(part.beforeColor[2])
+                .append(") > 0.005 then return \"STALE_PART\" end\n");
+        if (part.size != null) {
+            code.append("p.Size = Vector3.new(").append(luauVector(part.size)).append(")\n");
+        }
+        if (part.position != null) {
+            code.append("p.Position = Vector3.new(").append(luauVector(part.position)).append(")\n");
+        }
+        if (part.color != null) {
+            code.append("p.Color = Color3.fromRGB(").append(part.color[0]).append(", ")
+                    .append(part.color[1]).append(", ")
+                    .append(part.color[2]).append(")\n");
+        }
+        code.append("return \"UPDATED:").append(name).append("\"");
+        return code.toString();
+    }
+
+    /** Write tool has exactly one app-owned, typed, user-confirmed entry point. */
+    private String runApprovedPartCommand(String paired, PartProposal create,
+            PartChangeProposal update) throws Exception {
+        if ((create == null) == (update == null)) {
+            throw new IOException("Operação 3D inválida");
+        }
+        String command = create != null ? fixedPartCreateLuau(create) :
+                fixedPartUpdateLuau(update);
+        if (command.length() > 3000) throw new IOException("Comando fixo acima do limite");
+        JSONObject args = new JSONObject().put("datamodel_type", "Edit")
+                .put("code", command);
+        return callMcp(paired, "execute_luau", args);
+    }
+
+    private void confirmPendingPartChange() {
+        final PartChangeProposal change = pendingPartChange;
+        if (change == null || busy) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeParts.isChecked()) {
+            status.setText("Autorize o agente e as propostas 3D antes de confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Alterar esta peça 3D?")
+                .setMessage("Objeto: " + change.path + "\nMotivo: " + change.reason +
+                        "\n\nA prévia mostra os valores atuais e propostos. " +
+                        "O app vai conferir a peça novamente antes de editar. " +
+                        "O comando é fixo e só modifica posição, tamanho ou cor. " +
+                        "O editor pode exigir uma segunda autorização MCP.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Sim, aplicar mudança",
+                        (dialog, which) -> applyApprovedPartChange(change))
+                .show();
+    }
+
+    private void applyApprovedPartChange(PartChangeProposal change) {
+        if (busy || pendingPartChange != change || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo novamente as propriedades reais da Part…");
+        requests.execute(() -> {
+            try {
+                verifyPartUnchanged(paired, change);
+                if (epoch != requestEpoch) throw new IOException("Sessão mudou antes da edição");
+                String outcome = runApprovedPartCommand(paired, null, change);
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingPartChange = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta do MCP recebida; verifique o objeto no Workspace.");
+                    conversation.setText(conversation.getText() + "\nAlteração 3D MCP:\n" +
+                            outcome.substring(0, Math.min(1200, outcome.length())) +
+                            "\nConfira o resultado e o histórico de Desfazer no editor.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Alteração 3D não confirmada: " +
+                            (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
+                            ". Confira a peça antes de tentar novamente.");
                 });
             }
         });
