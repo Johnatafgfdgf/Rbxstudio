@@ -6,6 +6,9 @@ on:
     branches: [verify/android-menus, work/ai-autonomous-read-v1]
     paths:
       - .github/workflows/export-ai-full-source.yml
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - scripts/check_ai_hub.py
+      - docs/ANDROID_AI_PHASE2_READ_AGENT_2026-11-16.md
 
 permissions:
   contents: read
@@ -59,7 +62,7 @@ jobs:
                   count+=1
               archive.writestr("RBX-Studio-0.6.11/SOURCE_BUILD_INFO.json",
                   json.dumps({"commit":os.environ["GITHUB_SHA"],
-                              "branch":"verify/android-menus",
+                              "branch":os.environ["GITHUB_REF_NAME"],
                               "files":count,"patched_sources":True,
                               "build_instructions":"README.md"},indent=2))
           digest=hashlib.sha256(destination.read_bytes()).hexdigest()
