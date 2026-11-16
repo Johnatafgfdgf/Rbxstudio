@@ -571,6 +571,7 @@ public final class StudioAiHub extends Activity {
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL});
         int reads = 0;
+        StringBuilder toolTrace = new StringBuilder();
         for (int callIndex = 0; callIndex < MAX_AGENT_CALLS; callIndex++) {
             if (epoch != requestEpoch) throw new IOException("Cancelado");
             final int stage = callIndex + 1;
@@ -596,7 +597,9 @@ public final class StudioAiHub extends Activity {
                 String answer = decision.optString("answer", "").trim();
                 if (answer.isEmpty()) throw new IOException("Conclusão do agente vazia");
                 return "Investigação do projeto (somente leitura, " + reads +
-                        " consulta(s) MCP reais)\n\n" + answer;
+                        " consulta(s) MCP reais)\nFerramentas: " +
+                        (toolTrace.length() == 0 ? "nenhuma" : toolTrace.toString()) +
+                        "\n\n" + answer;
             }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action))) {
@@ -608,9 +611,11 @@ public final class StudioAiHub extends Activity {
             final int readNo = ++reads;
             runOnUiThread(() -> {
                 if (epoch == requestEpoch && !isFinishing())
-                    status.setText("Agente • consulta MCP real " + readNo + "/" + MAX_AGENT_READS);
+                    status.setText("MCP: " + action + " • " + readNo + "/" + MAX_AGENT_READS);
             });
             String tree = readOnlyMcp(mcpPairing, action, decision);
+            if (toolTrace.length() > 0) toolTrace.append(" → ");
+            toolTrace.append(action);
             if (epoch != requestEpoch) throw new IOException("Cancelado");
             turns.add(new String[]{"assistant", decision.toString()});
             turns.add(new String[]{"user", "RESULTADO REAL de " + action + " (somente leitura; " +
