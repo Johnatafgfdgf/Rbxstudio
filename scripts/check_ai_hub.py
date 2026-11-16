@@ -217,7 +217,7 @@ for required in [
     'inspectedPartFields(original)',
     '"CFrame.Rotation"',
     'boolean move = decision.has("position")',
-    'if (!move && !resize && !recolor)',
+    'if (!move && !resize && !recolor && !rotate)',
     'partVector(decision, "position", -256, 256)',
     'partVector(decision, "size", 0.2, 64)',
     'optionalUpdateColor(decision)',
