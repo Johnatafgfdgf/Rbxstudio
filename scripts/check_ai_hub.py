@@ -96,7 +96,8 @@ for required in [
     "proposed = outcome.proposal",
     "renderPendingEdit();",
     "confirmPendingEdit()",
-    ".setPositiveButton(\"Sim, aplicar edição\", (dialog, which) -> applyApprovedEdit(edit))",
+    ".setPositiveButton(edit.create ? \"Sim, criar script\" : \"Sim, aplicar edição\",",
+    "(dialog, which) -> applyApprovedEdit(edit)",
     "if (busy || pendingEdit != edit || mcpPairing.isEmpty()) return;",
     "String latest = readOnlyMcp(paired, \"script_read\", read);",
     "if (!latest.contains(edit.oldText))",
@@ -119,8 +120,41 @@ assert 'callMcp(mcpPairing, action' not in java
 assert '"execute_luau"' not in java
 assert '"publish_place"' not in java
 
+
+# Complete Luau script creation is a proposal until user confirmation.
+for required in [
+    "CREATE_PROTOCOL",
+    'if ("propose_script_create".equals(action))',
+    "validateCreateProposal(decision, lastSearchedParent)",
+    'lastSearchedParent = safeField(decision, "path", 180, false)',
+    "MAX_SCRIPT_SOURCE = 10000",
+    'codeField(data, "source", MAX_SCRIPT_SOURCE, false)',
+    '("ServerScriptService".equals(parent) || "ReplicatedStorage".equals(parent)',
+    '"StarterPlayer.StarterPlayerScripts".equals(parent)',
+    '"StarterPlayer.StarterCharacterScripts".equals(parent)',
+    'name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")',
+    '"Script".equals(className) || "LocalScript".equals(className)',
+    '"ModuleScript".equals(className)',
+    "private void ensureCreateDestinationFree(",
+    '"search_game_tree"',
+    'if ("No instances found.".equals(result)) return;',
+    'edit.path.equalsIgnoreCase(child.optString("fullPath", ""))',
+    'if (edit.create) {',
+    "ensureCreateDestinationFree(paired, edit);",
+    'if (edit.create) args.put("className", edit.className);',
+    'applyEdit.setText(edit.create ?',
+]:
+    assert required in java, required
+
+# The read-only model decision loop cannot directly call a write RPC.
+assert java.count('callMcp(paired, "multi_edit", args)') == 1
+assert java.index('ensureCreateDestinationFree(paired, edit)') < java.index(
+    'String outcome = callMcp(paired, "multi_edit", args);'
+)
+assert 'case "multi_edit"' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
-print("Android AI provider, read-only tool and explicit Luau-edit approval contracts passed (static; no live API keys used).")
+print("Android AI providers, bounded tools, Luau edit/create approval contracts passed (static; no live API keys used).")
