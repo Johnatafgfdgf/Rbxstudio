@@ -273,6 +273,12 @@ try:
             adb('shell', 'input', 'tap', '430', '535')
             time.sleep(2)
     if os.environ.get('STUDIO_SKIP_SETUP') == '1':
+        inspect_mobile = os.environ.get('STUDIO_CAPTURE_MOBILE_MENUS') == '1'
+        if inspect_mobile:
+            # Capture real native pixels before the tap; a successful adb
+            # command alone does not establish a screen transition.
+            wizard_before = adb('exec-out', 'screencap', '-p', binary=True)
+            (OUT / 'before-skip.png').write_bytes(wizard_before)
         # The real 0.6.11 native capture places a 48px X in the upper-right
         # corner of onboarding (center 1235,40 at the controlled 1280x576
         # emulator geometry). In the Android wizard this X now calls
@@ -283,7 +289,24 @@ try:
         healthy(logs())
         if adb('shell', 'pidof', PACKAGE).strip() != original_pid:
             raise RuntimeError('The original editor exited while leaving onboarding')
-        (OUT / 'after-skip.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
+        home_capture = adb('exec-out', 'screencap', '-p', binary=True)
+        (OUT / 'after-skip.png').write_bytes(home_capture)
+        if inspect_mobile:
+            from io import BytesIO
+            from PIL import Image, ImageChops
+            before = Image.open(BytesIO(wizard_before)).convert('RGB')
+            after = Image.open(BytesIO(home_capture)).convert('RGB')
+            if before.size != after.size:
+                raise RuntimeError('Android geometry changed while closing onboarding')
+            # The wizard has a row of setup steps. Home has different controls.
+            bounds = (0, 0, min(920, before.width), min(75, before.height))
+            difference = ImageChops.difference(before.crop(bounds), after.crop(bounds))
+            changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+            (OUT / 'onboarding-navigation.json').write_text(json.dumps(
+                {'wizard_closed': changed >= 2500, 'top_strip_changed_pixels': changed,
+                 'checked_region': bounds}) + '\n')
+            if changed < 2500:
+                raise RuntimeError('Onboarding did not navigate to Home: native screen unchanged')
         dismiss_fullscreen_hint()
         # New place was observed at (120,145) on the actual Home capture.
         window = adb('shell', 'dumpsys', 'window', 'windows')
