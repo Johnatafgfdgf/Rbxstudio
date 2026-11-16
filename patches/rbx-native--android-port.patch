@@ -11867,7 +11867,7 @@ index f36dbb0..35cae80 100644
 diff --git a/crates/rbx_studio/src/shell/mcp.rs b/crates/rbx_studio/src/shell/mcp.rs
 --- a/crates/rbx_studio/src/shell/mcp.rs
 +++ b/crates/rbx_studio/src/shell/mcp.rs
-@@ -1,229 +1,359 @@
+@@ -1,229 +1,361 @@
 -//! Beta Features › MCP server: the shell's end of `crate::mcp`. A timer
 -//! drains what clients sent and answers it against the shell's own DOM, on
 -//! the UI thread, so a tool always sees the place as the Explorer does, and
@@ -12145,9 +12145,11 @@ diff --git a/crates/rbx_studio/src/shell/mcp.rs b/crates/rbx_studio/src/shell/mc
 +impl Shell {
 +    /// Starts listening when the beta is on.
 +    pub(super) fn mcp_start(&mut self, cx: &mut Context<Self>) {
-+        if !crate::beta::enabled(BETA_ID)
-+            && !(cfg!(target_os = "android") && self.ai_connection_requested())
-+        {
++        // On Android, a beta toggle alone must not open an MCP listener:
++        // the user explicitly starts it from the Assistente IA panel.
++        if cfg!(target_os = "android") {
++            if !self.ai_connection_requested() { return; }
++        } else if !crate::beta::enabled(BETA_ID) {
 +            return;
 +        }
 +        if self.mcp.is_some() {
