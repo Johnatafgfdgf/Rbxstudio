@@ -54,32 +54,6 @@ index 0000000..0c1a796
 +++ b/assets/icons/brand/rbx-mobile-top-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 462 592 L 521 425 Q 533 377 582 388 L 1099 526 Q 1142 539 1130 579 L 1109 648 L 1092 670 L 1039 603 L 603 501 Q 593 499 589 509 L 558 598 L 549 586 Z"/></svg>
-diff --git a/assets/themes/default/theme.json b/assets/themes/default/theme.json
-index 2626a91..d428071 100644
---- a/assets/themes/default/theme.json
-+++ b/assets/themes/default/theme.json
-@@ -1,9 +1,9 @@
- {
-   "colors": {
--    "black": "#0A0A0B",
--    "dock": "#121213",
-+    "black": "#0D0E17",
-+    "dock": "#131520",
-     "chrome": "@dock",
--    "field_select": "#191A1C",
-+    "field_select": "#1B1E2C",
-     "tile": "@dock",
-     "menu_bar": "@black",
-     "tab_active_bar": "@check_on",
-@@ -39,7 +39,7 @@
-     "diff_remove_pill": "#E06C6C1F",
-     "error_soft": "@text_error/0.12",
- 
--    "check_on": "#6C7FDB",
-+    "check_on": "#7686FD",
-     "accent_soft": "@check_on/0.12",
-     "accent_line": "@check_on/0.55",
-     "accent_hover": "#7385DD",
 diff --git a/crates/rbx_assets/Cargo.toml b/crates/rbx_assets/Cargo.toml
 index 8f1a3f9..f58cbfa 100644
 --- a/crates/rbx_assets/Cargo.toml
