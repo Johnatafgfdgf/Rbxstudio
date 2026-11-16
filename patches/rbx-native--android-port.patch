@@ -22484,7 +22484,7 @@ new file mode 100644
 +                                #[cfg(not(target_os = "android"))]
 +                                shell.ai_log("A central de provedores está disponível no Android.");
 +                                cx.notify();
-+                            })))
++                            }))))
 +                    .child(v_flex()
 +                        .gap(px(7.))
 +                        .child(div().font_weight(FontWeight::SEMIBOLD)
