@@ -112,6 +112,19 @@ public final class StudioAiHub extends Activity {
         "Você NÃO envia código Luau; o aplicativo constrói comandos fixos " +
         "somente após prévia e confirmação humana. Nunca tente executar ferramentas " +
         "de escrita nem criar mais de uma peça em cada solicitação.";
+    private static final String PART_UPDATE_PROTOCOL =
+        "\nPara MOVER, REDIMENSIONAR ou MUDAR COR de uma Part EXISTENTE diretamente " +
+        "no Workspace, primeiro chame " +
+        "{\"action\":\"inspect_instance\",\"path\":\"Workspace.Plataforma_1\"}. " +
+        "Depois proponha " +
+        "{\"action\":\"propose_part_update\",\"path\":\"Workspace.Plataforma_1\"," +
+        "\"position\":[0,8,0],\"size\":[8,1,8],\"color\":[70,150,230]," +
+        "\"reason\":\"motivo\"}. position, size e color são OPCIONAIS: inclua SOMENTE " +
+        "as propriedades que quer mudar (pelo menos uma). " +
+        "Apenas Part diretamente em Workspace, com nome simples e validado. " +
+        "Nunca proponha mudar outros objetos, scripts ou propriedades usando esta função. " +
+        "A IA nunca envia Luau; o app mostra valores reais ANTES/DEPOIS e exige aprovação.";
+
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
@@ -124,6 +137,7 @@ public final class StudioAiHub extends Activity {
     private boolean applyingEdit;
     private EditProposal pendingEdit;
     private PartProposal pendingPart;
+    private PartChangeProposal pendingPartChange;
     private TextView proposalPreview;
     private Button applyEdit, discardEdit;
 
@@ -158,17 +172,44 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    private static final class PartChangeProposal {
+        final String path, reason;
+        final double[] beforePosition, beforeSize, beforeColor;
+        final String[] beforeFields;
+        final double[] position, size;
+        final int[] color;
+        PartChangeProposal(String path, String reason,
+                double[] beforePosition, double[] beforeSize, double[] beforeColor,
+                String[] beforeFields, double[] position, double[] size, int[] color) {
+            this.path = path;
+            this.reason = reason;
+            this.beforePosition = beforePosition;
+            this.beforeSize = beforeSize;
+            this.beforeColor = beforeColor;
+            this.beforeFields = beforeFields;
+            this.position = position;
+            this.size = size;
+            this.color = color;
+        }
+    }
+
     private static final class AgentOutcome {
         final String answer;
         final EditProposal proposal;
         final PartProposal part;
+        final PartChangeProposal partChange;
         AgentOutcome(String answer, EditProposal proposal) {
-            this(answer, proposal, null);
+            this(answer, proposal, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part) {
+            this(answer, proposal, part, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange) {
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
+            this.partChange = partChange;
         }
     }
     private volatile long requestEpoch;
@@ -369,7 +410,7 @@ public final class StudioAiHub extends Activity {
         proposeEdits.setChecked(false);
         add(root, proposeEdits, 6);
         proposeParts = new CheckBox(this);
-        proposeParts.setText("Permitir propostas para criar uma peça 3D no Workspace (exige confirmação)");
+        proposeParts.setText("Permitir propostas para criar ou modificar uma peça 3D no Workspace");
         proposeParts.setTextColor(Color.rgb(228, 236, 250));
         proposeParts.setChecked(false);
         add(root, proposeParts, 6);
@@ -404,7 +445,8 @@ public final class StudioAiHub extends Activity {
         applyEdit = button("Revisar e confirmar alteração Luau");
         applyEdit.setVisibility(View.GONE);
         applyEdit.setOnClickListener(v -> {
-            if (pendingPart != null) confirmPendingPart();
+            if (pendingPartChange != null) confirmPendingPartChange();
+            else if (pendingPart != null) confirmPendingPart();
             else confirmPendingEdit();
         });
         add(root, applyEdit, 5);
@@ -413,6 +455,7 @@ public final class StudioAiHub extends Activity {
         discardEdit.setOnClickListener(v -> {
             pendingEdit = null;
             pendingPart = null;
+            pendingPartChange = null;
             renderPendingEdit();
             status.setText("Proposta descartada. Nenhum script foi alterado.");
         });
@@ -421,7 +464,12 @@ public final class StudioAiHub extends Activity {
             if (!checked) { pendingEdit = null; renderPendingEdit(); }
         });
         includeProject.setOnCheckedChangeListener((v, checked) -> {
-            if (!checked) { pendingEdit = null; pendingPart = null; renderPendingEdit(); }
+            if (!checked) { pendingEdit = null; pendingPart = null;
+                pendingPartChange = null; renderPendingEdit(); }
+        });
+        proposeParts.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) { pendingPart = null; pendingPartChange = null;
+                renderPendingEdit(); }
         });
         providerPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -436,6 +484,7 @@ public final class StudioAiHub extends Activity {
                 proposeParts.setChecked(false);
                 pendingEdit = null;
                 pendingPart = null;
+                pendingPartChange = null;
                 renderPendingEdit();
                 models.clear();
                 modelPicker.setAdapter(new ArrayAdapter<String>(StudioAiHub.this,
@@ -538,6 +587,7 @@ public final class StudioAiHub extends Activity {
             proposeParts.setChecked(false);
             pendingEdit = null;
             pendingPart = null;
+            pendingPartChange = null;
             renderPendingEdit();
             modelPicker.setAdapter(new ArrayAdapter<String>(this,
                     android.R.layout.simple_spinner_dropdown_item,
@@ -760,10 +810,13 @@ public final class StudioAiHub extends Activity {
                 (codeConsent ? "\nLeitura de scripts e Output autorizada pelo usuário." :
                 "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
                 (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.") +
-                (allowParts ? PART_PROTOCOL : "\nNão proponha criar peças 3D.")});
+                (allowParts ? PART_PROTOCOL + PART_UPDATE_PROTOCOL :
+                        "\nNão proponha criar ou modificar peças 3D.")});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
+        String lastInspectedPath = "";
+        String lastInspectedOutput = "";
         String lastScriptOutput = "";
         int lastReadLine = 1;
         StringBuilder toolTrace = new StringBuilder();
@@ -824,6 +877,16 @@ public final class StudioAiHub extends Activity {
                         "Nenhum objeto foi alterado. Workspace." + part.name +
                         "\nMotivo: " + part.reason, null, part);
             }
+            if ("propose_part_update".equals(action)) {
+                if (!allowParts || lastInspectedPath.isEmpty()) {
+                    throw new IOException("Alteração 3D sem autorização ou inspeção real");
+                }
+                PartChangeProposal change = validatePartChangeProposal(
+                        decision, lastInspectedPath, lastInspectedOutput);
+                return new AgentOutcome("Alteração 3D proposta para revisão: " +
+                        change.path + "\nMotivo: " + change.reason +
+                        "\nNenhum objeto foi alterado.", null, null, change);
+            }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
                     || "script_read".equals(action) || "get_console_output".equals(action))) {
@@ -843,6 +906,10 @@ public final class StudioAiHub extends Activity {
             String tree = readOnlyMcp(mcpPairing, action, decision);
             if ("search_game_tree".equals(action)) {
                 lastSearchedParent = safeField(decision, "path", 180, false);
+            }
+            if ("inspect_instance".equals(action)) {
+                lastInspectedPath = safeField(decision, "path", 180, true);
+                lastInspectedOutput = tree;
             }
             if ("script_read".equals(action)) {
                 lastReadPath = safeField(decision, "target_file", 180, true);
@@ -1093,11 +1160,30 @@ public final class StudioAiHub extends Activity {
 
     private void renderPendingEdit() {
         if (proposalPreview == null) return;
-        boolean visible = pendingEdit != null || pendingPart != null;
+        boolean visible = pendingEdit != null || pendingPart != null || pendingPartChange != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
+        if (pendingPartChange != null) {
+            PartChangeProposal change = pendingPartChange;
+            applyEdit.setText("Revisar e confirmar ALTERAÇÃO 3D");
+            proposalPreview.setText("PRÉVIA • objeto existente, ainda não modificado\n" +
+                    "Objeto: " + change.path + " (Part)\n" +
+                    "Motivo: " + change.reason + "\n\nANTES (inspeção MCP real):\n" +
+                    "Posição: " + Arrays.toString(change.beforePosition) + "\n" +
+                    "Tamanho: " + Arrays.toString(change.beforeSize) + "\n" +
+                    "Cor RGB aprox.: " + Arrays.toString(colorRgb(change.beforeColor)) +
+                    "\n\nDEPOIS (proposta):\n" +
+                    "Posição: " + (change.position == null ? "inalterada" :
+                            Arrays.toString(change.position)) + "\n" +
+                    "Tamanho: " + (change.size == null ? "inalterado" :
+                            Arrays.toString(change.size)) + "\n" +
+                    "Cor RGB: " + (change.color == null ? "inalterada" :
+                            Arrays.toString(change.color)) +
+                    "\n\nSomente campos indicados serão alterados. Aprovação obrigatória.");
+            return;
+        }
         if (pendingPart != null) {
             PartProposal part = pendingPart;
             applyEdit.setText("Revisar e confirmar CRIAÇÃO 3D");
@@ -1236,6 +1322,7 @@ public final class StudioAiHub extends Activity {
         final long epoch = ++requestEpoch;
         pendingEdit = null;
         pendingPart = null;
+        pendingPartChange = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
@@ -1244,17 +1331,21 @@ public final class StudioAiHub extends Activity {
                 final String usage;
                 final EditProposal proposed;
                 final PartProposal proposedPart;
+                final PartChangeProposal proposedPartChange;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, model, turns,
                             epoch, codeConsent, allowProposals, allowParts);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
-                    usage = proposedPart != null ? " • prévia de peça 3D" :
+                    proposedPartChange = outcome.partChange;
+                    usage = proposedPartChange != null ? " • prévia de mudança 3D" :
+                            proposedPart != null ? " • prévia de peça 3D" :
                             proposed == null ? " • somente leitura" : " • prévia de edição";
                 } else {
                     proposed = null;
                     proposedPart = null;
+                    proposedPartChange = null;
                     JSONObject result = request(p, key, messageUrl(p, model),
                             makeBody(p, model, turns, false));
                     answer = extractText(p, result);
@@ -1279,6 +1370,8 @@ public final class StudioAiHub extends Activity {
                             autoInspect.isChecked() && proposeEdits.isChecked() ? proposed : null;
                     pendingPart = includeProject.isChecked() && autoInspect.isChecked() &&
                             proposeParts.isChecked() ? proposedPart : null;
+                    pendingPartChange = includeProject.isChecked() && autoInspect.isChecked() &&
+                            proposeParts.isChecked() ? proposedPartChange : null;
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + model + usage);
