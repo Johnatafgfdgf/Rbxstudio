@@ -14,6 +14,7 @@ NDK=pathlib.Path(os.environ.get("ANDROID_NDK_HOME",SDK/"android-ndk-r28c"))
 BUILD=ROOT/"android/build"
 DIST=ROOT/"dist"
 studio=os.environ.get("PORT_APP")=="studio"
+experimental=studio and os.environ.get("PORT_EXPERIMENTAL_PACKAGE")=="1"
 version="0.6.11" if studio else "0.3"
 library_name="rbx_android_studio" if studio else "rbx_android"
 BT=SDK/"build-tools/35.0.0"
@@ -50,6 +51,14 @@ base=BUILD/"base.apk"
 manifest=ROOT/"android"/("StudioManifest.xml" if studio else "AndroidManifest.xml")
 packaged_manifest=BUILD/"AndroidManifest.xml"
 manifest_text = manifest.read_text()
+if experimental:
+    # Experimental builds use their own Android application identity: install
+    # beside an existing Studio without overwriting its app data or requiring
+    # the original signing certificate.
+    original_id='package="com.rbxnative.androidport"'
+    assert original_id in manifest_text, "Unexpected Studio package ID"
+    manifest_text=manifest_text.replace(original_id, 'package="com.rbxnative.androidport.experimental"', 1)
+    manifest_text=manifest_text.replace('android:label="Rbx Studio"', 'android:label="Rbx Studio Experimental"', 1)
 if os.environ.get("PORT_DEBUGGABLE") == "0":
     manifest_text = manifest_text.replace('android:debuggable="true"', 'android:debuggable="false"')
 packaged_manifest.write_text(manifest_text)
@@ -72,7 +81,7 @@ with zipfile.ZipFile(raw,"a") as apk:
 aligned=BUILD/"aligned.apk";run(BT/"zipalign","-f","-P","16","4",raw,aligned)
 key=ROOT/"tools/debug.keystore";key.parent.mkdir(exist_ok=True)
 if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname","CN=rbx-native Android Debug,O=Development,C=BR")
-apk=DIST/("rbx-native-android-"+version+"-"+abi+"-debug.apk")
+apk=DIST/("rbx-native-android-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
 signed=BUILD/"signed.apk"
 run(BT/"apksigner","sign","--ks",key,"--ks-pass","pass:android","--key-pass","pass:android","--v4-signing-enabled","false","--out",signed,aligned)
 run(BT/"apksigner","verify","--verbose",signed)
