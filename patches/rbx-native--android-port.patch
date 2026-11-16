@@ -12052,7 +12052,7 @@ diff --git a/crates/rbx_studio/src/shell/mcp.rs b/crates/rbx_studio/src/shell/mc
 +    }
 +
 +    #[cfg(target_os = "android")]
-+    fn ai_log(&mut self, message: &str) {
++    pub(super) fn ai_log(&mut self, message: &str) {
 +        if self.ai_events.len() >= 24 {
 +            self.ai_events.remove(0);
 +        }
