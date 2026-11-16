@@ -484,7 +484,7 @@ public final class StudioAiHub extends Activity {
         });
         add(root, onlyFree, 5);
         autoFallback = new CheckBox(this);
-        autoFallback.setText("Trocar automaticamente para uma IA de reserva sem custo indicado (429/402/indisponibilidade)");
+        autoFallback.setText("Trocar para modelo reserva com gratuidade indicada após limite/indisponibilidade (opcional)");
         autoFallback.setTextColor(Color.rgb(228, 236, 250));
         autoFallback.setChecked(false);
         autoFallback.setOnCheckedChangeListener((v, checked) ->
@@ -506,7 +506,7 @@ public final class StudioAiHub extends Activity {
         });
         add(root, text("Modelo de reserva (do mesmo provedor)", 13, true), 3);
         add(root, backupPicker, 5);
-        freeModelsNotice = text("GRÁTIS: :free no OpenRouter. FREE TIER*: disponibilidade do Gemini depende da conta e pode ter cobrança quando faturamento está ativo. PREÇO ZERO**: pode exigir créditos. A ordem por contexto NÃO mede qualidade; nenhuma troca automática escolhe modelo pago.", 12, false);
+        freeModelsNotice = text("GRÁTIS: :free no OpenRouter; limite pode ser compartilhado entre modelos. FREE TIER*: elegibilidade Gemini depende da conta e pode haver cobrança com faturamento ativado. PREÇO ZERO**: pode exigir créditos. Reserva usa outro modelo do mesmo provedor, selecionado por contexto, NÃO por qualidade. Não seleciona modelos de preço desconhecido.", 12, false);
         freeModelsNotice.setTextColor(Color.rgb(222, 194, 142));
         add(root, freeModelsNotice, 11);
 
@@ -758,7 +758,8 @@ public final class StudioAiHub extends Activity {
         if (p == 1 && Arrays.asList(
                 "gemini-3.8-flash", "gemini-3.8-flash-lite",
                 "gemini-3.5-flash-lite", "gemini-3.1-flash-lite",
-                "gemini-2.5-flash", "gemini-2.5-flash-lite").contains(id)) {
+                "gemini-2.5-flash", "gemini-2.5-flash-lite").contains(id) ||
+                p == 1 && id.startsWith("gemma-4-")) {
             return 2;
         }
         return 0;
