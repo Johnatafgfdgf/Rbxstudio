@@ -272,6 +272,61 @@ assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert 'case "execute_luau"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
+
+# API-only remote model selection with verified free-pricing signals.
+# No hard-coded promise of free OpenAI/Claude API usage.
+for required in [
+    'private static int modelTier(int p, JSONObject item, String id)',
+    'id.endsWith(":free")',
+    '"openrouter/free".equals(id)',
+    'price.optString("prompt", "NaN")',
+    'price.optString("completion", "NaN")',
+    '"gemini-3.5-flash-lite"',
+    '"gemini-3.8-flash"',
+    'supportedGenerationMethods',
+    'URLEncoder.encode(nextToken, "UTF-8")',
+    'Collections.sort(available, (a, b) ->',
+    'tier == 3 ? "GRÁTIS • "',
+    'tier == 2 ? "FREE TIER* • "',
+    'tier == 1 ? "PREÇO ZERO** • "',
+    'onlyFree.setText("Mostrar somente gratuitos, free tier ou preço zero")',
+    'autoFallback.setText(',
+    'backupPicker = new Spinner(this)',
+    'discoveredModels.addAll(available)',
+    'renderModelList();',
+    'selectedModelId()',
+    'selectedBackupModel(model)',
+    'entry.tier >= 2 && !entry.id.equals(primary)',
+]:
+    assert required in java, required
+
+# Fallback is limited to one opt-in, free-tier-marked, same-provider model.
+# 401/403 and malformed requests must never trigger automatic switching.
+for required in [
+    'private static final class ApiHttpException extends IOException',
+    'code == 402 || code == 429 || code == 502 || code == 503',
+    'code == 504 || code == 529',
+    'route.switched ||',
+    'route.backup.isEmpty() || route.backup.equals(route.active)',
+    'route.requests >= maxRequests',
+    'route.requests++',
+    'route.switched = true',
+    'route.active = backup',
+    'requestModelWithFreeFallback(p, key, route,',
+    'turns, allowProposals, epoch, MAX_AGENT_CALLS)',
+    'turns, false, epoch, 2)',
+    'final ModelRoute route = new ModelRoute(model, selectedBackupModel(model))',
+    'throw new ApiHttpException(code',
+    'if (code == 401 || code == 403) throw new ApiHttpException',
+    'if (code == 402) throw new ApiHttpException',
+    'if (code == 429) throw new ApiHttpException',
+]:
+    assert required in java, required
+assert java.count('new ModelRoute(model, selectedBackupModel(model))') == 1
+assert 'requestModelWithFreeFallback(p, key, route,' in java
+assert 'case "multi_edit"' not in java
+assert 'case "execute_luau"' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
