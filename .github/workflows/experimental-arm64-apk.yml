@@ -84,6 +84,7 @@ jobs:
         with:
           name: rbxstudio-0.6.11-arm64-v8a-separate-install
           path: |
-            dist/*arm64-v8a-debug.apk
-            dist/*arm64-v8a-debug.apk.sha256
+            dist/*arm64-v8a*debug.apk
+            dist/*arm64-v8a*debug.apk.sha256
+          if-no-files-found: error
           retention-days: 14
