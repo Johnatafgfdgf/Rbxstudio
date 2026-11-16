@@ -6,7 +6,7 @@
 
 Reutilizar o MCP já existente em `crates/rbx_studio/src/mcp` / `shell/mcp.rs`, que acessa o **DOM real do editor** e usa **o mesmo histórico de desfazer** para alterações locais. A nova entrada **IA** na barra Android abre uma área própria: conexão, permissões, solicitações pendentes, capacidades e atividade.
 
-**Já implementado nesta etapa (não é um chatbot embutido):**
+**Já implementado no código (validar compilações e APIs antes de anunciar como operacional):**
 - Interface Android `mobile-ai-panel` com viewport visível e ações de toque.
 - Ativar/desativar o servidor MCP do editor sem o ativar automaticamente em todos os APKs.
 - Mostrar apenas ID de sessão e porta; segredo de conexão não aparece na interface.
@@ -15,9 +15,9 @@ Reutilizar o MCP já existente em `crates/rbx_studio/src/mcp` / `shell/mcp.rs`, 
 - Recusa explícita de chamadas rejeitadas; fila e registro simples de ações sem incluir código-fonte ou credenciais.
 - Contrato `ai_permissions.rs` com testes de regressão.
 
-**Ainda não implementado:** modelo/LLM integrado ao APK, troca de mensagens dentro do app, planejamento e execução totalmente autônoma, conexão remota de MCP pelo próprio aplicativo, detecção universal de erros visuais, validação real de todas as ferramentas em aparelho físico. Uma ferramenta MCP `publish_animation` foi adicionada para upload de KeyframeSequence e IDs devolvidos pela Open Cloud, mas a **validação real de upload ainda não ocorreu**; não anunciar como confirmada.
+**Parcialmente implementado:** central de provedores Android com chat de texto por API (OpenAI, Gemini, Claude e OpenRouter), lista real de modelos e inspeção opcional do Explorer via MCP local autenticado. **Ainda não implementado:** planejamento e execução totalmente autônoma de ações do modelo, conexão remota de MCP, detecção universal de erros visuais, validação real de todas as ferramentas em aparelho físico. Uma ferramenta MCP `publish_animation` foi adicionada para upload de KeyframeSequence e IDs devolvidos pela Open Cloud, mas a **validação real de upload ainda não ocorreu**; não anunciar como confirmada.
 
-O servidor MCP já presente aceita clientes compatíveis com o protocolo, mas o transporte atual é uma conexão local ao Android com token e um cliente/ponte externos. A assinatura ChatGPT pessoal não é automaticamente uma chave API para o aplicativo. Um cliente externo precisa ser configurado explicitamente.
+O servidor MCP já presente aceita clientes compatíveis com o protocolo. A nova Activity Android consegue ler somente a árvore de objetos por esse servidor, desde que ele esteja ativado, e o usuário pode escolher enviar esse resumo como contexto ao modelo. **O chat novo não executa ferramentas do editor.** A assinatura ChatGPT pessoal não é automaticamente uma chave de API. Cada provedor exige uma chave própria e pode cobrar pelo uso. Veja `docs/ANDROID_AI_PHASE1_2026-11-16.md` para os recursos implementados e seus limites.
 
 ## Experiência Android planejada
 
@@ -28,7 +28,7 @@ Em paisagem, a área IA é uma gaveta limitada à direita, fechável, sem substi
 4. **Aprovações:** visualizar o que vai mudar, origens da Toolbox, lista de arquivos e destino de publicação; permitir uma vez, recusar ou permitir somente edições locais até fechar.
 5. **Inspeção:** captura real do viewport (não mock), relatório do Output, logs de script e comportamento em Play.
 6. **Histórico:** miniatura e descrição de cada alteração, desfazer/restaurar via histórico existente; backups antes de publicação.
-7. **Conexões:** cliente MCP ou provedor de IA consentido, sempre revogável; segredos no armazenamento seguro do sistema.
+7. **Conexões:** cliente MCP ou provedor de IA consentido, sempre revogável; segredos no armazenamento seguro do sistema. A primeira versão Android já possui a tela complementar `StudioAiHub`, mas o chat flutuante completo permanece planejado.
 
 Não usar botão que apenas simule um resultado. Funções sem backend devem mostrar `Indisponível nesta versão` ou não aparecer até estarem implementadas.
 
@@ -89,4 +89,4 @@ Referências:
 
 Revisar o APK Android ARM64 em dispositivo real antes de promover qualquer mudança, mantendo as compilações x86_64 de emulador como teste complementar. Não misturar o APK experimental com o pacote da versão original. Não remover funções existentes do editor para adequar a UI.
 
-A etapa presente entrega **infraestrutura de conexão MCP + painel Android + aprovações**, catálogo de skills do agente e a ferramenta de upload `publish_animation` ainda sem validação real. O chatbot interno autônomo ainda precisa de um provider/API, um executor de planos e integração das ferramentas indisponíveis; a implementação de cada peça deve ser validada antes de receber status de concluída.
+A etapa presente entrega **infraestrutura de conexão MCP + painel Android + aprovações**, uma Activity de chat por API com quatro provedores e cadastro criptografado de chaves, consulta de modelos, contexto de Explorer somente leitura e catálogo ampliado de skills. A ferramenta `publish_animation` ainda não teve upload real validado. Um agente **autônomo executor** ainda precisa de planejador, ciclo de ferramentas, integração com a política de aprovação, registro de checkpoints, testes e recuperação. Os testes de integração com modelos exigem chaves próprias do usuário. **Não considerar pronto apenas porque a interface existe.**
