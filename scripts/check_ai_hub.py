@@ -42,7 +42,8 @@ for safety in [
 assert 'callMcp(paired, "execute_luau", args)' in java, "Fixed Part creation must call real MCP"
 assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert 'case "execute_luau"' not in java, "Model cannot dispatch arbitrary Luau"
-assert 'code", fixedPartCreateLuau(part)' in java
+assert 'String command = create != null ? fixedPartCreateLuau(create) :' in java
+assert 'fixedPartUpdateLuau(update)' in java
 assert 'JSONObject args = new JSONObject().put("datamodel_type", "Edit")' in java
 assert '"insert_asset"' not in java, "Chat must not import Toolbox models without review"
 assert '"save_place"' not in java, "Chat must not persist projects without approval"
@@ -141,6 +142,7 @@ for required in [
     'confirmPendingPart()',
     '.setPositiveButton("Sim, criar peça", (dialog, which) -> applyApprovedPart(part))',
     'ensurePartNameFree(paired, part)',
+    'runApprovedPartCommand(paired, part, null)',
     'callMcp(paired, "execute_luau", args)',
     'proposedPart = outcome.part',
     'pendingPart = includeProject.isChecked()',
@@ -148,6 +150,9 @@ for required in [
     assert required in java, required
 assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert java.index('ensurePartNameFree(paired, part)') < java.index(
+    'runApprovedPartCommand(paired, part, null)'
+)
+assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
     'callMcp(paired, "execute_luau", args)'
 )
 assert 'case "execute_luau"' not in java
@@ -192,8 +197,50 @@ assert java.index('ensureCreateDestinationFree(paired, edit)') < java.index(
 )
 assert 'case "multi_edit"' not in java
 
+
+# Existing Workspace Part edits require actual MCP inspect, a full original
+# property snapshot, a visible review and a second inspection before write.
+for required in [
+    'PART_UPDATE_PROTOCOL',
+    'if ("propose_part_update".equals(action))',
+    'lastInspectedPath = safeField(decision, "path", 180, true);',
+    'lastInspectedOutput = tree;',
+    'validatePartChangeProposal(decision, lastInspectedPath, lastInspectedOutput)',
+    'path.matches("Workspace\\\\.[A-Za-z][A-Za-z0-9_]{0,39}")',
+    'verifiedPartInspection(path, inspectedText)',
+    'if (!"Part".equals(result.optString("className", ""))',
+    'result.optJSONObject("properties") == null',
+    'inspectedComponents(original, "CFrame.Position"',
+    'inspectedComponents(original, "Size"',
+    'inspectedComponents(original, "Color"',
+    'inspectedPartFields(original)',
+    '"CFrame.Rotation"',
+    'boolean move = decision.has("position")',
+    'if (!move && !resize && !recolor)',
+    'partVector(decision, "position", -256, 256)',
+    'partVector(decision, "size", 0.2, 64)',
+    'optionalUpdateColor(decision)',
+    'pendingPartChange != null',
+    'confirmPendingPartChange()',
+    'verifyPartUnchanged(paired, change)',
+    'Arrays.equals(inspectedPartFields(latest), proposal.beforeFields)',
+    'fixedPartUpdateLuau(PartChangeProposal part)',
+    'p:IsA(\\"Part\\")',
+    'local oldColor = p.Color',
+    'runApprovedPartCommand(paired, null, change)',
+    'proposedPartChange = outcome.partChange',
+    'pendingPartChange = includeProject.isChecked()',
+]:
+    assert required in java, required
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert java.index('verifyPartUnchanged(paired, change)') < java.index(
+    'runApprovedPartCommand(paired, null, change)'
+)
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
-print("Android AI providers, bounded script and Part creation/approval contracts passed (static; no live API keys used).")
+print("Android AI hub, bounded Luau script and 3D Part create/update approval contracts passed (static; no device tests).")
