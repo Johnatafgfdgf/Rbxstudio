@@ -9,15 +9,22 @@ on:
       - android/**
       - native/**
       - studio/**
+      - core/**
+      - player/**
+      - geometry/**
       - patches/**
       - platform/**
       - scripts/studio_smoke.py
       - scripts/package_apk.py
+      - scripts/check_studio_branding.py
+      - scripts/check_studio_apk.py
       - scripts/cargo_android.py
       - scripts/check_preparation.py
       - scripts/prepare.py
+      - tests/mobile_ai_permissions.rs
       - Cargo.toml
       - Cargo.lock
+      - .gitmodules
 
 permissions:
   contents: read
