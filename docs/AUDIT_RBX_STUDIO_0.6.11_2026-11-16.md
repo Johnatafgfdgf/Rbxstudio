@@ -55,3 +55,15 @@ Atribuições de copyright e licenças MIT/Apache precisam ser mantidas nos arqu
 5. Definir chave de assinatura estável e segura para atualizações, sem publicá-la em código ou artefatos públicos.
 
 A auditoria não certifica funcionalidade integral nem total independência técnica do código original. Seu resultado é um inventário reproduzível, alterações cirúrgicas e pendências claramente delimitadas.
+
+## Auditoria binária e continuação da identidade visual (16/11)
+
+A inspeção do APK ARM64 real da execução [43895849504](https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/43895849504) verificou o arquivo `classes.dex`, as bibliotecas `.so` e as licenças empacotadas. O DEX não inclui `MainActivity`, `NativeSmokeTest`, `PlayerPad` nem `StudioIcon` legados; inclui a geometria necessária ao player e preserva as atribuições legais. Apenas duas strings `rbx-native` foram encontradas no DEX: o alias privado de credenciais e o identificador de serviço da chave Open Cloud, ainda necessários para compatibilidade.
+
+A biblioteca Rust compilada, entretanto, carregava diversas strings herdadas, inclusive os temas `rbx-native Light` / `rbx-native High contrast`, o `serverInfo.name` do MCP e mensagens públicas de Loren, UGC, geração de assets e Team Presence. O inventário inicial de fontes não identificava essas strings porque estão no submódulo de terceiros. Foram adicionadas substituições explícitas ao patch Android consolidado: `57c36b23` (temas e protocolo MCP com expectativas de testes) e `df840391` (mensagens de UI e erros). Os protocolos, APIs, nomes Luau internos e prefixos de replicação não foram renomeados para evitar quebrar compatibilidade.
+
+O autoupdater encontrado em buscas ao código público **não está presente no commit fixado** do submódulo deste APK (`eb85a1088a69f4159598b4fed0ae26956573c175`); não há evidência de que seja executado por esta versão. Não misturar achados do ramo mais novo do upstream com falhas comprovadas na versão empacotada.
+
+A assinatura de atualização agora aceita um keystore privado persistente através de segredos do GitHub (`072cbe6d` e workflows relacionados). Sem um segredo configurado, a compilação de teste ainda gera chave temporária e **não garante atualização sobre APK anterior**. Foi acrescentado `scripts/check_studio_apk.py` para fiscalizar o binário real, inclusive as classes antigas e os textos de interface, além de `scripts/check_studio_branding.py` reforçado. A configuração de um keystore privado consistente e a migração do ID Android/credenciais seguem pendentes. Não guardar chaves no repositório.
+
+**Validação:** a auditoria estática da revisão com esses patches passou em [43900399477](https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/43900399477). Os builds nativos e a captura Android ainda estavam em execução quando esta seção foi escrita; não considerar as strings reempacotadas comprovadas em um novo APK sem revisar os artefatos dessas execuções.
