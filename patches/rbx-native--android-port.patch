@@ -23114,3 +23114,101 @@ diff --git a/crates/rbx_studio/src/mcp/broker/tests.rs b/crates/rbx_studio/src/m
      assert!(list["result"]["tools"].as_array().unwrap().len() > 5);
      assert_eq!(studios(&mut broker), json!([]));
      assert_eq!(
+
+diff --git a/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs b/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
+--- a/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
++++ b/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
+@@ -91,7 +91,7 @@
+         .child(
+             v_flex()
+                 .child(row(
+-                    "Upload from rbx-native",
++                    "Upload from Rbx Studio",
+                     "Open Cloud doesn\u{2019}t charge for a Model upload.".to_string(),
+                     "Free".to_string(),
+                 ))
+
+diff --git a/crates/rbx_studio/src/mcp/tools/assets/generate.rs b/crates/rbx_studio/src/mcp/tools/assets/generate.rs
+--- a/crates/rbx_studio/src/mcp/tools/assets/generate.rs
++++ b/crates/rbx_studio/src/mcp/tools/assets/generate.rs
+@@ -59,7 +59,7 @@
+         }
+     };
+     Err(format!(
+-        "{name} is not available in rbx-native. {why} Build it from parts instead, or insert \
++        "{name} is not available in Rbx Studio. {why} Build it from parts instead, or insert \
+          an existing asset with search_asset and insert_asset."
+     ))
+ }
+@@ -126,7 +126,7 @@
+ pub(super) fn wait(arguments: &Value) -> Outcome {
+     let job = text_argument(arguments, "jobId").unwrap_or_default();
+     Err(format!(
+-        "No job found with id: {job}. rbx-native never starts one: the generation tools have \
++        "No job found with id: {job}. Rbx Studio cannot start one: the generation tools have \
+          no public backend outside Roblox Studio."
+     ))
+ }
+
+diff --git a/crates/rbx_loren/src/commands/serve.rs b/crates/rbx_loren/src/commands/serve.rs
+--- a/crates/rbx_loren/src/commands/serve.rs
++++ b/crates/rbx_loren/src/commands/serve.rs
+@@ -23,12 +23,12 @@
+         .chain(args.iter().map(String::as_str))
+         .collect();
+     ctx.log.info(&format!(
+-        "Serving with Argon (rbx-native live sync): {}  (Ctrl+C to stop)",
++        "Serving with Argon (Rbx Studio live sync): {}  (Ctrl+C to stop)",
+         line.join(" ")
+     ));
+     if tool == Tool::Rojo {
+         ctx.log.info(
+-            "This project uses Rojo; rbx-native syncs through Argon, which reads the same default.project.json.",
++            "This project uses Rojo; Rbx Studio syncs through Argon, which reads the same default.project.json.",
+         );
+     }
+     ctx.log.info("In rbxstudio, open your place and press Connect in the Argon dock (or turn on Auto Connect).");
+
+diff --git a/crates/rbx_loren/src/cli/help.rs b/crates/rbx_loren/src/cli/help.rs
+--- a/crates/rbx_loren/src/cli/help.rs
++++ b/crates/rbx_loren/src/cli/help.rs
+@@ -50,7 +50,7 @@
+ 
+ fn after_text() -> String {
+     format!(
+-        "\nDocs: {DOCS_URL}\nUpdate the CLI itself: {CLI_INSTALL}\n\n{}. Optional in rbx-native: use it, or bring your own.\n",
++        "\nDocs: {DOCS_URL}\nUpdate the CLI itself: {CLI_INSTALL}\n\n{}. Optional in Rbx Studio: use it, or bring your own.\n",
+         crate::CREDIT
+     )
+ }
+
+diff --git a/crates/rbx_presence/src/client.rs b/crates/rbx_presence/src/client.rs
+--- a/crates/rbx_presence/src/client.rs
++++ b/crates/rbx_presence/src/client.rs
+@@ -27,7 +27,7 @@
+ use crate::{announce, auth, host, ntfy, seal};
+ 
+ /// What a client reports when the relay refuses its wire version.
+-pub const VERSION_MISMATCH: &str = "The relay runs a different Team Presence version; update rbx-native, the plugin and the relay together.";
++pub const VERSION_MISMATCH: &str = "The relay runs a different Team Presence version; update Rbx Studio, the plugin and the relay together.";
+ 
+ /// Opens every user of a relay snapshot, dropping those that fail to open.
+ pub fn open_snapshot(enc_key: &[u8; 32], room: &str, sealed: &SealedSnapshot) -> Snapshot {
+@@ -307,7 +307,7 @@
+                         if self.events.send(Event::Route(Route::Waiting)).is_err() {
+                             return Outcome::Stopped;
+                         }
+-                        return Outcome::Failed("no rbx-native collaborator is hosting yet".into());
++                        return Outcome::Failed("no Rbx Studio collaborator is hosting yet".into());
+                     };
+                     if let Err(why) = self.start_hosting(&hosting) {
+                         return Outcome::Failed(why);
+@@ -378,7 +378,7 @@
+                     // Two hosted at once: the newer one keeps the room.
+                     self.hosted = None;
+                     return Some(Outcome::Failed(
+-                        "another rbx-native user hosts the room".into(),
++                        "another Rbx Studio user hosts the room".into(),
+                     ));
+                 }
+             }
