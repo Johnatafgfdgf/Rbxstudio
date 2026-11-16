@@ -20,9 +20,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -224,11 +226,36 @@ public final class StudioAiHub extends Activity {
     private volatile long requestEpoch;
     private volatile HttpURLConnection activeRequest;
     private volatile Socket activeSocket;
-    private Spinner providerPicker, modelPicker;
+    private Spinner providerPicker, modelPicker, backupPicker;
+    private CheckBox onlyFree, autoFallback;
+    private TextView freeModelsNotice;
+    private final List<ModelEntry> discoveredModels = new ArrayList<>();
+    private final List<ModelEntry> visibleModels = new ArrayList<>();
+    private final List<String> backupIds = new ArrayList<>();
     private EditText apiKey, prompt;
     private TextView status, conversation;
     private Button refresh, send, save, cancel;
     private final List<String> models = new ArrayList<>();
+
+    /** Model tiers are metadata, not guarantees about an account's actual billing. */
+    private static final class ModelEntry {
+        final String id;
+        final int tier; // 3 = :free; 2 = Gemini possible Free Tier; 1 = $0 but funded account possible
+        final long context;
+        ModelEntry(String id, int tier, long context) {
+            this.id = id;
+            this.tier = tier;
+            this.context = context;
+        }
+        String label() {
+            String prefix = tier == 3 ? "GRÁTIS • " :
+                    tier == 2 ? "FREE TIER* • " :
+                    tier == 1 ? "PREÇO ZERO** • " : "";
+            return prefix + id + (context > 0 ? "  [" + context + " ctx]" : "");
+        }
+    }
+
+
 
     public static void open(Activity activity, String project, String pairing) {
         activity.runOnUiThread(() -> {
@@ -392,7 +419,43 @@ public final class StudioAiHub extends Activity {
                 }
             }
         });
-        add(root, modelPicker, 11);
+        add(root, modelPicker, 8);
+        onlyFree = new CheckBox(this);
+        onlyFree.setText("Mostrar somente gratuitos, free tier ou preço zero");
+        onlyFree.setTextColor(Color.rgb(228, 236, 250));
+        onlyFree.setChecked(false);
+        onlyFree.setOnCheckedChangeListener((v, checked) -> {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("free_only_" + IDS[provider], checked).apply();
+            renderModelList();
+        });
+        add(root, onlyFree, 5);
+        autoFallback = new CheckBox(this);
+        autoFallback.setText("Trocar automaticamente para uma IA de reserva sem custo indicado (429/402/indisponibilidade)");
+        autoFallback.setTextColor(Color.rgb(228, 236, 250));
+        autoFallback.setChecked(false);
+        autoFallback.setOnCheckedChangeListener((v, checked) ->
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putBoolean("fallback_" + IDS[provider], checked).apply());
+        add(root, autoFallback, 5);
+        backupPicker = new Spinner(this);
+        backupPicker.setAdapter(new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Reserva automática: próximo grátis por contexto"}));
+        backupPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,
+                    View view, int pos, long id) {
+                if (pos >= 0 && pos < backupIds.size())
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putString("backup_" + IDS[provider], backupIds.get(pos)).apply();
+            }
+        });
+        add(root, text("Modelo de reserva (do mesmo provedor)", 13, true), 3);
+        add(root, backupPicker, 5);
+        freeModelsNotice = text("GRÁTIS: :free no OpenRouter. FREE TIER*: disponibilidade do Gemini depende da conta e pode ter cobrança quando faturamento está ativo. PREÇO ZERO**: pode exigir créditos. A ordem por contexto NÃO mede qualidade; nenhuma troca automática escolhe modelo pago.", 12, false);
+        freeModelsNotice.setTextColor(Color.rgb(222, 194, 142));
+        add(root, freeModelsNotice, 11);
 
         add(root, text("Contexto do projeto (opcional)", 14, true), 4);
         Button inspectProject = button("Inspecionar Explorer real via MCP");
@@ -496,9 +559,19 @@ public final class StudioAiHub extends Activity {
                 pendingPartChange = null;
                 renderPendingEdit();
                 models.clear();
+                discoveredModels.clear();
+                visibleModels.clear();
+                backupIds.clear();
                 modelPicker.setAdapter(new ArrayAdapter<String>(StudioAiHub.this,
                         android.R.layout.simple_spinner_dropdown_item,
                         new String[]{"Consulte os modelos primeiro"}));
+                backupPicker.setAdapter(new ArrayAdapter<String>(StudioAiHub.this,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        new String[]{"Consulte os modelos primeiro"}));
+                onlyFree.setChecked(getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getBoolean("free_only_" + IDS[provider], false));
+                autoFallback.setChecked(getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getBoolean("fallback_" + IDS[provider], false));
                 history.clear();
                 conversation.setText("Novo chat com " + NAMES[provider] +
                         ". Nenhuma alteração será aplicada automaticamente ao projeto.");
@@ -518,6 +591,10 @@ public final class StudioAiHub extends Activity {
         providerPicker.setEnabled(!waiting);
         if (applyEdit != null) applyEdit.setEnabled(!waiting);
         if (discardEdit != null) discardEdit.setEnabled(!waiting);
+        if (onlyFree != null) onlyFree.setEnabled(!waiting);
+        if (autoFallback != null) autoFallback.setEnabled(!waiting);
+        if (backupPicker != null) backupPicker.setEnabled(!waiting);
+        if (modelPicker != null) modelPicker.setEnabled(!waiting);
         status.setText(message);
     }
 
@@ -608,6 +685,143 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    private static int modelTier(int p, JSONObject item, String id) {
+        if (p == 3) {
+            if (id.endsWith(":free") || "openrouter/free".equals(id)) return 3;
+            JSONObject price = item.optJSONObject("pricing");
+            if (price != null) {
+                try {
+                    double prompt = Double.parseDouble(price.optString("prompt", "NaN"));
+                    double completion = Double.parseDouble(price.optString("completion", "NaN"));
+                    if (prompt == 0.0 && completion == 0.0) return 1;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        // Google's models endpoint does not publish free-tier pricing. This is
+        // a deliberately conservative list of documented text-generation IDs.
+        if (p == 1 && Arrays.asList(
+                "gemini-3.8-flash", "gemini-3.8-flash-lite",
+                "gemini-3.5-flash-lite", "gemini-3.1-flash-lite",
+                "gemini-2.5-flash", "gemini-2.5-flash-lite").contains(id)) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static boolean textChatModel(int p, JSONObject item) {
+        if (p == 3) {
+            JSONObject architecture = item.optJSONObject("architecture");
+            JSONArray outputs = architecture == null ? null :
+                    architecture.optJSONArray("output_modalities");
+            if (outputs != null) {
+                boolean text = false;
+                for (int i = 0; i < outputs.length(); i++) {
+                    if ("text".equals(outputs.optString(i))) text = true;
+                }
+                if (!text) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Models are ordered free-first, then by declared context size, not by claimed quality. */
+    private static List<ModelEntry> collectModels(int p, List<JSONObject> entries) {
+        List<ModelEntry> available = new ArrayList<>();
+        for (JSONObject item : entries) {
+            String id = item.optString(p == 1 ? "name" : "id", "");
+            if (p == 1) {
+                JSONArray methods = item.optJSONArray("supportedGenerationMethods");
+                boolean suitable = false;
+                if (methods != null) for (int j = 0; j < methods.length(); j++) {
+                    if ("generateContent".equals(methods.optString(j))) suitable = true;
+                }
+                if (!suitable) continue;
+                if (id.startsWith("models/")) id = id.substring(7);
+            }
+            if (!id.matches("[A-Za-z0-9_./:-]{1,180}") || !textChatModel(p, item)) {
+                continue;
+            }
+            long context = Math.max(0, p == 1 ? item.optLong("inputTokenLimit", 0) :
+                    item.optLong("context_length", 0));
+            boolean duplicate = false;
+            for (ModelEntry prior : available) {
+                if (prior.id.equals(id)) { duplicate = true; break; }
+            }
+            if (!duplicate) available.add(new ModelEntry(id, modelTier(p, item, id), context));
+        }
+        Collections.sort(available, (a, b) -> {
+            int tier = Integer.compare(b.tier, a.tier);
+            if (tier != 0) return tier;
+            int context = Long.compare(b.context, a.context);
+            return context != 0 ? context : a.id.compareTo(b.id);
+        });
+        return available.size() > 400 ? new ArrayList<>(available.subList(0, 400)) : available;
+    }
+
+    private void renderModelList() {
+        if (modelPicker == null || onlyFree == null || backupPicker == null) return;
+        String selected = "";
+        int currentIndex = modelPicker.getSelectedItemPosition();
+        if (currentIndex >= 0 && currentIndex < models.size()) {
+            selected = models.get(currentIndex);
+        }
+        if (selected.isEmpty()) selected = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString("model_" + IDS[provider], "");
+        models.clear();
+        visibleModels.clear();
+        List<String> labels = new ArrayList<>();
+        for (ModelEntry model : discoveredModels) {
+            if (onlyFree.isChecked() && model.tier == 0) continue;
+            visibleModels.add(model);
+            models.add(model.id);
+            labels.add(model.label());
+        }
+        if (labels.isEmpty()) labels.add(discoveredModels.isEmpty()
+                ? "Consulte os modelos primeiro" : "Nenhum modelo marcado como grátis");
+        modelPicker.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, labels));
+        int index = models.indexOf(selected);
+        if (index >= 0) modelPicker.setSelection(index);
+        renderBackupList();
+    }
+
+    private void renderBackupList() {
+        backupIds.clear();
+        backupIds.add("");
+        List<String> labels = new ArrayList<>();
+        labels.add("Automático: próximo grátis por contexto (não por qualidade)");
+        for (ModelEntry entry : discoveredModels) {
+            if (entry.tier >= 2) {
+                backupIds.add(entry.id);
+                labels.add(entry.label());
+            }
+        }
+        String selected = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString("backup_" + IDS[provider], "");
+        backupPicker.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, labels));
+        int index = backupIds.indexOf(selected);
+        if (index > 0) backupPicker.setSelection(index);
+    }
+
+    private String selectedModelId() {
+        int selected = modelPicker == null ? -1 : modelPicker.getSelectedItemPosition();
+        return selected >= 0 && selected < models.size() ? models.get(selected) : "";
+    }
+
+    private String selectedBackupModel(String primary) {
+        if (autoFallback == null || !autoFallback.isChecked()) return "";
+        int index = backupPicker == null ? -1 : backupPicker.getSelectedItemPosition();
+        if (index > 0 && index < backupIds.size()) {
+            String chosen = backupIds.get(index);
+            if (!chosen.equals(primary)) return chosen;
+        }
+        for (ModelEntry entry : discoveredModels) {
+            if (entry.tier >= 2 && !entry.id.equals(primary)) return entry.id;
+        }
+        return "";
+    }
+
     private void refreshModels() {
         final int p = provider;
         final long epoch = ++requestEpoch;
@@ -621,38 +835,36 @@ public final class StudioAiHub extends Activity {
         setBusy(true, "Consultando o catálogo oficial de " + NAMES[p] + "…");
         requests.execute(() -> {
             try {
-                JSONObject result = request(p, key, MODELS_URL[p], null);
-                JSONArray entries = result.optJSONArray(p == 1 ? "models" : "data");
-                if (entries == null) throw new IOException("Catálogo sem lista de modelos");
-                List<String> available = new ArrayList<>();
-                for (int i = 0; i < entries.length() && available.size() < 400; i++) {
-                    JSONObject item = entries.optJSONObject(i);
-                    if (item == null) continue;
-                    String id = item.optString(p == 1 ? "name" : "id", "");
-                    if (p == 1) {
-                        JSONArray actions = item.optJSONArray("supportedGenerationMethods");
-                        boolean suitable = false;
-                        if (actions != null) for (int j = 0; j < actions.length(); j++) {
-                            if ("generateContent".equals(actions.optString(j))) suitable = true;
-                        }
-                        if (!suitable) continue;
-                        if (id.startsWith("models/")) id = id.substring(7);
+                List<JSONObject> all = new ArrayList<>();
+                String nextToken = "";
+                for (int page = 0; page < (p == 1 ? 8 : 1); page++) {
+                    String endpoint = MODELS_URL[p];
+                    if (!nextToken.isEmpty()) {
+                        endpoint += "?pageToken=" + URLEncoder.encode(nextToken, "UTF-8");
                     }
-                    if (!id.isEmpty()) available.add(id);
+                    JSONObject response = request(p, key, endpoint, null);
+                    JSONArray items = response.optJSONArray(p == 1 ? "models" : "data");
+                    if (items == null) throw new IOException("Catálogo sem lista de modelos");
+                    for (int i = 0; i < items.length() && all.size() < 1600; i++) {
+                        JSONObject item = items.optJSONObject(i);
+                        if (item != null) all.add(item);
+                    }
+                    String next = p == 1 ? response.optString("nextPageToken", "") : "";
+                    if (next.isEmpty() || next.equals(nextToken) || all.size() >= 1600) break;
+                    nextToken = next;
                 }
-                final String selected = getSharedPreferences(PREFS, MODE_PRIVATE)
-                        .getString("model_" + IDS[p], "");
+                List<ModelEntry> available = collectModels(p, all);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
-                    models.clear();
-                    models.addAll(available);
-                    modelPicker.setAdapter(new ArrayAdapter<>(this,
-                            android.R.layout.simple_spinner_dropdown_item, available));
-                    int index = available.indexOf(selected);
-                    if (index >= 0) modelPicker.setSelection(index);
+                    discoveredModels.clear();
+                    discoveredModels.addAll(available);
+                    renderModelList();
+                    int free = 0;
+                    for (ModelEntry entry : available) if (entry.tier >= 2) free++;
                     setBusy(false, available.isEmpty()
-                            ? "Conexão aceita, mas sem modelos de geração nesta resposta."
-                            : "Conexão com " + NAMES[p] + " confirmada • " + available.size() + " modelos");
+                            ? "Conexão aceita, mas nenhum modelo de chat neste catálogo."
+                            : "Conexão: " + available.size() + " modelos, " + free +
+                            " com variante grátis ou free tier indicada");
                 });
             } catch (Exception problem) {
                 runOnUiThread(() -> {
