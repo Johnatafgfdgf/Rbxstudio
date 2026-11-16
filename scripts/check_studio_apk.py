@@ -38,6 +38,10 @@ with ZipFile(apk) as packaged:
             raise SystemExit(f"{apk.name}: obsolete Android UI component detected")
     if b"Lcom/rbxnative/androidport/RbxGeometry;" not in dex:
         raise SystemExit(f"{apk.name}: geometry required by the current app is missing")
+    if b"Lcom/rbxnative/androidport/StudioAiHub;" not in dex:
+        raise SystemExit(f"{apk.name}: native AI provider hub was not packaged")
+    if b"StudioAiHub" not in dex:
+        raise SystemExit(f"{apk.name}: native AI hub is unavailable")
     allowed_private_ids = (
         b"https://apis.roblox.com/rbx-native",
         b"rbx-native-studio-credentials-v1",
