@@ -39,7 +39,11 @@ for safety in [
     'MAX_RESPONSE_BYTES',
 ]:
     assert safety in java, safety
-assert '"execute_luau"' not in java, "Chat must not execute arbitrary Luau"
+assert 'callMcp(paired, "execute_luau", args)' in java, "Fixed Part creation must call real MCP"
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java, "Model cannot dispatch arbitrary Luau"
+assert 'code", fixedPartCreateLuau(part)' in java
+assert 'JSONObject args = new JSONObject().put("datamodel_type", "Edit")' in java
 assert '"insert_asset"' not in java, "Chat must not import Toolbox models without review"
 assert '"save_place"' not in java, "Chat must not persist projects without approval"
 assert '"publish_animation"' not in java, "Chat must not publish assets without approval"
@@ -114,6 +118,40 @@ assert java.count('callMcp(paired, "multi_edit", args)') == 1
 assert java.index('String latest = readOnlyMcp(paired, "script_read", read);') < java.index(
     'String outcome = callMcp(paired, "multi_edit", args);'
 )
+
+# 3D Part creation is typed and bounded; the model only returns a proposal.
+for required in [
+    'proposeParts.setChecked(false)',
+    'PART_PROTOCOL',
+    'if ("propose_part_create".equals(action))',
+    'lastSearchedParent',
+    'validatePartProposal(decision)',
+    'private static PartProposal validatePartProposal(JSONObject input)',
+    'partVector(input, "position", -256, 256)',
+    'partVector(input, "size", 0.2, 64)',
+    'name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")',
+    'value != Math.floor(value)',
+    'private static String fixedPartCreateLuau(PartProposal part)',
+    'local p = Instance.new',
+    'p.Anchored = true',
+    'p.CanCollide = true',
+    'p.Parent = ws',
+    'private void ensurePartNameFree',
+    'if ("No instances found.".equals(result)) return;',
+    'confirmPendingPart()',
+    '.setPositiveButton("Sim, criar peça", (dialog, which) -> applyApprovedPart(part))',
+    'ensurePartNameFree(paired, part)',
+    'callMcp(paired, "execute_luau", args)',
+    'proposedPart = outcome.part',
+    'pendingPart = includeProject.isChecked()',
+]:
+    assert required in java, required
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert java.index('ensurePartNameFree(paired, part)') < java.index(
+    'callMcp(paired, "execute_luau", args)'
+)
+assert 'case "execute_luau"' not in java
+
 assert 'case "multi_edit"' not in java
 assert '"replace_all", true' not in java
 assert 'callMcp(mcpPairing, action' not in java
@@ -157,4 +195,4 @@ assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_act
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
-print("Android AI providers, bounded tools, Luau edit/create approval contracts passed (static; no live API keys used).")
+print("Android AI providers, bounded script and Part creation/approval contracts passed (static; no live API keys used).")
