@@ -17,6 +17,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -75,6 +76,8 @@ public final class StudioAiHub extends Activity {
     private String projectSummary = "";
     private CheckBox includeProject, autoInspect;
     private volatile long requestEpoch;
+    private volatile HttpURLConnection activeRequest;
+    private volatile Socket activeSocket;
     private Spinner providerPicker, modelPicker;
     private EditText apiKey, prompt;
     private TextView status, conversation;
@@ -277,6 +280,7 @@ public final class StudioAiHub extends Activity {
         cancel.setEnabled(false);
         cancel.setOnClickListener(v -> {
             requestEpoch++;
+            abortInFlight();
             setBusy(false, "Análise cancelada. Nenhum objeto do editor foi alterado.");
         });
         add(root, cancel, 12);
@@ -464,7 +468,7 @@ public final class StudioAiHub extends Activity {
     }
 
     /** The model cannot choose RPC method, studio ID, socket, credentials or arbitrary args. */
-    private static String readOnlyMcp(String paired, String tool, JSONObject selection)
+    private String readOnlyMcp(String paired, String tool, JSONObject selection)
             throws Exception {
         JSONObject endpoint = new JSONObject(paired);
         String token = endpoint.getString("token");
@@ -503,7 +507,10 @@ public final class StudioAiHub extends Activity {
                 .put("params", new JSONObject().put("name", tool)
                         .put("arguments", args));
         StringBuilder reply = new StringBuilder();
-        try (Socket socket = new Socket(InetAddress.getByName("127.0.0.1"), port)) {
+        Socket socket = new Socket();
+        activeSocket = socket;
+        try (Socket opened = socket) {
+            socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 3000);
             socket.setSoTimeout(8000);
             OutputStream out = socket.getOutputStream();
             out.write((token + "\n" + call.toString() + "\n").getBytes(StandardCharsets.UTF_8));
@@ -516,6 +523,8 @@ public final class StudioAiHub extends Activity {
                 reply.append((char) ch);
                 if (i == 79999) throw new IOException("Resposta MCP acima do limite");
             }
+        } finally {
+            if (activeSocket == socket) activeSocket = null;
         }
         if (reply.length() == 0) throw new IOException("Resposta MCP vazia");
         JSONObject message = new JSONObject(reply.toString());
@@ -531,7 +540,7 @@ public final class StudioAiHub extends Activity {
         return text.substring(0, Math.min(text.length(), 12000));
     }
 
-    private static String readExplorerViaMcp(String paired, int depth) throws Exception {
+    private String readExplorerViaMcp(String paired, int depth) throws Exception {
         return readOnlyMcp(paired, "search_game_tree",
                 new JSONObject().put("max_depth", depth));
     }
@@ -793,9 +802,10 @@ public final class StudioAiHub extends Activity {
                 : " • uso não informado pela API";
     }
 
-    private static JSONObject request(int p, String secret, String endpoint,
+    private JSONObject request(int p, String secret, String endpoint,
             JSONObject body) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
+        activeRequest = conn;
         try {
             conn.setConnectTimeout(12000);
             conn.setReadTimeout(30000);
@@ -833,7 +843,19 @@ public final class StudioAiHub extends Activity {
                 }
                 return new JSONObject(data.toString(StandardCharsets.UTF_8.name()));
             }
-        } finally { conn.disconnect(); }
+        } finally {
+            if (activeRequest == conn) activeRequest = null;
+            conn.disconnect();
+        }
+    }
+
+    private void abortInFlight() {
+        HttpURLConnection connection = activeRequest;
+        if (connection != null) connection.disconnect();
+        Socket socket = activeSocket;
+        if (socket != null) {
+            try { socket.close(); } catch (IOException ignored) {}
+        }
     }
 
     private static String safeError(Exception e) {
@@ -846,6 +868,7 @@ public final class StudioAiHub extends Activity {
 
     @Override protected void onDestroy() {
         requestEpoch++;
+        abortInFlight();
         requests.shutdownNow();
         super.onDestroy();
     }
