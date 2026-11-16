@@ -23018,3 +23018,99 @@ new file mode 100644
 +## Disponibilidade real
 +
 +Este editor expõe ferramentas via MCP e não incorpora necessariamente um modelo de linguagem. Um cliente MCP deve ser conectado explicitamente. Recursos exclusivos da geração da IA do Roblox Studio oficial, como gerar mesh/texture/material, podem não ter backend público e devem responder honestamente que estão indisponíveis. Não anuncie capacidade que não foi testada.
+
+diff --git a/assets/themes/default/manifest.json b/assets/themes/default/manifest.json
+--- a/assets/themes/default/manifest.json
++++ b/assets/themes/default/manifest.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "Default",
+   "author": "@chteau",
+-  "description": "rbx-native's own look: a neutral near-black ground, one periwinkle accent, and the project's own class icons.",
++  "description": "A neutral dark palette with a single accent and clear class icons.",
+   "version": "1.0.0",
+   "preview": "preview.png"
+ }
+
+diff --git a/assets/themes/light/widgets.json b/assets/themes/light/widgets.json
+--- a/assets/themes/light/widgets.json
++++ b/assets/themes/light/widgets.json
+@@ -1,10 +1,10 @@
+ {
+-  "name": "rbx-native",
++  "name": "Rbx Studio",
+-  "author": "rbx-native",
++  "author": "Rbx Studio",
+   "themes": [
+     {
+-      "name": "rbx-native Light",
++      "name": "Rbx Studio Light",
+       "mode": "light",
+       "radius": 5,
+       "radius.lg": 5,
+       "colors": {
+
+diff --git a/assets/themes/high-contrast/widgets.json b/assets/themes/high-contrast/widgets.json
+--- a/assets/themes/high-contrast/widgets.json
++++ b/assets/themes/high-contrast/widgets.json
+@@ -1,10 +1,10 @@
+ {
+-  "name": "rbx-native",
++  "name": "Rbx Studio",
+-  "author": "rbx-native",
++  "author": "Rbx Studio",
+   "themes": [
+     {
+-      "name": "rbx-native High contrast",
++      "name": "Rbx Studio High contrast",
+       "mode": "dark",
+       "radius": 5,
+       "radius.lg": 5,
+       "colors": {
+
+diff --git a/crates/rbx_studio/src/mcp/protocol.rs b/crates/rbx_studio/src/mcp/protocol.rs
+--- a/crates/rbx_studio/src/mcp/protocol.rs
++++ b/crates/rbx_studio/src/mcp/protocol.rs
+@@ -181,10 +181,10 @@
+         .unwrap_or(PROTOCOL_VERSIONS[0]);
+     json!({
+         "protocolVersion": version,
+         "capabilities": { "tools": {} },
+-        "serverInfo": { "name": "rbx-native", "version": env!("CARGO_PKG_VERSION") },
++        "serverInfo": { "name": "Rbx Studio", "version": env!("CARGO_PKG_VERSION") },
+-        "instructions": "Reads the place open in the rbx-native editor and edits its scripts: \
++        "instructions": "Reads the place open in the Rbx Studio editor and edits its scripts: \
+             browse and inspect instances, read, search and grep scripts, and change or create \
+             them with multi_edit, each call one undo step. Runs Luau in the edited place or, \
+             during a playtest, in its Client or Server, starts and stops play, reads the \
+             Output and captures the viewport. Instances are named by dotted paths from the \
+
+diff --git a/crates/rbx_studio/src/mcp/protocol/tests.rs b/crates/rbx_studio/src/mcp/protocol/tests.rs
+--- a/crates/rbx_studio/src/mcp/protocol/tests.rs
++++ b/crates/rbx_studio/src/mcp/protocol/tests.rs
+@@ -26,9 +26,9 @@
+     )
+     .unwrap();
+     assert_eq!(answer["id"], 1);
+     assert_eq!(answer["result"]["protocolVersion"], "2025-03-26");
+-    assert_eq!(answer["result"]["serverInfo"]["name"], "rbx-native");
++    assert_eq!(answer["result"]["serverInfo"]["name"], "Rbx Studio");
+     assert!(answer["result"]["capabilities"]["tools"].is_object());
+ }
+ 
+ #[test]
+
+diff --git a/crates/rbx_studio/src/mcp/broker/tests.rs b/crates/rbx_studio/src/mcp/broker/tests.rs
+--- a/crates/rbx_studio/src/mcp/broker/tests.rs
++++ b/crates/rbx_studio/src/mcp/broker/tests.rs
+@@ -128,9 +128,9 @@
+         &mut broker,
+         "initialize",
+         json!({ "protocolVersion": "2025-06-18" }),
+     );
+-    assert_eq!(init["result"]["serverInfo"]["name"], "rbx-native");
++    assert_eq!(init["result"]["serverInfo"]["name"], "Rbx Studio");
+     let list = request(&mut broker, "tools/list", json!({}));
+     assert!(list["result"]["tools"].as_array().unwrap().len() > 5);
+     assert_eq!(studios(&mut broker), json!([]));
+     assert_eq!(
