@@ -40,12 +40,28 @@ added = "\n".join(line[1:] for line in patch.splitlines()
                   if line.startswith("+") and not line.startswith("+++"))
 for marker in [
     '"name": "Rbx Studio Dark"',
+    '"name": "Rbx Studio Light"',
+    '"name": "Rbx Studio High contrast"',
     '"author": "Rbx Studio"',
     "<source>Rbx Studio</source>",
+    '"serverInfo": { "name": "Rbx Studio"',
+    "Reads the place open in the Rbx Studio editor",
+    "Upload from Rbx Studio",
+    "Serving with Argon (Rbx Studio live sync)",
+    "{name} is not available in Rbx Studio",
 ]:
     if marker not in added:
         raise SystemExit(f"Android patch missing current branding: {marker}")
-for marker in ['"name": "rbx-native Dark"', "<source>rbx-native</source>"]:
+for marker in [
+    '"name": "rbx-native Dark"',
+    '"name": "rbx-native Light"',
+    '"name": "rbx-native High contrast"',
+    "<source>rbx-native</source>",
+    '"serverInfo": { "name": "rbx-native"',
+    "Upload from rbx-native",
+    "Serving with Argon (rbx-native live sync)",
+]:
+
     if marker in added:
         raise SystemExit(f"Android patch contains outdated user-facing text: {marker}")
 packager = (ROOT / "scripts/package_apk.py").read_text(encoding="utf-8")
