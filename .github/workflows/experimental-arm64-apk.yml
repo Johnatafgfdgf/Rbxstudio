@@ -7,9 +7,22 @@ on:
       - .github/workflows/experimental-arm64-apk.yml
       - patches/**
       - android/**
+      - core/**
+      - native/**
+      - player/**
+      - studio/**
+      - platform/**
+      - geometry/**
       - scripts/cargo_android.py
       - scripts/package_apk.py
       - scripts/prepare.py
+      - scripts/check_preparation.py
+      - scripts/check_studio_branding.py
+      - scripts/check_studio_apk.py
+      - tests/mobile_ai_permissions.rs
+      - Cargo.toml
+      - Cargo.lock
+      - .gitmodules
   workflow_dispatch:
 
 permissions:
