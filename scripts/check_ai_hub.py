@@ -45,7 +45,7 @@ assert '"save_place"' not in java, "Chat must not persist projects without appro
 assert '"publish_animation"' not in java, "Chat must not publish assets without approval"
 # Read-only agent: only a fixed MCP tool can run, with opt-in project disclosure.
 for required in [
-    "MAX_AGENT_READS = 2",
+    "MAX_AGENT_READS = 3",
     "MAX_AGENT_CALLS = MAX_AGENT_READS + 1",
     "autoInspect.setChecked(false)",
     "includeProject.isChecked()",
@@ -60,6 +60,15 @@ for required in [
     'case "inspect_instance"',
     'case "script_search"',
     'case "get_studio_state"',
+    'case "script_read"',
+    'case "get_console_output"',
+    "includeCode.setChecked(false)",
+    "boolean codeConsent",
+    "codeConsent = agent && includeProject.isChecked() && includeCode.isChecked()",
+    'if (!codeConsent && ("script_read".equals(action) || "get_console_output".equals(action)))',
+    '"should_read_entire_file", false',
+    '"start_line_one_indexed", start',
+    '"end_line_one_indexed_inclusive", Math.min(start + 119, 2000000)',
     "safeField(selection",
     "switch (tool)",
     "abortInFlight();",
