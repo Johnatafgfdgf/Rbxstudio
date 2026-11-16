@@ -246,7 +246,7 @@ public final class StudioAiHub extends Activity {
         inspectProject.setOnClickListener(v -> inspectProject());
         add(root, inspectProject, 5);
         includeProject = new CheckBox(this);
-        includeProject.setText("Incluir a árvore carregada nas próximas mensagens");
+        includeProject.setText("Autorizo enviar dados do Explorer para esta IA (inclusive leituras do agente)");
         includeProject.setTextColor(Color.rgb(228, 236, 250));
         includeProject.setChecked(false);
         add(root, includeProject, 5);
@@ -525,7 +525,9 @@ public final class StudioAiHub extends Activity {
      */
     private String runReadOnlyAgent(int p, String key, String model,
             List<String[]> turns, long epoch) throws Exception {
-        turns.add(new String[]{"user", AGENT_PROTOCOL});
+        int last = turns.size() - 1;
+        String originalQuestion = turns.get(last)[1];
+        turns.set(last, new String[]{"user", originalQuestion + "\\n\\n" + AGENT_PROTOCOL});
         int reads = 0;
         for (int callIndex = 0; callIndex < MAX_AGENT_CALLS; callIndex++) {
             if (epoch != requestEpoch) throw new IOException("Cancelado");
@@ -539,6 +541,10 @@ public final class StudioAiHub extends Activity {
             if (epoch != requestEpoch) throw new IOException("Cancelado");
             String response = extractText(p, result).trim();
             JSONObject decision;
+            // Some providers wrap otherwise valid JSON in a Markdown code fence.
+            if (response.startsWith("```json") && response.endsWith("```")) {
+                response = response.substring(7, response.length() - 3).trim();
+            }
             try { decision = new JSONObject(response); }
             catch (Exception invalid) {
                 throw new IOException("O modelo não retornou um plano JSON válido");
