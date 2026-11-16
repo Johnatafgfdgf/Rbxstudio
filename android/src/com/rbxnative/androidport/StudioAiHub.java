@@ -724,7 +724,7 @@ public final class StudioAiHub extends Activity {
                     status.setText("Agente investigando • etapa " + stage + "/" + MAX_AGENT_CALLS);
             });
             JSONObject result = request(p, key, messageUrl(p, model),
-                    makeBody(p, model, turns));
+                    makeBody(p, model, turns, allowProposals));
             if (epoch != requestEpoch) throw new IOException("Cancelado");
             String response = extractText(p, result).trim();
             JSONObject decision;
@@ -1034,7 +1034,7 @@ public final class StudioAiHub extends Activity {
                 } else {
                     proposed = null;
                     JSONObject result = request(p, key, messageUrl(p, model),
-                            makeBody(p, model, turns));
+                            makeBody(p, model, turns, false));
                     answer = extractText(p, result);
                     usage = usageSummary(p, result);
                 }
@@ -1085,10 +1085,11 @@ public final class StudioAiHub extends Activity {
         }
     }
 
-    private static JSONObject makeBody(int p, String model, List<String[]> turns) throws Exception {
+    private static JSONObject makeBody(int p, String model, List<String[]> turns,
+            boolean proposalMode) throws Exception {
         JSONObject body = new JSONObject();
         if (p != 1) body.put("model", model);
-        if (p == 2) body.put("max_tokens", 1024);
+        if (p == 2) body.put("max_tokens", proposalMode ? 4096 : 1024);
         JSONArray messages = new JSONArray();
         for (String[] turn : turns) {
             String role = (p == 1 && turn[0].equals("assistant")) ? "model" : turn[0];
