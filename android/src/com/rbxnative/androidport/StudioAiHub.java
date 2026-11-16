@@ -527,7 +527,7 @@ public final class StudioAiHub extends Activity {
             List<String[]> turns, long epoch) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
-        turns.set(last, new String[]{"user", originalQuestion + "\\n\\n" + AGENT_PROTOCOL});
+        turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL});
         int reads = 0;
         for (int callIndex = 0; callIndex < MAX_AGENT_CALLS; callIndex++) {
             if (epoch != requestEpoch) throw new IOException("Cancelado");
