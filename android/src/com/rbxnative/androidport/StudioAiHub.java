@@ -413,7 +413,7 @@ public final class StudioAiHub extends Activity {
                         .put("params", new JSONObject().put("name", "search_game_tree")
                                 .put("arguments", args));
                 String reply;
-                try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+                try (Socket socket = new Socket(InetAddress.getByName("127.0.0.1"), port)) {
                     socket.setSoTimeout(8000);
                     OutputStream out = socket.getOutputStream();
                     out.write((token + "\n" + call.toString() + "\n").getBytes(StandardCharsets.UTF_8));
