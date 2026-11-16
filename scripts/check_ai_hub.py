@@ -368,6 +368,50 @@ assert 'case "execute_luau"' not in java
 assert 'case "multi_edit"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
+
+# One opt-in BillboardGui label may be attached only after a real Part inspect.
+# Text is quoted by Java and never injected as executable model-provided Luau.
+for required in [
+    'BILLBOARD_PROTOCOL',
+    'proposeLabels.setChecked(false)',
+    'proposeLabels.setText("Permitir propostas de etiquetas de texto 3D (BillboardGui)")',
+    'if ("propose_billboard_create".equals(action))',
+    'validateBillboardProposal(',
+    'lastInspectedPath, lastInspectedOutput',
+    'pendingBillboard',
+    'private static JSONObject checkedBillboardTarget(',
+    '!"Part".equals(obj.optString("className", ""))',
+    'children.optInt("childrenCount", -1) != immediate.length()',
+    'path + "." + name',
+    'private static BillboardProposal validateBillboardProposal(',
+    'path.matches("Workspace\\\\.',
+    'safeField(data, "text", 80, true)',
+    'optionalUpdateColor(data)',
+    'height < 0.5 || height > 12',
+    'private static String luauTextLiteral(String text)',
+    "if (ch == '\"' || ch == '\\\\')",
+    'private static String fixedBillboardLuau(BillboardProposal label)',
+    'Instance.new(\\"BillboardGui\\")',
+    'Instance.new(\\"TextLabel\\")',
+    'Instance.new(\\"UICorner\\")',
+    'gui.Adornee = target',
+    'textLabel.RichText = false',
+    'luauTextLiteral(label.caption)',
+    'gui.Parent = target',
+    'private void confirmPendingBillboard()',
+    '.setPositiveButton("Sim, criar etiqueta",',
+    'private void applyApprovedBillboard(BillboardProposal label)',
+    'readOnlyMcp(paired, "inspect_instance",',
+    'label.originalId.equals(currentId)',
+    'executeApproved3dCode(paired, fixedBillboardLuau(label))',
+    'pendingBillboard = includeProject.isChecked() && autoInspect.isChecked()',
+]:
+    assert required in java, required
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
