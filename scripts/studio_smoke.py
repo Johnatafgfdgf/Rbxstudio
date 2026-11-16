@@ -196,7 +196,7 @@ def capture_mobile_chrome(frame, pid):
 
 try:
     version = os.environ.get('STUDIO_APK_VERSION', '0.6.7')
-    apk = ROOT / f'dist/rbx-native-android-{version}-x86_64-debug.apk'
+    apk = ROOT / f'dist/{"rbx-studio-android" if version == "0.6.11" else "rbx-native-android"}-{version}-x86_64-debug.apk'
     subprocess.run(['adb', 'install', '-r', str(apk)], check=True, timeout=240)
     test_quality = os.environ.get('STUDIO_GRAPHICS_QUALITY')
     settings = {}
