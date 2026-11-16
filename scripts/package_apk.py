@@ -42,6 +42,12 @@ if classes.exists():shutil.rmtree(classes)
 classes.mkdir()
 sources=list((ROOT/"android/src").rglob("*.java"))
 if studio:
+    # The GPUI launcher is the only Studio entry point. Never ship the
+    # unrelated 0.3 MainActivity, its instrumentation, or their standalone
+    # legacy helper classes in the 0.6.11 application DEX.
+    legacy={"MainActivity.java", "NativeSmokeTest.java",
+            "PlayerPad.java", "StudioIcon.java", "RbxGeometry.java"}
+    sources=[source for source in sources if source.name not in legacy]
     helpers=ROOT/"upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile"
     sources.extend(helpers/(name+".java") for name in ["GpuiClipboard","GpuiFilePicker","GpuiPickerActivity","GpuiDeepLink","GpuiPlatformView","GpuiVideoPlayer","GpuiCamera"])
 def run(*cmd):subprocess.run([str(x) for x in cmd],check=True,cwd=ROOT)
@@ -80,7 +86,7 @@ with zipfile.ZipFile(raw,"a") as apk:
     apk.write(cpp,"lib/"+abi+"/libc++_shared.so",compress_type=zipfile.ZIP_DEFLATED)
 aligned=BUILD/"aligned.apk";run(BT/"zipalign","-f","-P","16","4",raw,aligned)
 key=ROOT/"tools/debug.keystore";key.parent.mkdir(exist_ok=True)
-if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname","CN=rbx-native Android Debug,O=Development,C=BR")
+if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname",("CN=Rbx Studio Android Debug,O=Development,C=BR" if studio else "CN=rbx-native Android Debug,O=Development,C=BR"))
 apk=DIST/("rbx-native-android-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
 signed=BUILD/"signed.apk"
 run(BT/"apksigner","sign","--ks",key,"--ks-pass","pass:android","--key-pass","pass:android","--v4-signing-enabled","false","--out",signed,aligned)
