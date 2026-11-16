@@ -3,7 +3,7 @@ name: RBX Studio AI Hub native Java verification
 on:
   workflow_dispatch:
   push:
-    branches: [verify/android-menus]
+    branches: [verify/android-menus, work/ai-autonomous-read-v1]
     paths:
       - .github/workflows/ai-hub-android-java.yml
       - android/src/com/rbxnative/androidport/StudioAiHub.java
