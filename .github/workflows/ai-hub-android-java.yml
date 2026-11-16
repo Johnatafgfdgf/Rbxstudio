@@ -1,0 +1,43 @@
+name: RBX Studio AI Hub native Java verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [verify/android-menus]
+    paths:
+      - .github/workflows/ai-hub-android-java.yml
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - android/src/com/rbxnative/androidport/StudioServices.java
+      - android/StudioManifest.xml
+      - scripts/check_ai_hub.py
+
+permissions:
+  contents: read
+
+jobs:
+  android-ai-hub:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install official Android SDK platform
+        run: sdkmanager 'platforms;android-35'
+      - name: Verify static safety and provider contracts
+        run: python3 scripts/check_ai_hub.py
+      - name: Compile real native Android AI Hub and Keystore service
+        run: |
+          mkdir -p "$RUNNER_TEMP/rbx-ai-java"
+          javac --release 11 \
+            -classpath "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d "$RUNNER_TEMP/rbx-ai-java" \
+            android/src/com/rbxnative/androidport/StudioServices.java \
+            android/src/com/rbxnative/androidport/StudioAiHub.java
+          test -f "$RUNNER_TEMP/rbx-ai-java/com/rbxnative/androidport/StudioAiHub.class"
+          test -f "$RUNNER_TEMP/rbx-ai-java/com/rbxnative/androidport/StudioServices.class"
