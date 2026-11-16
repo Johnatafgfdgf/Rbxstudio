@@ -8,6 +8,7 @@
             <meta-data android:name="android.app.lib_name" android:value="rbx_android_studio" />
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
+        <activity android:name="com.rbxnative.androidport.StudioAiHub" android:exported="false" android:screenOrientation="sensorLandscape" android:windowSoftInputMode="adjustResize" />
         <activity android:name="dev.gpui.mobile.GpuiPickerActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name="com.rbxnative.androidport.RookPlayerActivity" android:process=":rook" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density" android:windowSoftInputMode="adjustResize">
             <meta-data android:name="android.app.lib_name" android:value="rbx_android_player" />
