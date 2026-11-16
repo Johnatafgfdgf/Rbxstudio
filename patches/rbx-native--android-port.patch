@@ -4680,18 +4680,273 @@ index 37bef7d..b3a2058 100644
  pub(crate) use studio::{LIST_STUDIOS, STUDIOS_KEY, STUDIO_STATE};
  
 diff --git a/crates/rbx_studio/src/mcp/tools/assets.rs b/crates/rbx_studio/src/mcp/tools/assets.rs
-index ee9bde0..ca3ee30 100644
 --- a/crates/rbx_studio/src/mcp/tools/assets.rs
 +++ b/crates/rbx_studio/src/mcp/tools/assets.rs
-@@ -21,7 +21,7 @@ use serde_json::Value;
- use super::Outcome;
- use crate::mcp::Session;
- 
+@@ -1,131 +1,133 @@
+-//! The asset and content-generation tools: searching the Creator Store and
+-//! an inventory, inserting an asset by id, uploading images, and the AI
+-//! generation tools, whose backend Roblox keeps to Studio.
+-//!
+-//! Everything here reaches Roblox through Open Cloud with the editor's API
+-//! key, so it runs off the UI thread: a lookup as [`Session::deferred`]
+-//! work, an insert as [`Session::inserting`], whose download the shell
+-//! grafts into the place.
+-
+-mod generate;
+-mod images;
+-mod insert;
+-mod search;
+-
+-#[cfg(test)]
+-mod tests;
+-
+-use rbx_cloud::{ApiKey, Client, CloudError};
+-use serde_json::Value;
+-
+-use super::Outcome;
+-use crate::mcp::Session;
+-
 -pub(crate) use insert::{inserted, Insertion};
+-
+-/// `RBX_STUDIO_MCP_ASSETS_MOCK=<http root>` sends every call to a local
+-/// stand-in for `apis.roblox.com`, for captures and tests without a key.
+-const MOCK_VARIABLE: &str = "RBX_STUDIO_MCP_ASSETS_MOCK";
+-
+-/// `None` for a tool this module does not answer.
+-pub(super) fn run(name: &str, arguments: &Value, session: &mut Session) -> Option<Outcome> {
+-    Some(match name {
+-        search::NAME => search::run(arguments, session),
+-        insert::NAME => insert::run(arguments, session),
+-        images::UPLOAD => images::upload(arguments, session),
+-        images::STORE => images::store(arguments),
+-        generate::MESH | generate::MATERIAL | generate::PROCEDURAL => generate::refuse(name),
+-        generate::SEGMENT | generate::TEXTURE => {
+-            generate::mesh_edit(name, session.dom, &session.selection, arguments)
+-        }
+-        generate::WAIT => generate::wait(arguments),
+-        _ => return None,
+-    })
+-}
+-
+-/// A client for the editor's key, or for the mock root.
+-fn client() -> Result<Client, String> {
+-    if let Some(root) = mock_root() {
+-        return Ok(Client::new(Some(ApiKey::new("mock")))
+-            .with_apis_root(root.clone())
+-            .with_asset_delivery_roots(
+-                format!("{root}/asset-delivery/v1/asset"),
+-                format!("{root}/asset-delivery-api/v1/assetId"),
+-            ));
+-    }
+-    let key = ApiKey::from_env_or_config().ok_or(
+-        "No Open Cloud API key is set up, and every asset tool calls Roblox with one: add it \
+-         from Home \u{203a} Manage key.",
+-    )?;
+-    Ok(Client::new(Some(key)))
+-}
+-
+-fn mock_root() -> Option<String> {
+-    #[cfg(test)]
+-    if let Some(root) = tests::MOCK_ROOT.with(|root| root.borrow().clone()) {
+-        return Some(root);
+-    }
+-    std::env::var(MOCK_VARIABLE).ok()
+-}
+-
+-/// The key owner, whom an upload belongs to and whose inventory is "mine".
+-fn key_owner(client: &Client) -> Result<u64, String> {
+-    client
+-        .introspect()
+-        .map(|info| info.authorized_user_id)
+-        .map_err(|err| describe(&err, "asset:read"))
+-}
+-
+-/// A cloud failure in words that say what to change; `scope` is the
+-/// permission the call needed.
+-fn describe(err: &CloudError, scope: &str) -> String {
+-    match err {
+-        CloudError::Refused {
+-            status: 401,
+-            message,
+-        } if message.contains("Invalid API Key") => {
+-            format!(
+-                "Roblox doesn\u{2019}t accept the stored API key: it has expired, been revoked \
+-                 or was mistyped. Create a new one and add it from Home \u{203a} Manage key. \
+-                 ({err})"
+-            )
+-        }
+-        CloudError::Http {
+-            status: 401 | 403, ..
+-        }
+-        | CloudError::Refused {
+-            status: 401 | 403, ..
+-        }
+-        | CloudError::MissingScope { .. }
+-        | CloudError::KeyedAssetRefused { .. } => format!(
+-            "Roblox refused the API key: it needs the {scope} permission (Home \u{203a} Manage \
+-             key). ({err})"
+-        ),
+-        _ => err.to_string(),
+-    }
+-}
+-
+-/// A random version 4 UUID, as Studio's image handles and insert tags carry.
+-fn uuid() -> String {
+-    let mut bytes = [0u8; 16];
+-    // A handle only has to be unique in this session; a failed read of the
+-    // OS source still leaves the time to tell handles apart.
+-    if getrandom::fill(&mut bytes).is_err() {
+-        let nanos = std::time::SystemTime::now()
+-            .duration_since(std::time::UNIX_EPOCH)
+-            .map(|d| d.as_nanos())
+-            .unwrap_or_default();
+-        bytes = nanos.to_le_bytes();
+-    }
+-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+-    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+-    format!(
+-        "{}-{}-{}-{}-{}",
+-        &hex[..8],
+-        &hex[8..12],
+-        &hex[12..16],
+-        &hex[16..20],
+-        &hex[20..]
+-    )
+-}
++//! The asset and content-generation tools: searching the Creator Store and
++//! an inventory, inserting an asset by id, uploading images, and the AI
++//! generation tools, whose backend Roblox keeps to Studio.
++//!
++//! Everything here reaches Roblox through Open Cloud with the editor's API
++//! key, so it runs off the UI thread: a lookup as [`Session::deferred`]
++//! work, an insert as [`Session::inserting`], whose download the shell
++//! grafts into the place.
++
++mod generate;
++mod images;
++mod animations;
++mod insert;
++mod search;
++
++#[cfg(test)]
++mod tests;
++
++use rbx_cloud::{ApiKey, Client, CloudError};
++use serde_json::Value;
++
++use super::Outcome;
++use crate::mcp::Session;
++
 +pub(crate) use insert::{download_toolbox_asset, inserted, Insertion};
- 
- /// `RBX_STUDIO_MCP_ASSETS_MOCK=<http root>` sends every call to a local
- /// stand-in for `apis.roblox.com`, for captures and tests without a key.
++
++/// `RBX_STUDIO_MCP_ASSETS_MOCK=<http root>` sends every call to a local
++/// stand-in for `apis.roblox.com`, for captures and tests without a key.
++const MOCK_VARIABLE: &str = "RBX_STUDIO_MCP_ASSETS_MOCK";
++
++/// `None` for a tool this module does not answer.
++pub(super) fn run(name: &str, arguments: &Value, session: &mut Session) -> Option<Outcome> {
++    Some(match name {
++        search::NAME => search::run(arguments, session),
++        insert::NAME => insert::run(arguments, session),
++        images::UPLOAD => images::upload(arguments, session),
++        images::STORE => images::store(arguments),
++        animations::PUBLISH => animations::publish(arguments, session),
++        generate::MESH | generate::MATERIAL | generate::PROCEDURAL => generate::refuse(name),
++        generate::SEGMENT | generate::TEXTURE => {
++            generate::mesh_edit(name, session.dom, &session.selection, arguments)
++        }
++        generate::WAIT => generate::wait(arguments),
++        _ => return None,
++    })
++}
++
++/// A client for the editor's key, or for the mock root.
++fn client() -> Result<Client, String> {
++    if let Some(root) = mock_root() {
++        return Ok(Client::new(Some(ApiKey::new("mock")))
++            .with_apis_root(root.clone())
++            .with_asset_delivery_roots(
++                format!("{root}/asset-delivery/v1/asset"),
++                format!("{root}/asset-delivery-api/v1/assetId"),
++            ));
++    }
++    let key = ApiKey::from_env_or_config().ok_or(
++        "No Open Cloud API key is set up, and every asset tool calls Roblox with one: add it \
++         from Home \u{203a} Manage key.",
++    )?;
++    Ok(Client::new(Some(key)))
++}
++
++fn mock_root() -> Option<String> {
++    #[cfg(test)]
++    if let Some(root) = tests::MOCK_ROOT.with(|root| root.borrow().clone()) {
++        return Some(root);
++    }
++    std::env::var(MOCK_VARIABLE).ok()
++}
++
++/// The key owner, whom an upload belongs to and whose inventory is "mine".
++fn key_owner(client: &Client) -> Result<u64, String> {
++    client
++        .introspect()
++        .map(|info| info.authorized_user_id)
++        .map_err(|err| describe(&err, "asset:read"))
++}
++
++/// A cloud failure in words that say what to change; `scope` is the
++/// permission the call needed.
++fn describe(err: &CloudError, scope: &str) -> String {
++    match err {
++        CloudError::Refused {
++            status: 401,
++            message,
++        } if message.contains("Invalid API Key") => {
++            format!(
++                "Roblox doesn\u{2019}t accept the stored API key: it has expired, been revoked \
++                 or was mistyped. Create a new one and add it from Home \u{203a} Manage key. \
++                 ({err})"
++            )
++        }
++        CloudError::Http {
++            status: 401 | 403, ..
++        }
++        | CloudError::Refused {
++            status: 401 | 403, ..
++        }
++        | CloudError::MissingScope { .. }
++        | CloudError::KeyedAssetRefused { .. } => format!(
++            "Roblox refused the API key: it needs the {scope} permission (Home \u{203a} Manage \
++             key). ({err})"
++        ),
++        _ => err.to_string(),
++    }
++}
++
++/// A random version 4 UUID, as Studio's image handles and insert tags carry.
++fn uuid() -> String {
++    let mut bytes = [0u8; 16];
++    // A handle only has to be unique in this session; a failed read of the
++    // OS source still leaves the time to tell handles apart.
++    if getrandom::fill(&mut bytes).is_err() {
++        let nanos = std::time::SystemTime::now()
++            .duration_since(std::time::UNIX_EPOCH)
++            .map(|d| d.as_nanos())
++            .unwrap_or_default();
++        bytes = nanos.to_le_bytes();
++    }
++    bytes[6] = (bytes[6] & 0x0f) | 0x40;
++    bytes[8] = (bytes[8] & 0x3f) | 0x80;
++    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
++    format!(
++        "{}-{}-{}-{}-{}",
++        &hex[..8],
++        &hex[8..12],
++        &hex[12..16],
++        &hex[16..20],
++        &hex[20..]
++    )
++}
 diff --git a/crates/rbx_studio/src/mcp/tools/assets/insert.rs b/crates/rbx_studio/src/mcp/tools/assets/insert.rs
 index 2c975b5..eb373e1 100644
 --- a/crates/rbx_studio/src/mcp/tools/assets/insert.rs
@@ -22055,6 +22310,7 @@ new file mode 100644
 +        // Inserting a Toolbox model may import scripts. Arbitrary Luau,
 +        // publishing and external uploads require individual approval.
 +        "insert_asset" | "execute_luau" | "save_place" | "upload_image"
+        | "publish_animation"
 +        | "open_cloud_invoke" | "generate_animation" | "generate_mesh"
 +        | "generate_material" | "generate_procedural_model"
 +        | "generate_texture" | "segment_mesh" | "store_image"
@@ -22255,4 +22511,205 @@ new file mode 100644
 +                        }))),
 +            )
 +    }
++}
+diff --git a/crates/rbx_studio/src/mcp/tools/extra_tools.json b/crates/rbx_studio/src/mcp/tools/extra_tools.json
+--- a/crates/rbx_studio/src/mcp/tools/extra_tools.json
++++ b/crates/rbx_studio/src/mcp/tools/extra_tools.json
+@@ -1,30 +1,71 @@
+-[
+-  {
+-    "name": "save_place",
+-    "title": "Save Place",
+-    "description": "rbx-native's own tool, not one of Studio's (Studio's MCP has no way to save). Saves the place to its file, as File > Save does. Given a path, saves there instead and keeps working on that file from then on, as Save As does: .rbxl writes binary, .rbxlx XML, and a relative path is taken from the place's folder. Answers with the file written.",
+-    "inputSchema": {
+-      "properties": {
+-        "path": {
+-          "description": "Save As: the .rbxl or .rbxlx file to write. Leave out to save over the place's own file.",
+-          "type": "string"
+-        },
+-        "studio_id": {
+-          "description": "Which editor to act on: an id from list_roblox_studios. May be left out while only one editor is open.",
+-          "type": "string"
+-        }
+-      },
+-      "required": [
+-        "studio_id"
+-      ],
+-      "type": "object"
+-    },
+-    "annotations": {
+-      "title": "Save Place",
+-      "readOnlyHint": false,
+-      "destructiveHint": true,
+-      "idempotentHint": true,
+-      "openWorldHint": false
+-    }
+-  }
+-]
++[
++  {
++    "name": "save_place",
++    "title": "Save Place",
++    "description": "rbx-native's own tool, not one of Studio's (Studio's MCP has no way to save). Saves the place to its file, as File > Save does. Given a path, saves there instead and keeps working on that file from then on, as Save As does: .rbxl writes binary, .rbxlx XML, and a relative path is taken from the place's folder. Answers with the file written.",
++    "inputSchema": {
++      "properties": {
++        "path": {
++          "description": "Save As: the .rbxl or .rbxlx file to write. Leave out to save over the place's own file.",
++          "type": "string"
++        },
++        "studio_id": {
++          "description": "Which editor to act on: an id from list_roblox_studios. May be left out while only one editor is open.",
++          "type": "string"
++        }
++      },
++      "required": [
++        "studio_id"
++      ],
++      "type": "object"
++    },
++    "annotations": {
++      "title": "Save Place",
++      "readOnlyHint": false,
++      "destructiveHint": true,
++      "idempotentHint": true,
++      "openWorldHint": false
++    }
++  },
++  {
++    "name": "publish_animation",
++    "title": "Publish Animation",
++    "description": "RBX Studio Android experimental tool: exports an existing KeyframeSequence under the currently open game's instance_path as a Roblox .rbxm, uploads it through the owner's authorized Open Cloud key, and returns the real animation asset ID. This action modifies the creator's cloud assets, cannot be undone through the editor's Undo, and ALWAYS requires explicit approval in the mobile IA panel. Upload may fail if Roblox rejects an externally encoded animation.",
++    "inputSchema": {
++      "type": "object",
++      "properties": {
++        "studio_id": {
++          "type": "string",
++          "description": "ID of the active editor; use list_roblox_studios."
++        },
++        "instance_path": {
++          "type": "string",
++          "description": "Full path to a KeyframeSequence already in the game, such as game.Workspace.Rig.AnimSaves.Walk."
++        },
++        "display_name": {
++          "type": "string",
++          "description": "Optional Roblox asset display name; defaults to the sequence name."
++        },
++        "description": {
++          "type": "string",
++          "description": "Optional description for uploaded animation."
++        },
++        "group_id": {
++          "type": "integer",
++          "description": "Optional group owner ID; omit to upload to the Open Cloud API key owner's account."
++        }
++      },
++      "required": [
++        "studio_id",
++        "instance_path"
++      ]
++    },
++    "annotations": {
++      "title": "Publish Animation",
++      "readOnlyHint": false,
++      "destructiveHint": true,
++      "idempotentHint": false,
++      "openWorldHint": true
++    }
++  }
++]
+diff --git a/crates/rbx_studio/src/mcp/tools/assets/animations.rs b/crates/rbx_studio/src/mcp/tools/assets/animations.rs
+new file mode 100644
+--- /dev/null
++++ b/crates/rbx_studio/src/mcp/tools/assets/animations.rs
+@@ -0,0 +1,91 @@
++//! Publish an existing KeyframeSequence by the user's explicit instruction.
++//! The AI supplies an instance path, never fake asset IDs or a secret key.
++use rbx_cloud::{Client, Owner};
++use rbx_dom::{Instance, Ref, WeakDom};
++use serde_json::{json, Value};
++
++use super::{client, describe, key_owner};
++use crate::mcp::Session;
++use super::super::Outcome;
++
++pub(super) const PUBLISH: &str = "publish_animation";
++const MAX_ANIMATION_BYTES: usize = 20 * 1024 * 1024;
++
++pub(super) fn publish(arguments: &Value, session: &mut Session) -> Outcome {
++    let path = arguments.get("instance_path")
++        .and_then(Value::as_str)
++        .ok_or("É necessário informar instance_path de um KeyframeSequence.")?;
++    let reference = super::super::super::resolve(session.dom, path)
++        .ok_or_else(|| format!("Animação não encontrada no projeto: {path}"))?;
++    let sequence = session.dom.get(reference)
++        .ok_or("A animação foi removida do projeto.")?;
++    if sequence.class() != "KeyframeSequence" {
++        return Err(format!(
++            "{} é {}, mas a publicação exige um KeyframeSequence.",
++            path, sequence.class(),
++        ));
++    }
++    let name = arguments.get("display_name")
++        .and_then(Value::as_str)
++        .filter(|name| !name.trim().is_empty())
++        .unwrap_or(sequence.name())
++        .trim()
++        .chars().take(64).collect::<String>();
++    let description = arguments.get("description")
++        .and_then(Value::as_str).unwrap_or("Publicado pelo RBX Studio Experimental.")
++        .chars().take(500).collect::<String>();
++    let group_id = match arguments.get("group_id") {
++        None | Some(Value::Null) => None,
++        Some(value) => Some(value.as_u64()
++            .filter(|id| *id > 0)
++            .ok_or("group_id precisa ser um inteiro positivo.")?),
++    };
++    let bytes = snapshot(session.dom, reference)?;
++    if bytes.len() > MAX_ANIMATION_BYTES {
++        return Err("A animação excede 20 MiB, limite da API do Roblox.".to_owned());
++    }
++    // The potentially slow Open Cloud upload must not block the editor UI.
++    session.deferred = Some(Box::new(move || {
++        upload(bytes, name, description, group_id)
++    }));
++    Ok(Value::Null)
++}
++
++fn upload(bytes: Vec<u8>, name: String, description: String, group: Option<u64>) -> Result<Value, String> {
++    let client = client()?;
++    let owner = match group {
++        Some(group_id) => Owner::Group(group_id),
++        None => Owner::User(key_owner(&client)?),
++    };
++    let id = client.create_animation_asset(&name, &description, owner, &bytes)
++        .map_err(|err| describe(&err, "asset:read + asset:write"))?;
++    Ok(json!({
++        "name": name,
++        "asset_id": id,
++        "animation_id": format!("rbxassetid://{id}"),
++        "creator_type": if group.is_some() { "group" } else { "user" },
++        "creator_id": group,
++        "status": "Roblox returned the asset ID. Validate that the destination game can load it.",
++    }))
++}
++
++fn snapshot(dom: &WeakDom, root: Ref) -> Result<Vec<u8>, String> {
++    fn collect(source: &WeakDom, result: &mut WeakDom, reference: Ref, parent: Option<Ref>) -> Result<(), String> {
++        let instance = source.get(reference).ok_or("Animation tree changed while serializing")?;
++        let mut copy = Instance::new(reference, instance.class(), instance.name());
++        copy.properties_mut().extend(instance.properties().clone());
++        let children = instance.children().to_vec();
++        result.insert(copy);
++        if parent.is_some() {
++            result.set_parent(reference, parent);
++        }
++        for child in children {
++            collect(source, result, child, Some(reference))?;
++        }
++        Ok(())
++    }
++    let mut isolated = WeakDom::new();
++    collect(dom, &mut isolated, root, None)?;
++    rbx_binary::serialize(&isolated)
++        .map_err(|err| format!("Não foi possível serializar a animação .rbxm: {err}"))
 +}
