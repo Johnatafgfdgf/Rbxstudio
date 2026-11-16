@@ -146,6 +146,21 @@ public final class StudioAiHub extends Activity {
         "peças são ancoradas com colisão. O aplicativo validará tudo e criará " +
         "um único Model após aprovação humana. Nunca produza Luau nessa ação.";
 
+
+    private static final String BILLBOARD_PROTOCOL =
+        "\nSe o usuário pedir uma ETIQUETA VISUAL 3D sobre uma peça ou componente de " +
+        "modelo, primeiro use inspect_instance no caminho EXATO da Part. " +
+        "Depois proponha {\"action\":\"propose_billboard_create\"," +
+        "\"target_part\":\"Workspace.Ponte.Base\",\"label_name\":\"NomePonte\"," +
+        "\"text\":\"Bem-vindo à ponte\",\"color\":[255,240,180]," +
+        "\"height\":3,\"reason\":\"motivo\"}. " +
+        "target_part pode ser Workspace.Peca ou Workspace.Model.Peca, apenas Part. " +
+        "label_name deve conter letras, números ou sublinhados e no máximo 40 " +
+        "caracteres; texto visível de 1 a 80 caracteres, cor RGB opcional e " +
+        "altura opcional de 0.5 a 12 studs. O aplicativo cria APENAS " +
+        "BillboardGui com TextLabel, sem scripts, eventos, botões ou ações. " +
+        "A IA NUNCA escreve Luau; a GUI requer prévia e autorização humana.";
+
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
@@ -154,12 +169,14 @@ public final class StudioAiHub extends Activity {
     private String project = "";
     private String mcpPairing = "";
     private String projectSummary = "";
-    private CheckBox includeProject, includeCode, autoInspect, proposeEdits, proposeParts;
+    private CheckBox includeProject, includeCode, autoInspect, proposeEdits, proposeParts,
+            proposeLabels;
     private boolean applyingEdit;
     private EditProposal pendingEdit;
     private PartProposal pendingPart;
     private PartChangeProposal pendingPartChange;
     private CompositeProposal pendingComposite;
+    private BillboardProposal pendingBillboard;
     private TextView proposalPreview;
     private Button applyEdit, discardEdit;
 
@@ -229,29 +246,52 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    private static final class BillboardProposal {
+        final String targetPath, name, caption, reason, originalId;
+        final int[] color;
+        final double height;
+        BillboardProposal(String targetPath, String name, String caption, String reason,
+                String originalId, int[] color, double height) {
+            this.targetPath = targetPath;
+            this.name = name;
+            this.caption = caption;
+            this.reason = reason;
+            this.originalId = originalId;
+            this.color = color;
+            this.height = height;
+        }
+    }
+
     private static final class AgentOutcome {
         final String answer;
         final EditProposal proposal;
         final PartProposal part;
         final PartChangeProposal partChange;
         final CompositeProposal composite;
+        final BillboardProposal billboard;
         AgentOutcome(String answer, EditProposal proposal) {
-            this(answer, proposal, null, null, null);
+            this(answer, proposal, null, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part) {
-            this(answer, proposal, part, null, null);
+            this(answer, proposal, part, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange) {
-            this(answer, proposal, part, partChange, null);
+            this(answer, proposal, part, partChange, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange, CompositeProposal composite) {
+            this(answer, proposal, part, partChange, composite, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange, CompositeProposal composite,
+                BillboardProposal billboard) {
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
             this.partChange = partChange;
             this.composite = composite;
+            this.billboard = billboard;
         }
     }
     private volatile long requestEpoch;
@@ -539,6 +579,11 @@ public final class StudioAiHub extends Activity {
         proposeParts.setTextColor(Color.rgb(228, 236, 250));
         proposeParts.setChecked(false);
         add(root, proposeParts, 6);
+        proposeLabels = new CheckBox(this);
+        proposeLabels.setText("Permitir propostas de etiquetas de texto 3D (BillboardGui)");
+        proposeLabels.setTextColor(Color.rgb(228, 236, 250));
+        proposeLabels.setChecked(false);
+        add(root, proposeLabels, 6);
         TextView agentNotice = text("Exige MCP ativo e autorização de leitura de scripts. " +
                 "Até 4 chamadas de API faturáveis. Propostas não são aplicadas automaticamente; " +
                 "o editor também pode exigir aprovação MCP.", 12, false);
@@ -570,7 +615,8 @@ public final class StudioAiHub extends Activity {
         applyEdit = button("Revisar e confirmar alteração Luau");
         applyEdit.setVisibility(View.GONE);
         applyEdit.setOnClickListener(v -> {
-            if (pendingComposite != null) confirmPendingComposite();
+            if (pendingBillboard != null) confirmPendingBillboard();
+            else if (pendingComposite != null) confirmPendingComposite();
             else if (pendingPartChange != null) confirmPendingPartChange();
             else if (pendingPart != null) confirmPendingPart();
             else confirmPendingEdit();
@@ -583,6 +629,7 @@ public final class StudioAiHub extends Activity {
             pendingPart = null;
             pendingPartChange = null;
             pendingComposite = null;
+            pendingBillboard = null;
             renderPendingEdit();
             status.setText("Proposta descartada. Nenhum script foi alterado.");
         });
@@ -592,11 +639,15 @@ public final class StudioAiHub extends Activity {
         });
         includeProject.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingEdit = null; pendingPart = null;
-                pendingPartChange = null; pendingComposite = null; renderPendingEdit(); }
+                pendingPartChange = null; pendingComposite = null;
+                pendingBillboard = null; renderPendingEdit(); }
         });
         proposeParts.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingPart = null; pendingPartChange = null;
                 pendingComposite = null; renderPendingEdit(); }
+        });
+        proposeLabels.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) { pendingBillboard = null; renderPendingEdit(); }
         });
         providerPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -609,10 +660,12 @@ public final class StudioAiHub extends Activity {
                 autoInspect.setChecked(false);
                 proposeEdits.setChecked(false);
                 proposeParts.setChecked(false);
+                proposeLabels.setChecked(false);
                 pendingEdit = null;
                 pendingPart = null;
                 pendingPartChange = null;
                 pendingComposite = null;
+                pendingBillboard = null;
                 renderPendingEdit();
                 models.clear();
                 discoveredModels.clear();
@@ -1081,7 +1134,7 @@ public final class StudioAiHub extends Activity {
     /** Bounded read-only agent loop with explicit project-disclosure consent. */
     private AgentOutcome runReadOnlyAgent(int p, String key, ModelRoute route,
             List<String[]> turns, long epoch, boolean codeConsent,
-            boolean allowProposals, boolean allowParts) throws Exception {
+            boolean allowProposals, boolean allowParts, boolean allowLabels) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
@@ -1089,7 +1142,9 @@ public final class StudioAiHub extends Activity {
                 "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
                 (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.") +
                 (allowParts ? PART_PROTOCOL + PART_UPDATE_PROTOCOL + COMPOSITE_PROTOCOL :
-                        "\nNão proponha criar ou modificar peças 3D.")});
+                        "\nNão proponha criar ou modificar peças 3D.") +
+                (allowLabels ? BILLBOARD_PROTOCOL :
+                        "\nNão proponha GUIs/etiquetas 3D.")});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
@@ -1173,6 +1228,16 @@ public final class StudioAiHub extends Activity {
                 return new AgentOutcome("Modelo 3D com " + model.parts.size() +
                         " peças pronto para sua aprovação. Nenhum objeto criado. " +
                         "Workspace." + model.name, null, null, null, model);
+            }
+            if ("propose_billboard_create".equals(action)) {
+                if (!allowLabels || lastInspectedPath.isEmpty()) {
+                    throw new IOException("Etiqueta 3D sem autorização ou inspeção real");
+                }
+                BillboardProposal label = validateBillboardProposal(
+                        decision, lastInspectedPath, lastInspectedOutput);
+                return new AgentOutcome("Etiqueta 3D proposta para aprovação sobre " +
+                        label.targetPath + ". Nenhum objeto foi alterado.",
+                        null, null, null, null, label);
             }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
@@ -1839,11 +1904,24 @@ public final class StudioAiHub extends Activity {
     private void renderPendingEdit() {
         if (proposalPreview == null) return;
         boolean visible = pendingEdit != null || pendingPart != null ||
-                pendingPartChange != null || pendingComposite != null;
+                pendingPartChange != null || pendingComposite != null ||
+                pendingBillboard != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
+        if (pendingBillboard != null) {
+            BillboardProposal label = pendingBillboard;
+            applyEdit.setText("Revisar e confirmar ETIQUETA 3D");
+            proposalPreview.setText("PRÉVIA • etiqueta ainda não criada\n" +
+                    "Peça: " + label.targetPath + "\nObjeto: " + label.name +
+                    " (BillboardGui)\n\nTexto: " + label.caption +
+                    "\nCor do texto RGB: " + Arrays.toString(label.color) +
+                    "\nDeslocamento vertical: " + label.height + " studs" +
+                    "\nMotivo: " + label.reason +
+                    "\n\nPainel de texto sem script ou botão. Requer sua aprovação.");
+            return;
+        }
         if (pendingComposite != null) {
             CompositeProposal model = pendingComposite;
             applyEdit.setText("Revisar e confirmar MODELO 3D");
@@ -2003,6 +2081,8 @@ public final class StudioAiHub extends Activity {
         final boolean codeConsent = agent && includeProject.isChecked() && includeCode.isChecked();
         final boolean allowProposals = agent && codeConsent && proposeEdits.isChecked();
         final boolean allowParts = agent && includeProject.isChecked() && proposeParts.isChecked();
+        final boolean allowLabels = agent && includeProject.isChecked() &&
+                proposeLabels.isChecked();
         final ModelRoute route = new ModelRoute(model, selectedBackupModel(model));
         if (proposeEdits.isChecked() && !codeConsent) {
             status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
@@ -2027,6 +2107,7 @@ public final class StudioAiHub extends Activity {
         pendingPart = null;
         pendingPartChange = null;
         pendingComposite = null;
+        pendingBillboard = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
@@ -2037,15 +2118,18 @@ public final class StudioAiHub extends Activity {
                 final PartProposal proposedPart;
                 final PartChangeProposal proposedPartChange;
                 final CompositeProposal proposedComposite;
+                final BillboardProposal proposedBillboard;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, route, turns,
-                            epoch, codeConsent, allowProposals, allowParts);
+                            epoch, codeConsent, allowProposals, allowParts, allowLabels);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
                     proposedPartChange = outcome.partChange;
                     proposedComposite = outcome.composite;
-                    usage = (proposedComposite != null ? " • prévia de modelo composto" :
+                    proposedBillboard = outcome.billboard;
+                    usage = (proposedBillboard != null ? " • prévia de etiqueta 3D" :
+                            proposedComposite != null ? " • prévia de modelo composto" :
                             proposedPartChange != null ? " • prévia de mudança 3D" :
                             proposedPart != null ? " • prévia de peça 3D" :
                             proposed == null ? " • somente leitura" : " • prévia de edição") +
@@ -2055,6 +2139,7 @@ public final class StudioAiHub extends Activity {
                     proposedPart = null;
                     proposedPartChange = null;
                     proposedComposite = null;
+                    proposedBillboard = null;
                     JSONObject result = requestModelWithFreeFallback(p, key, route,
                             turns, false, epoch, 2);
                     answer = extractText(p, result);
@@ -2083,6 +2168,8 @@ public final class StudioAiHub extends Activity {
                             proposeParts.isChecked() ? proposedPartChange : null;
                     pendingComposite = includeProject.isChecked() && autoInspect.isChecked() &&
                             proposeParts.isChecked() ? proposedComposite : null;
+                    pendingBillboard = includeProject.isChecked() && autoInspect.isChecked() &&
+                            proposeLabels.isChecked() ? proposedBillboard : null;
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + route.active + usage +
