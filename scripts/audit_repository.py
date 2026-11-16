@@ -130,7 +130,7 @@ lines = [
 ]
 for path, hits in sorted(by_path.items(), key=lambda value: -len(value[1])):
     kinds = sorted({hit["kind"] for hit in hits})
-    lines.append(f"- \`{path}\`: {len(hits)} ocorrências ({', '.join(kinds)})")
+    lines.append(f"- `{path}`: {len(hits)} ocorrências ({', '.join(kinds)})")
 lines.extend([
     "",
     "Ocorrências internas de dependências e avisos legais não devem ser apagadas "
