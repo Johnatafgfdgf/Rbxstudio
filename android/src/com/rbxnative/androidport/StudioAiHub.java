@@ -555,17 +555,10 @@ public final class StudioAiHub extends Activity {
     }
 
     /** The model cannot choose RPC method, studio ID, socket, credentials or arbitrary args. */
+    /** Read tools always have a fixed allowlist and schema, never arbitrary model-supplied RPC. */
     private String readOnlyMcp(String paired, String tool, JSONObject selection)
             throws Exception {
-        JSONObject endpoint = new JSONObject(paired);
-        String token = endpoint.getString("token");
-        String studioId = endpoint.getString("studio_id");
-        int port = endpoint.getInt("port");
-        if (port < 1024 || port > 65535 || !token.matches("[0-9a-fA-F]{32}")
-                || !studioId.matches("[0-9a-fA-F]{16}")) {
-            throw new IOException("Endpoint MCP local inválido");
-        }
-        JSONObject args = new JSONObject().put("studio_id", studioId);
+        JSONObject args = new JSONObject();
         switch (tool) {
             case "search_game_tree": {
                 int depth = selection.optInt("max_depth", 3);
@@ -601,6 +594,20 @@ public final class StudioAiHub extends Activity {
             default:
                 throw new IOException("Ferramenta MCP não permitida");
         }
+        return callMcp(paired, tool, args);
+    }
+
+    /** Shared authenticated local MCP transport. Write calls are made only after UI consent. */
+    private String callMcp(String paired, String tool, JSONObject args) throws Exception {
+        JSONObject endpoint = new JSONObject(paired);
+        String token = endpoint.getString("token");
+        String studioId = endpoint.getString("studio_id");
+        int port = endpoint.getInt("port");
+        if (port < 1024 || port > 65535 || !token.matches("[0-9a-fA-F]{32}")
+                || !studioId.matches("[0-9a-fA-F]{16}")) {
+            throw new IOException("Endpoint MCP local inválido");
+        }
+        args.put("studio_id", studioId);
         JSONObject call = new JSONObject().put("jsonrpc", "2.0")
                 .put("id", 1).put("method", "tools/call")
                 .put("params", new JSONObject().put("name", tool)
@@ -673,14 +680,19 @@ public final class StudioAiHub extends Activity {
     }
 
     /** Bounded read-only agent loop with explicit project-disclosure consent. */
-    private String runReadOnlyAgent(int p, String key, String model,
-            List<String[]> turns, long epoch, boolean codeConsent) throws Exception {
+    private AgentOutcome runReadOnlyAgent(int p, String key, String model,
+            List<String[]> turns, long epoch, boolean codeConsent,
+            boolean allowProposals) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
                 (codeConsent ? "\nLeitura de scripts e Output autorizada pelo usuário." :
-                "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.")});
+                "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
+                (allowProposals ? EDIT_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.")});
         int reads = 0;
+        String lastReadPath = "";
+        String lastScriptOutput = "";
+        int lastReadLine = 1;
         StringBuilder toolTrace = new StringBuilder();
         for (int callIndex = 0; callIndex < MAX_AGENT_CALLS; callIndex++) {
             if (epoch != requestEpoch) throw new IOException("Cancelado");
@@ -706,10 +718,20 @@ public final class StudioAiHub extends Activity {
             if ("finish".equals(action)) {
                 String answer = decision.optString("answer", "").trim();
                 if (answer.isEmpty()) throw new IOException("Conclusão do agente vazia");
-                return "Investigação do projeto (somente leitura, " + reads +
+                return new AgentOutcome("Investigação do projeto (" + reads +
                         " consulta(s) MCP reais)\nFerramentas: " +
                         (toolTrace.length() == 0 ? "nenhuma" : toolTrace.toString()) +
-                        "\n\n" + answer;
+                        "\n\n" + answer, null);
+            }
+            if ("propose_script_edit".equals(action)) {
+                if (!allowProposals || !codeConsent || lastReadPath.isEmpty()) {
+                    throw new IOException("Proposta sem autorização ou sem leitura do script");
+                }
+                EditProposal proposal = validateProposal(decision, lastReadPath,
+                        lastScriptOutput, lastReadLine);
+                return new AgentOutcome("Proposta de edição Luau pronta para revisão. " +
+                        "Nenhum script foi modificado. Arquivo: " + proposal.path +
+                        "\nMotivo: " + proposal.reason, proposal);
             }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
@@ -728,6 +750,11 @@ public final class StudioAiHub extends Activity {
                     status.setText("MCP: " + action + " • " + readNo + "/" + MAX_AGENT_READS);
             });
             String tree = readOnlyMcp(mcpPairing, action, decision);
+            if ("script_read".equals(action)) {
+                lastReadPath = safeField(decision, "target_file", 180, true);
+                lastScriptOutput = tree;
+                lastReadLine = decision.optInt("start_line", 1);
+            }
             if (toolTrace.length() > 0) toolTrace.append(" → ");
             toolTrace.append(action);
             if (epoch != requestEpoch) throw new IOException("Cancelado");
@@ -737,6 +764,120 @@ public final class StudioAiHub extends Activity {
                     "\nContinue usando apenas o protocolo JSON autorizado."});
         }
         throw new IOException("O agente não produziu uma conclusão no limite seguro");
+    }
+
+    /** A model may only propose a single exact one-line replacement seen in a real MCP read. */
+    private static String codeField(JSONObject input, String key, int max, boolean singleLine)
+            throws IOException {
+        Object field = input.opt(key);
+        if (!(field instanceof String)) throw new IOException("Código proposto inválido: " + key);
+        String value = (String) field;
+        if (value.length() == 0 || value.length() > max || value.trim().isEmpty()) {
+            throw new IOException("Trecho fora do limite: " + key);
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '\r' || ch == 0 || (singleLine && ch == '\n') ||
+                    (Character.isISOControl(ch) && ch != '\n' && ch != '\t')) {
+                throw new IOException("Caracteres inválidos no trecho: " + key);
+            }
+        }
+        return value;
+    }
+
+    private static EditProposal validateProposal(JSONObject data, String lastPath,
+            String lastReadOutput, int startLine) throws Exception {
+        String path = safeField(data, "target_file", 180, true);
+        String oldText = codeField(data, "old_string", MAX_EDIT_OLD, true);
+        String newText = codeField(data, "new_string", MAX_EDIT_NEW, false);
+        String reason = safeField(data, "reason", 400, true);
+        if (!path.equals(lastPath) || !lastReadOutput.contains(oldText)) {
+            throw new IOException("Trecho original não foi confirmado em leitura real do script");
+        }
+        if (oldText.equals(newText)) throw new IOException("Proposta sem alterações");
+        return new EditProposal(path, oldText, newText, reason, startLine);
+    }
+
+    private void renderPendingEdit() {
+        if (proposalPreview == null) return;
+        boolean visible = pendingEdit != null;
+        proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
+        applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
+        discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) { proposalPreview.setText(""); return; }
+        EditProposal edit = pendingEdit;
+        proposalPreview.setText("PRÉVIA • ainda NÃO aplicada\nArquivo: " + edit.path +
+                "\nMotivo: " + edit.reason +
+                "\n\nANTES (texto literal a substituir):\n" + edit.oldText +
+                "\n\nDEPOIS:\n" + edit.newText +
+                "\n\nApenas uma substituição exata. O MCP mantém a alteração no histórico de desfazer.");
+    }
+
+    private void confirmPendingEdit() {
+        final EditProposal edit = pendingEdit;
+        if (edit == null || busy) return;
+        if (!includeProject.isChecked() || !includeCode.isChecked() ||
+                !autoInspect.isChecked() || !proposeEdits.isChecked()) {
+            status.setText("Reative as permissões de leitura e proposta para confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Aplicar alteração real neste script?")
+                .setMessage("Arquivo: " + edit.path + "\n\n" + edit.reason +
+                        "\n\nSerá executado um único multi_edit após conferir o trecho atual. " +
+                        "Você poderá desfazer no editor. A aprovação MCP do editor " +
+                        "também pode ser exigida. Deseja aplicar?")
+                .setNegativeButton("Não, revisar", null)
+                .setPositiveButton("Sim, aplicar edição", (dialog, which) -> applyApprovedEdit(edit))
+                .show();
+    }
+
+    /** No model response has access to this write path; only the UI confirmation calls it. */
+    private void applyApprovedEdit(EditProposal edit) {
+        if (busy || pendingEdit != edit || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo script antes de enviar a edição ao editor…");
+        requests.execute(() -> {
+            try {
+                JSONObject read = new JSONObject()
+                        .put("target_file", edit.path).put("start_line", edit.startLine);
+                String latest = readOnlyMcp(paired, "script_read", read);
+                if (!latest.contains(edit.oldText)) {
+                    throw new IOException("O script mudou desde a proposta. Gere uma nova análise.");
+                }
+                if (epoch != requestEpoch) throw new IOException("Sessão mudou antes da edição");
+                JSONObject replacement = new JSONObject()
+                        .put("old_string", edit.oldText)
+                        .put("new_string", edit.newText)
+                        .put("replace_all", false);
+                JSONObject args = new JSONObject()
+                        .put("file_path", edit.path).put("datamodel_type", "Edit")
+                        .put("edits", new JSONArray().put(replacement));
+                // Only here, after user approval, is a write tool reachable.
+                String outcome = callMcp(paired, "multi_edit", args);
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingEdit = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta real do editor à edição recebida.");
+                    conversation.setText(conversation.getText() + "\nMCP multi_edit:\n" +
+                            outcome.substring(0, Math.min(1800, outcome.length())) +
+                            "\nVerifique o script no Explorer antes de publicar.");
+                });
+            } catch (Exception failure) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Edição não confirmada: " +
+                            (failure.getMessage() == null ? "erro MCP; confira o editor"
+                                    : failure.getMessage()) +
+                            ". Se o editor exigir aprovação MCP, autorize-a nele e revise o script.");
+                });
+            }
+        });
     }
 
     private void sendMessage() {
@@ -755,6 +896,11 @@ public final class StudioAiHub extends Activity {
         }
         final boolean agent = autoInspect.isChecked();
         final boolean codeConsent = agent && includeProject.isChecked() && includeCode.isChecked();
+        final boolean allowProposals = agent && codeConsent && proposeEdits.isChecked();
+        if (proposeEdits.isChecked() && !codeConsent) {
+            status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
+            return;
+        }
         if (agent && (mcpPairing.isEmpty() || !includeProject.isChecked())) {
             status.setText("Ative o MCP e marque a autorização de envio do contexto para usar o agente.");
             return;
@@ -770,15 +916,22 @@ public final class StudioAiHub extends Activity {
                 : question;
         turns.add(new String[]{"user", message});
         final long epoch = ++requestEpoch;
+        pendingEdit = null;
+        renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
             try {
                 final String answer;
                 final String usage;
+                final EditProposal proposed;
                 if (agent) {
-                    answer = runReadOnlyAgent(p, key, model, turns, epoch, codeConsent);
-                    usage = " • somente leitura";
+                    AgentOutcome outcome = runReadOnlyAgent(p, key, model, turns,
+                            epoch, codeConsent, allowProposals);
+                    answer = outcome.answer;
+                    proposed = outcome.proposal;
+                    usage = proposed == null ? " • somente leitura" : " • prévia de edição";
                 } else {
+                    proposed = null;
                     JSONObject result = request(p, key, messageUrl(p, model),
                             makeBody(p, model, turns));
                     answer = extractText(p, result);
@@ -799,6 +952,8 @@ public final class StudioAiHub extends Activity {
                                 .append(turn[1]).append("\n\n");
                     }
                     conversationDisplay(resultText.toString());
+                    pendingEdit = proposed;
+                    renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + model + usage);
                 });
