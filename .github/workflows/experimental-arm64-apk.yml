@@ -1,0 +1,81 @@
+name: Experimental RBX Studio 0.6.11 ARM64 APK
+
+on:
+  push:
+    branches: [verify/android-menus]
+    paths:
+      - .github/workflows/experimental-arm64-apk.yml
+      - patches/**
+      - android/**
+      - scripts/cargo_android.py
+      - scripts/package_apk.py
+      - scripts/prepare.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-arm64:
+    name: Build installable Android arm64-v8a APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PORT_APP: studio
+      PORT_ARCH: aarch64-linux-android
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      STUDIO_APK_VERSION: '0.6.11'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target/android'
+          cache-on-failure: true
+          key: rbxstudio-experimental-0611-arm64
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - name: Verify original source and patch integrity
+        run: python3 scripts/check_preparation.py
+      - name: Build Android ARM64 Studio and local player
+        run: python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
+      - name: Package signed debug APK
+        run: python3 scripts/package_apk.py
+      - name: Verify ARM64 ABI, signature and checksum
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib
+          p = Path("dist/rbx-native-android-0.6.11-arm64-v8a-debug.apk")
+          assert p.exists(), f"Missing APK: {p}"
+          with ZipFile(p) as apk:
+              libs = [name for name in apk.namelist() if name.startswith("lib/")]
+              assert "lib/arm64-v8a/librbx_android_studio.so" in libs, libs
+              assert "lib/arm64-v8a/librbx_android_player.so" in libs, libs
+              assert not any(name.startswith("lib/x86_64/") for name in libs), libs
+          print("ARM64 APK verified; SHA256", hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+      - name: Upload ARM64 APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbxstudio-0.6.11-arm64-v8a-experimental
+          path: |
+            dist/*arm64-v8a-debug.apk
+            dist/*arm64-v8a-debug.apk.sha256
+          retention-days: 14
