@@ -688,7 +688,7 @@ public final class StudioAiHub extends Activity {
         activeSocket = socket;
         try (Socket opened = socket) {
             socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 3000);
-            socket.setSoTimeout(8000);
+            socket.setSoTimeout("execute_luau".equals(tool) ? 45000 : 8000);
             OutputStream out = socket.getOutputStream();
             out.write((token + "\n" + call.toString() + "\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -949,13 +949,169 @@ public final class StudioAiHub extends Activity {
         // Recheck is advisory; MCP multi_edit still performs its own atomic edit validation.
     }
 
+
+    /** The model may only submit typed, bounded numbers; no model Luau is executed. */
+    private static double[] partVector(JSONObject input, String key,
+            double min, double max) throws IOException {
+        JSONArray arr = input.optJSONArray(key);
+        if (arr == null || arr.length() != 3) {
+            throw new IOException("Vetor inválido: " + key);
+        }
+        double[] output = new double[3];
+        for (int i = 0; i < 3; i++) {
+            Object raw = arr.opt(i);
+            if (!(raw instanceof Number)) throw new IOException("Número inválido: " + key);
+            double value = ((Number) raw).doubleValue();
+            if (Double.isNaN(value) || Double.isInfinite(value) || value < min || value > max) {
+                throw new IOException("Coordenada fora do limite: " + key);
+            }
+            output[i] = value;
+        }
+        return output;
+    }
+
+    private static PartProposal validatePartProposal(JSONObject input) throws Exception {
+        String name = safeField(input, "name", 40, true);
+        if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")) {
+            throw new IOException("Nome da peça deve conter letras, números ou sublinhado");
+        }
+        double[] position = partVector(input, "position", -256, 256);
+        double[] size = partVector(input, "size", 0.2, 64);
+        JSONArray rgb = input.optJSONArray("color");
+        if (rgb == null || rgb.length() != 3) throw new IOException("Cor RGB inválida");
+        int[] color = new int[3];
+        for (int i = 0; i < 3; i++) {
+            Object raw = rgb.opt(i);
+            if (!(raw instanceof Number)) throw new IOException("Valor RGB inválido");
+            double value = ((Number) raw).doubleValue();
+            if (Double.isNaN(value) || Double.isInfinite(value) ||
+                    value < 0 || value > 255 || value != Math.floor(value)) {
+                throw new IOException("RGB deve ser um inteiro entre 0 e 255");
+            }
+            color[i] = (int) value;
+        }
+        String reason = safeField(input, "reason", 400, true);
+        return new PartProposal(name, position, size, color, reason);
+    }
+
+    private static String luauVector(double[] coordinates) {
+        return Double.toString(coordinates[0]) + ", " +
+                Double.toString(coordinates[1]) + ", " + Double.toString(coordinates[2]);
+    }
+
+    /** Entire command is app-owned; user/model never supplies executable source. */
+    private static String fixedPartCreateLuau(PartProposal part) {
+        return "local ws = game:GetService(\"Workspace\")\n" +
+                "if ws:FindFirstChild(\"" + part.name + "\") then return \"NAME_EXISTS\" end\n" +
+                "local p = Instance.new(\"Part\")\n" +
+                "p.Name = \"" + part.name + "\"\n" +
+                "p.Anchored = true\n" +
+                "p.CanCollide = true\n" +
+                "p.Size = Vector3.new(" + luauVector(part.size) + ")\n" +
+                "p.Position = Vector3.new(" + luauVector(part.position) + ")\n" +
+                "p.Color = Color3.fromRGB(" + part.color[0] + ", " +
+                part.color[1] + ", " + part.color[2] + ")\n" +
+                "p.Parent = ws\n" +
+                "return \"CREATED:" + part.name + "\"";
+    }
+
+    private void ensurePartNameFree(String paired, PartProposal part) throws Exception {
+        String result = readOnlyMcp(paired, "search_game_tree", new JSONObject()
+                .put("path", "Workspace").put("max_depth", 1).put("keywords", part.name));
+        if ("No instances found.".equals(result)) return;
+        if (!result.startsWith("[") || !result.endsWith("]")) {
+            throw new IOException("Não foi possível verificar o destino da peça 3D");
+        }
+        JSONArray found;
+        try { found = new JSONArray(result); }
+        catch (Exception ex) { throw new IOException("Resposta inválida da árvore 3D", ex); }
+        for (int i = 0; i < found.length(); i++) {
+            JSONObject row = found.optJSONObject(i);
+            if (row == null) throw new IOException("Resultado inesperado do Explorer");
+            if (("Workspace." + part.name).equalsIgnoreCase(row.optString("fullPath", ""))) {
+                throw new IOException("Já existe uma peça ou objeto com este nome no Workspace");
+            }
+        }
+    }
+
+    private void confirmPendingPart() {
+        final PartProposal part = pendingPart;
+        if (part == null || busy) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked()
+                || !proposeParts.isChecked()) {
+            status.setText("Reative as permissões de agente e peças 3D antes de confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar esta peça no Workspace?")
+                .setMessage("Nome: " + part.name + "\n" + part.reason +
+                        "\n\nSerá criada uma Part ancorada com as propriedades da prévia. " +
+                        "Nenhum script externo será executado. " +
+                        "O comando fixo do aplicativo usa o MCP, com aprovação do editor. " +
+                        "Você poderá desfazer no editor.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Sim, criar peça", (dialog, which) -> applyApprovedPart(part))
+                .show();
+    }
+
+    /** A single, approved, app-authored edit-realm command; never raw model Luau. */
+    private void applyApprovedPart(PartProposal part) {
+        if (busy || pendingPart != part || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo Workspace antes da criação da peça…");
+        requests.execute(() -> {
+            try {
+                ensurePartNameFree(paired, part);
+                if (epoch != requestEpoch) throw new IOException("Sessão alterada antes da criação");
+                JSONObject args = new JSONObject().put("datamodel_type", "Edit")
+                        .put("code", fixedPartCreateLuau(part));
+                // This is not an LLM-selected MCP tool. It runs only after Android approval.
+                String outcome = callMcp(paired, "execute_luau", args);
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingPart = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta do MCP recebida; confira a peça no Explorer.");
+                    conversation.setText(conversation.getText() + "\nCriação 3D MCP:\n" +
+                            outcome.substring(0, Math.min(1200, outcome.length())) +
+                            "\nConfira a peça no mapa e teste o Desfazer.");
+                });
+            } catch (Exception problem) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Criação 3D não confirmada: " +
+                            (problem.getMessage() == null ? "erro MCP" : problem.getMessage()) +
+                            ". Verifique o Workspace antes de tentar novamente.");
+                });
+            }
+        });
+    }
+
     private void renderPendingEdit() {
         if (proposalPreview == null) return;
-        boolean visible = pendingEdit != null;
+        boolean visible = pendingEdit != null || pendingPart != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
+        if (pendingPart != null) {
+            PartProposal part = pendingPart;
+            applyEdit.setText("Revisar e confirmar CRIAÇÃO 3D");
+            proposalPreview.setText("PRÉVIA • nenhuma peça foi criada\n" +
+                    "Objeto: Workspace." + part.name + " (Part)\n" +
+                    "Posição: " + Arrays.toString(part.position) + "\n" +
+                    "Tamanho (studs): " + Arrays.toString(part.size) + "\n" +
+                    "Cor RGB: " + Arrays.toString(part.color) + "\n" +
+                    "Ancorada: sim • colisão: sim\n" +
+                    "Motivo: " + part.reason + "\n\n" +
+                    "Somente uma peça. Comando gerado e validado pelo aplicativo, " +
+                    "nunca código enviado pelo modelo. Requer confirmação.");
+            return;
+        }
         EditProposal edit = pendingEdit;
         applyEdit.setText(edit.create ? "Revisar e confirmar CRIAÇÃO Luau" :
                 "Revisar e confirmar ALTERAÇÃO Luau");
@@ -1058,6 +1214,7 @@ public final class StudioAiHub extends Activity {
         final boolean agent = autoInspect.isChecked();
         final boolean codeConsent = agent && includeProject.isChecked() && includeCode.isChecked();
         final boolean allowProposals = agent && codeConsent && proposeEdits.isChecked();
+        final boolean allowParts = agent && includeProject.isChecked() && proposeParts.isChecked();
         if (proposeEdits.isChecked() && !codeConsent) {
             status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
             return;
@@ -1078,6 +1235,7 @@ public final class StudioAiHub extends Activity {
         turns.add(new String[]{"user", message});
         final long epoch = ++requestEpoch;
         pendingEdit = null;
+        pendingPart = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
@@ -1085,14 +1243,18 @@ public final class StudioAiHub extends Activity {
                 final String answer;
                 final String usage;
                 final EditProposal proposed;
+                final PartProposal proposedPart;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, model, turns,
-                            epoch, codeConsent, allowProposals);
+                            epoch, codeConsent, allowProposals, allowParts);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
-                    usage = proposed == null ? " • somente leitura" : " • prévia de edição";
+                    proposedPart = outcome.part;
+                    usage = proposedPart != null ? " • prévia de peça 3D" :
+                            proposed == null ? " • somente leitura" : " • prévia de edição";
                 } else {
                     proposed = null;
+                    proposedPart = null;
                     JSONObject result = request(p, key, messageUrl(p, model),
                             makeBody(p, model, turns, false));
                     answer = extractText(p, result);
@@ -1115,6 +1277,8 @@ public final class StudioAiHub extends Activity {
                     conversationDisplay(resultText.toString());
                     pendingEdit = includeProject.isChecked() && includeCode.isChecked() &&
                             autoInspect.isChecked() && proposeEdits.isChecked() ? proposed : null;
+                    pendingPart = includeProject.isChecked() && autoInspect.isChecked() &&
+                            proposeParts.isChecked() ? proposedPart : null;
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + model + usage);
