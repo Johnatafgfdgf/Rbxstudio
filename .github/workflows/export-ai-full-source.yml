@@ -1,0 +1,78 @@
+name: Export complete RBX Studio 0.6.11 AI source with dependencies
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [verify/android-menus]
+    paths:
+      - .github/workflows/export-ai-full-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify and apply pinned Android source patches
+        run: python3 scripts/check_preparation.py
+      - name: Bundle tracked source, patched modules and dependency licenses
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess, zipfile
+          from pathlib import Path
+          root=Path.cwd()
+          modules=("upstream/rbx-native","upstream/rook","upstream/gpui-mobile")
+          files=set()
+          for rel in ("",)+modules:
+              base=root/rel
+              names=subprocess.check_output(["git","-C",str(base),"ls-files","-z"]).split(b"\0")
+              for name in names:
+                  if not name:continue
+                  path=base/os.fsdecode(name)
+                  if path.is_file():files.add(path.relative_to(root))
+              if rel:
+                  new=subprocess.check_output(["git","-C",str(base),"ls-files",
+                         "--others","--exclude-standard","-z"]).split(b"\0")
+                  for name in new:
+                      if not name:continue
+                      path=base/os.fsdecode(name)
+                      if path.is_file():files.add(path.relative_to(root))
+          for folder in ("core/src/upstream","geometry/src/upstream"):
+              for path in (root/folder).rglob("*"):
+                  if path.is_file():files.add(path.relative_to(root))
+          dist=root/"dist"
+          dist.mkdir(exist_ok=True)
+          destination=dist/"RBX-Studio-0.6.11-AI-Fonte-Completa.zip"
+          count=0
+          with zipfile.ZipFile(destination,"w",compression=zipfile.ZIP_DEFLATED,
+                               compresslevel=6,allowZip64=True) as archive:
+              for rel in sorted(files):
+                  path=root/rel
+                  # No .git internals or generated build caches; all files are
+                  # tracked/explicitly generated source and upstream notices.
+                  archive.write(path,"RBX-Studio-0.6.11/"+rel.as_posix())
+                  count+=1
+              archive.writestr("RBX-Studio-0.6.11/SOURCE_BUILD_INFO.json",
+                  json.dumps({"commit":os.environ["GITHUB_SHA"],
+                              "branch":"verify/android-menus",
+                              "files":count,"patched_sources":True,
+                              "build_instructions":"README.md"},indent=2))
+          digest=hashlib.sha256(destination.read_bytes()).hexdigest()
+          destination.with_suffix(".zip.sha256").write_text(
+              digest+"  "+destination.name+"\n")
+          print(f"Packed {count} source files, {destination.stat().st_size} bytes, sha256 {digest}")
+          PY
+      - name: Upload complete source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbxstudio-ai-0611-complete-source
+          path: |
+            dist/RBX-Studio-0.6.11-AI-Fonte-Completa.zip
+            dist/RBX-Studio-0.6.11-AI-Fonte-Completa.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
