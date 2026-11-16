@@ -87,12 +87,38 @@ with zipfile.ZipFile(raw,"a") as apk:
     cpp=NDK/"toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"/arch/"libc++_shared.so"
     apk.write(cpp,"lib/"+abi+"/libc++_shared.so",compress_type=zipfile.ZIP_DEFLATED)
 aligned=BUILD/"aligned.apk";run(BT/"zipalign","-f","-P","16","4",raw,aligned)
-key=ROOT/"tools/debug.keystore";key.parent.mkdir(exist_ok=True)
-if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname",("CN=Rbx Studio Android Debug,O=Development,C=BR" if studio else "CN=rbx-native Android Debug,O=Development,C=BR"))
+# A new key on every CI runner changes the APK certificate and prevents
+# Android from installing upgrades over previously installed versions.
+# For reproducible upgrades, pass PORT_SIGNING_KEYSTORE_PATH to a persistent,
+# PRIVATE key restored from a GitHub Actions secret (never commit it).
+provided_key = os.environ.get("PORT_SIGNING_KEYSTORE_PATH")
+if studio and os.environ.get("PORT_REQUIRE_PERSISTENT_SIGNING") == "1" and not provided_key:
+    raise SystemExit("Persistent Studio signing key is required, but PORT_SIGNING_KEYSTORE_PATH is unset")
+key = pathlib.Path(provided_key) if provided_key else ROOT/"tools/debug.keystore"
+key.parent.mkdir(parents=True,exist_ok=True)
+if provided_key and not key.is_file():
+    raise SystemExit("Configured Android signing keystore does not exist")
+alias = os.environ.get("PORT_SIGNING_KEY_ALIAS") or "androiddebugkey"
+store_pass = os.environ.get("PORT_SIGNING_STORE_PASS") or "android"
+key_pass = os.environ.get("PORT_SIGNING_KEY_PASS") or store_pass
+if not key.exists():
+    print("WARNING: no persistent Android signing key configured; upgrades may be rejected due to different signatures")
+    run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias",alias,
+        "-storepass",store_pass,"-keypass",key_pass,"-keyalg","RSA","-keysize","2048",
+        "-validity","10000","-dname",("CN=Rbx Studio Android Debug,O=Development,C=BR" if studio else "CN=rbx-native Android Debug,O=Development,C=BR"))
 product_prefix="rbx-studio-android" if studio else "rbx-native-android"
 apk=DIST/(product_prefix+"-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
 signed=BUILD/"signed.apk"
-run(BT/"apksigner","sign","--ks",key,"--ks-pass","pass:android","--key-pass","pass:android","--v4-signing-enabled","false","--out",signed,aligned)
+# Passwords stay out of shell command arguments and logs. apksigner reads
+# them from short-lived environment variables.
+signing_env = dict(os.environ)
+signing_env["RBX_STUDIO_SIGN_STORE_PASS"] = store_pass
+signing_env["RBX_STUDIO_SIGN_KEY_PASS"] = key_pass
+subprocess.run([str(BT/"apksigner"),"sign","--ks",str(key),"--ks-key-alias",alias,
+    "--ks-pass","env:RBX_STUDIO_SIGN_STORE_PASS",
+    "--key-pass","env:RBX_STUDIO_SIGN_KEY_PASS",
+    "--v4-signing-enabled","false","--out",str(signed),str(aligned)],
+    check=True,cwd=ROOT,env=signing_env)
 run(BT/"apksigner","verify","--verbose",signed)
 run(BT/"zipalign","-c","-P","16","4",signed)
 signed.replace(apk)
