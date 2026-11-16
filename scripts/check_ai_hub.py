@@ -245,8 +245,8 @@ assert 'callMcp(mcpPairing, action' not in java
 # The model returns numbers only; Java constructs fixed CFrame Luau and guards
 # against an existing Part rotating between inspection and confirmation.
 for required in [
-    '"rotation":[0,0,0]',
-    '"rotation":[0,90,0]',
+    r'\"rotation\":[0,0,0]',
+    r'\"rotation\":[0,90,0]',
     'partVector(input, "rotation", -180, 180)',
     'partVector(decision, "rotation", -180, 180)',
     'boolean rotate = decision.has("rotation")',
