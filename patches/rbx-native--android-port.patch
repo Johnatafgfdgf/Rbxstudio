@@ -22639,7 +22639,7 @@ new file mode 100644
 +    let path = arguments.get("instance_path")
 +        .and_then(Value::as_str)
 +        .ok_or("É necessário informar instance_path de um KeyframeSequence.")?;
-+    let reference = super::super::super::resolve(session.dom, path)
++    let reference = super::super::resolve(session.dom, path)
 +        .ok_or_else(|| format!("Animação não encontrada no projeto: {path}"))?;
 +    let sequence = session.dom.get(reference)
 +        .ok_or("A animação foi removida do projeto.")?;
