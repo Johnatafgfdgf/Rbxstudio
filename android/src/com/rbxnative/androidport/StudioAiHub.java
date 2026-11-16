@@ -85,9 +85,9 @@ public final class StudioAiHub extends Activity {
     private static final String CREATE_PROTOCOL =
         "\nPara CRIAR um script novo, primeiro use search_game_tree com path IGUAL ao pai " +
         "(exemplo: ServerScriptService), max_depth:1 e keywords:nome do script. " +
-        "Depois proponha UM script novo como JSON {\\"action\\":\\"propose_script_create\\"," +
-        "\\"target_file\\":\\"ServerScriptService.Inventario\\",\\"className\\":\\"Script\\"," +
-        "\\"source\\":\\"-- código Luau completo\\",\\"reason\\":\\"motivo\\\"}. " +
+        "Depois proponha UM script novo como JSON {\"action\":\"propose_script_create\"," +
+        "\"target_file\":\"ServerScriptService.Inventario\",\"className\":\"Script\"," +
+        "\"source\":\"-- código Luau completo\",\"reason\":\"motivo\"}. " +
         "Apenas classes Script, LocalScript, ModuleScript. Pais permitidos: " +
         "ServerScriptService, ReplicatedStorage, ServerStorage, StarterGui, " +
         "StarterPlayer.StarterPlayerScripts, StarterPlayer.StarterCharacterScripts, Workspace. " +
