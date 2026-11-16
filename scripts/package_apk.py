@@ -45,8 +45,10 @@ if studio:
     # The GPUI launcher is the only Studio entry point. Never ship the
     # unrelated 0.3 MainActivity, its instrumentation, or their standalone
     # legacy helper classes in the 0.6.11 application DEX.
+    # RbxGeometry is still used by current branding, loading UI and player.
+    # It must remain packaged until its symbols are migrated safely.
     legacy={"MainActivity.java", "NativeSmokeTest.java",
-            "PlayerPad.java", "StudioIcon.java", "RbxGeometry.java"}
+            "PlayerPad.java", "StudioIcon.java"}
     sources=[source for source in sources if source.name not in legacy]
     helpers=ROOT/"upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile"
     sources.extend(helpers/(name+".java") for name in ["GpuiClipboard","GpuiFilePicker","GpuiPickerActivity","GpuiDeepLink","GpuiPlatformView","GpuiVideoPlayer","GpuiCamera"])
