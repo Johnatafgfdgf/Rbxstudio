@@ -16,6 +16,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -53,6 +55,9 @@ public final class StudioAiHub extends Activity {
     private int provider;
     private boolean busy;
     private String project = "";
+    private String mcpPairing = "";
+    private String projectSummary = "";
+    private CheckBox includeProject;
     private long requestEpoch;
     private Spinner providerPicker, modelPicker;
     private EditText apiKey, prompt;
@@ -60,10 +65,12 @@ public final class StudioAiHub extends Activity {
     private Button refresh, send, save;
     private final List<String> models = new ArrayList<>();
 
-    public static void open(Activity activity, String project) {
+    public static void open(Activity activity, String project, String pairing) {
         activity.runOnUiThread(() -> {
             Intent intent = new Intent(activity, StudioAiHub.class);
             intent.putExtra("project_name", project);
+            // In-app explicit intent; never write the private MCP token to disk/logs.
+            intent.putExtra("mcp_pairing", pairing);
             activity.startActivity(intent);
         });
     }
@@ -75,6 +82,8 @@ public final class StudioAiHub extends Activity {
         getWindow().setNavigationBarColor(Color.rgb(10, 19, 33));
         project = getIntent().getStringExtra("project_name");
         if (project == null) project = "";
+        mcpPairing = getIntent().getStringExtra("mcp_pairing");
+        if (mcpPairing == null) mcpPairing = "";
         provider = Math.max(0, Math.min(IDS.length - 1,
                 getSharedPreferences(PREFS, MODE_PRIVATE).getInt("provider", 0)));
         buildUi();
@@ -216,6 +225,16 @@ public final class StudioAiHub extends Activity {
             }
         });
         add(root, modelPicker, 11);
+
+        add(root, text("Contexto do projeto (opcional)", 14, true), 4);
+        Button inspectProject = button("Inspecionar Explorer real via MCP");
+        inspectProject.setOnClickListener(v -> inspectProject());
+        add(root, inspectProject, 5);
+        includeProject = new CheckBox(this);
+        includeProject.setText("Incluir a árvore carregada nas próximas mensagens");
+        includeProject.setTextColor(Color.rgb(228, 236, 250));
+        includeProject.setChecked(false);
+        add(root, includeProject, 10);
 
         conversation = text("O histórico desta conversa permanece somente nesta sessão. O editor não será alterado pelo chat.", 13, false);
         conversation.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -367,6 +386,68 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+    private void inspectProject() {
+        final String paired = mcpPairing;
+        if (paired.isEmpty()) {
+            status.setText("Ative o servidor MCP no painel IA antes de abrir a central.");
+            return;
+        }
+        if (busy) return;
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Lendo somente a árvore real do Explorer…");
+        requests.execute(() -> {
+            try {
+                JSONObject endpoint = new JSONObject(paired);
+                String token = endpoint.getString("token");
+                String studioId = endpoint.getString("studio_id");
+                int port = endpoint.getInt("port");
+                if (port < 1024 || port > 65535 || !token.matches("[0-9a-fA-F]{32}")
+                        || !studioId.matches("[0-9a-fA-F]{16}")) {
+                    throw new IOException("Endpoint local inválido");
+                }
+                JSONObject args = new JSONObject().put("datamodel_type", "Edit")
+                        .put("studio_id", studioId).put("max_depth", 3)
+                        .put("head_limit", 100);
+                JSONObject call = new JSONObject().put("jsonrpc", "2.0")
+                        .put("id", 1).put("method", "tools/call")
+                        .put("params", new JSONObject().put("name", "search_game_tree")
+                                .put("arguments", args));
+                String reply;
+                try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+                    socket.setSoTimeout(8000);
+                    OutputStream out = socket.getOutputStream();
+                    out.write((token + "\n" + call.toString() + "\n").getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(
+                            socket.getInputStream(), StandardCharsets.UTF_8));
+                    reply = reader.readLine();
+                }
+                if (reply == null || reply.length() > 80000) throw new IOException("Resposta MCP inválida");
+                JSONObject result = new JSONObject(reply).optJSONObject("result");
+                if (result == null || result.optBoolean("isError")) {
+                    throw new IOException("O editor recusou a leitura");
+                }
+                JSONArray content = result.optJSONArray("content");
+                if (content == null || content.length() == 0) throw new IOException("Nenhum dado do Explorer");
+                String tree = content.getJSONObject(0).optString("text", "");
+                if (tree.isEmpty()) throw new IOException("Árvore sem dados");
+                final String limited = tree.substring(0, Math.min(tree.length(), 12000));
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    projectSummary = limited;
+                    conversation.setText("Explorer consultado no RBX Studio (somente leitura):\n" +
+                            limited + "\n\nMarque a opção acima para enviar esses dados ao modelo.");
+                    setBusy(false, "Explorer consultado • a árvore não foi enviada ao provedor");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch == requestEpoch && !isFinishing()) setBusy(false,
+                            "Não foi possível consultar o MCP; confirme que está ativo.");
+                });
+            }
+        });
+    }
+
     private void sendMessage() {
         final int p = provider;
         final String model = modelPicker.getSelectedItem() == null ? ""
@@ -385,7 +466,11 @@ public final class StudioAiHub extends Activity {
         catch (Exception ex) { status.setText("Erro lendo a chave do dispositivo."); return; }
         if (key == null) { status.setText("Chave não cadastrada."); return; }
         final List<String[]> conversation = new ArrayList<>(history);
-        conversation.add(new String[]{"user", question});
+        final boolean include = includeProject.isChecked() && !projectSummary.isEmpty();
+        final String message = include
+                ? question + "\n\nContexto somente leitura autorizado pelo usuário:\n" + projectSummary
+                : question;
+        conversation.add(new String[]{"user", message});
         final long epoch = ++requestEpoch;
         setBusy(true, "Consultando " + model + "…");
         requests.execute(() -> {
