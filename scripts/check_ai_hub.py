@@ -240,6 +240,38 @@ assert java.index('verifyPartUnchanged(paired, change)') < java.index(
 assert 'case "execute_luau"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
+
+# Absolute XYZ rotation is optional on both newly-created and existing Parts.
+# The model returns numbers only; Java constructs fixed CFrame Luau and guards
+# against an existing Part rotating between inspection and confirmation.
+for required in [
+    '"rotation":[0,0,0]',
+    '"rotation":[0,90,0]',
+    'partVector(input, "rotation", -180, 180)',
+    'partVector(decision, "rotation", -180, 180)',
+    'boolean rotate = decision.has("rotation")',
+    'if (!move && !resize && !recolor && !rotate)',
+    'private static double[] inspectedRotation(JSONObject properties)',
+    'if (values.length != 9)',
+    'beforeRotation = inspectedRotation(original)',
+    'this.beforeRotation = beforeRotation',
+    'this.rotation = rotation',
+    'private static String luauRadians(double[] degrees)',
+    'private static String luauNumbers(double[] values)',
+    'CFrame.Angles(',
+    'local oldRotation = {select(4, p.CFrame:GetComponents())}',
+    'local expectedRotation = {',
+    'oldRotation[i] - expectedRotation[i]',
+    'if (part.rotation != null) {',
+    'part.position == null ? "p.Position"',
+    'Rotação XYZ (graus):',
+    'Orientação atual (matriz 3x3):',
+]:
+    assert required in java, required
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
