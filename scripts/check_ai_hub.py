@@ -62,6 +62,11 @@ for required in [
     'case "get_studio_state"',
     "safeField(selection",
     "switch (tool)",
+    "abortInFlight();",
+    "activeRequest = conn",
+    "activeSocket = socket",
+    "socket.connect(new InetSocketAddress",
+
 ]:
     assert required in java, required
 # Check explicit denial of all model-selected non-read actions.
