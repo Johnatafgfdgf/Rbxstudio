@@ -3338,7 +3338,11 @@ diff --git a/crates/rbx_studio/src/launcher/wizard.rs b/crates/rbx_studio/src/la
 +                    ),
 +            )
 +            .when(mobile, |root| root.child(
-+                ui::mobile_close().on_click(move |_, window, cx| close(window, cx)),
++                // On Android, X must dismiss optional onboarding to Home.
++                // The desktop window close action retains its own semantics.
++                ui::mobile_close().on_click(cx.listener(|this, _, window, cx| {
++                    this.skip_key(window, cx);
++                })),
 +            ))
 +    }
 +}
