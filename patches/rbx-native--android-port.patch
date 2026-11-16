@@ -22349,7 +22349,7 @@ diff --git a/crates/rbx_studio/src/shell/mobile/ai.rs b/crates/rbx_studio/src/sh
 new file mode 100644
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/ai.rs
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,193 @@
 +//! Mobile AI control center. It is a real MCP connection to the active
 +//! editor, not a mock chat. Remote model execution lives in the MCP client.
 +//! Dangerous requests go through the on-screen approval queue.
@@ -22457,6 +22457,31 @@ new file mode 100644
 +                            if active { "Desconectar IA" } else { "Ativar servidor MCP" },
 +                            false,
 +                        ).on_click(cx.listener(|shell, _, _, cx| shell.ai_toggle_connection(cx)))))
++                    .child(v_flex()
++                        .gap(px(6.))
++                        .child(div().font_weight(FontWeight::SEMIBOLD)
++                            .child("Central de provedores"))
++                        .child(div().text_size(px(12.)).text_color(style::muted())
++                            .child("OpenAI, Gemini, Claude e OpenRouter: cadastre a chave com segurança, consulte modelos disponíveis e converse por API. Respostas não executam scripts automaticamente."))
++                        .child(compact_action("mobile-ai-providers", IconName::Bot,
++                            "Abrir provedores e chat", false)
++                            .map(style::primary)
++                            .on_click(cx.listener(|shell, _, _, cx| {
++                                #[cfg(target_os = "android")]
++                                {
++                                    let name = shell.path.file_name().map(|value|
++                                        value.to_string_lossy().into_owned())
++                                        .unwrap_or_else(|| "Projeto local".to_owned());
++                                    if gpui_mobile::android::open_ai_hub(&name).is_err() {
++                                        shell.ai_log("Não foi possível abrir a central de provedores.");
++                                    } else {
++                                        shell.ai_log("Central de provedores Android aberta.");
++                                    }
++                                }
++                                #[cfg(not(target_os = "android"))]
++                                shell.ai_log("A central de provedores está disponível no Android.");
++                                cx.notify();
++                            })))
 +                    .child(v_flex()
 +                        .gap(px(7.))
 +                        .child(div().font_weight(FontWeight::SEMIBOLD)
