@@ -1782,6 +1782,189 @@ public final class StudioAiHub extends Activity {
         return callMcp(paired, "execute_luau", args);
     }
 
+
+    /** Confirm a unique existing Workspace Part and full list of direct children. */
+    private static JSONObject checkedBillboardTarget(String path, String answer, String name)
+            throws Exception {
+        JSONObject obj;
+        try { obj = new JSONObject(answer); }
+        catch (Exception ex) { throw new IOException("Resposta de inspeção inválida", ex); }
+        String expectedName = path.substring(path.lastIndexOf('.') + 1);
+        if (!"Part".equals(obj.optString("className", "")) ||
+                !path.equals(obj.optString("path", "")) ||
+                !expectedName.equals(obj.optString("name", "")) ||
+                obj.optJSONObject("properties") == null) {
+            throw new IOException("A peça de destino não existe ou não é uma Part única");
+        }
+        JSONObject children = obj.optJSONObject("children");
+        JSONArray immediate = children == null ? null :
+                children.optJSONArray("immediateChildren");
+        if (immediate == null || children.optInt("childrenCount", -1) != immediate.length()) {
+            throw new IOException("Não foi possível verificar todos os filhos da peça");
+        }
+        for (int i = 0; i < immediate.length(); i++) {
+            JSONObject child = immediate.optJSONObject(i);
+            if (child == null) throw new IOException("Filho da peça inválido");
+            if ((path + "." + name).equalsIgnoreCase(child.optString("path", ""))) {
+                throw new IOException("Já existe um objeto chamado " + name + " nesta peça");
+            }
+        }
+        return obj;
+    }
+
+    private static BillboardProposal validateBillboardProposal(JSONObject data,
+            String inspectedPath, String inspectedOutput) throws Exception {
+        String path = safeField(data, "target_part", 130, true);
+        if (!path.matches("Workspace\\.[A-Za-z][A-Za-z0-9_]{0,39}" +
+                "(\\.[A-Za-z][A-Za-z0-9_]{0,39})?") ||
+                !path.equals(inspectedPath)) {
+            throw new IOException("Inspecione uma Part de Workspace ou Workspace.Model");
+        }
+        String name = safeField(data, "label_name", 40, true);
+        if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")) {
+            throw new IOException("Nome da etiqueta inválido");
+        }
+        String caption = safeField(data, "text", 80, true);
+        String reason = safeField(data, "reason", 400, true);
+        int[] color = data.has("color") ? optionalUpdateColor(data) :
+                new int[]{235, 245, 255};
+        double height = 3.0;
+        if (data.has("height")) {
+            Object raw = data.opt("height");
+            if (!(raw instanceof Number)) throw new IOException("Altura deve ser número");
+            height = ((Number) raw).doubleValue();
+            if (!Double.isFinite(height) || height < 0.5 || height > 12) {
+                throw new IOException("Altura de etiqueta deve ficar entre 0,5 e 12 studs");
+            }
+        }
+        JSONObject original = checkedBillboardTarget(path, inspectedOutput, name);
+        return new BillboardProposal(path, name, caption, reason,
+                original.optString("uniqueId", ""), color, height);
+    }
+
+    /** Quote untrusted label text: only ever place it inside a literal Luau string. */
+    private static String luauTextLiteral(String text) {
+        StringBuilder escaped = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '"' || ch == '\\') escaped.append('\\');
+            escaped.append(ch);
+        }
+        return escaped.append('"').toString();
+    }
+
+    /** The resulting code is entirely app-authored; the AI can supply text and RGB only. */
+    private static String fixedBillboardLuau(BillboardProposal label) {
+        String[] parts = label.targetPath.split("\\.");
+        StringBuilder code = new StringBuilder("local ws = game:GetService(\"Workspace\")\n")
+                .append("local parent = ws\n");
+        if (parts.length == 3) {
+            code.append("parent = parent:FindFirstChild(\"").append(parts[1])
+                    .append("\")\n")
+                    .append("if not parent or not parent:IsA(\"Model\") then " +
+                            "return \"INVALID_MODEL\" end\n");
+        }
+        code.append("local target = parent:FindFirstChild(\"")
+                .append(parts[parts.length - 1]).append("\")\n")
+                .append("if not target or not target:IsA(\"Part\") or target.Parent ~= parent " +
+                        "then return \"INVALID_PART\" end\n")
+                .append("if target:FindFirstChild(\"").append(label.name)
+                .append("\") then return \"LABEL_EXISTS\" end\n")
+                .append("local gui = Instance.new(\"BillboardGui\")\n")
+                .append("gui.Name = \"").append(label.name).append("\"\n")
+                .append("gui.Size = UDim2.fromOffset(240, 64)\n")
+                .append("gui.StudsOffsetWorldSpace = Vector3.new(0, ")
+                .append(Double.toString(label.height)).append(", 0)\n")
+                .append("gui.AlwaysOnTop = true\n")
+                .append("gui.MaxDistance = 90\n")
+                .append("gui.Adornee = target\n")
+                .append("local background = Instance.new(\"Frame\")\n")
+                .append("background.Name = \"Panel\"\n")
+                .append("background.Size = UDim2.fromScale(1, 1)\n")
+                .append("background.BackgroundColor3 = Color3.fromRGB(18, 29, 49)\n")
+                .append("background.BackgroundTransparency = 0.12\n")
+                .append("background.BorderSizePixel = 0\n")
+                .append("local corner = Instance.new(\"UICorner\")\n")
+                .append("corner.CornerRadius = UDim.new(0, 10)\n")
+                .append("corner.Parent = background\n")
+                .append("local textLabel = Instance.new(\"TextLabel\")\n")
+                .append("textLabel.Name = \"Caption\"\n")
+                .append("textLabel.Size = UDim2.fromScale(1, 1)\n")
+                .append("textLabel.BackgroundTransparency = 1\n")
+                .append("textLabel.Font = Enum.Font.GothamBold\n")
+                .append("textLabel.TextWrapped = true\n")
+                .append("textLabel.TextScaled = true\n")
+                .append("textLabel.RichText = false\n")
+                .append("textLabel.Text = ").append(luauTextLiteral(label.caption)).append("\n")
+                .append("textLabel.TextColor3 = Color3.fromRGB(")
+                .append(label.color[0]).append(", ")
+                .append(label.color[1]).append(", ").append(label.color[2]).append(")\n")
+                .append("textLabel.Parent = background\n")
+                .append("background.Parent = gui\n")
+                .append("gui.Parent = target\n")
+                .append("return \"CREATED_BILLBOARD:").append(label.name).append("\"");
+        return code.toString();
+    }
+
+    private void confirmPendingBillboard() {
+        final BillboardProposal label = pendingBillboard;
+        if (label == null || busy) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeLabels.isChecked()) {
+            status.setText("Autorize a análise e as etiquetas 3D antes de confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar esta etiqueta sobre a peça?")
+                .setMessage("Peça: " + label.targetPath + "\nTexto: " + label.caption +
+                        "\n\nSerá criado um BillboardGui com um TextLabel. " +
+                        "Não será criado script, botão nem evento. " +
+                        "O editor pode pedir autorização MCP adicional.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Sim, criar etiqueta",
+                        (dialog, which) -> applyApprovedBillboard(label))
+                .show();
+    }
+
+    private void applyApprovedBillboard(BillboardProposal label) {
+        if (busy || pendingBillboard != label || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo peça e etiqueta antes da criação…");
+        requests.execute(() -> {
+            try {
+                String latestText = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", label.targetPath));
+                JSONObject latest = checkedBillboardTarget(label.targetPath, latestText,
+                        label.name);
+                String currentId = latest.optString("uniqueId", "");
+                if (!label.originalId.equals(currentId)) {
+                    throw new IOException("A peça foi substituída após a proposta");
+                }
+                if (epoch != requestEpoch) throw new IOException("Sessão alterada");
+                String response = executeApproved3dCode(paired, fixedBillboardLuau(label));
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingBillboard = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta MCP recebida; confira a etiqueta no mapa.");
+                    conversation.setText(conversation.getText() + "\nBillboardGui MCP:\n" +
+                            response.substring(0, Math.min(1000, response.length())) +
+                            "\nRevise a etiqueta no Explorer e a opção Desfazer.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Criação da etiqueta não confirmada: " +
+                            (error.getMessage() == null ? "erro MCP" : error.getMessage()));
+                });
+            }
+        });
+    }
+
     private void confirmPendingComposite() {
         final CompositeProposal model = pendingComposite;
         if (model == null || busy) return;
