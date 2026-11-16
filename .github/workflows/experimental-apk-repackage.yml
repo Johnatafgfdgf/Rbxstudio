@@ -1,0 +1,85 @@
+name: Fix experimental Studio APK installation conflict
+
+on:
+  push:
+    branches: [verify/android-menus]
+    paths:
+      - .github/workflows/experimental-apk-repackage.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  standalone-repackage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PORT_APP: studio
+      PORT_ARCH: aarch64-linux-android
+      PORT_EXPERIMENTAL_PACKAGE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Set up Android packaging tools
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - name: Download previously compiled and validated ARM64 editor
+        uses: actions/download-artifact@v4
+        with:
+          name: rbxstudio-0.6.11-arm64-v8a-experimental
+          run-id: '43793454519'
+          github-token: ${{ github.token }}
+          path: dist/prior-build
+      - name: Extract unchanged ARM64 native libraries
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          source = Path('dist/prior-build/rbx-native-android-0.6.11-arm64-v8a-debug.apk')
+          assert source.is_file(), f'Previous successful build not present: {source}'
+          target = Path('target/android/aarch64-linux-android/debug')
+          target.mkdir(parents=True, exist_ok=True)
+          with ZipFile(source) as archive:
+              for lib in ('librbx_android_studio.so', 'librbx_android_player.so'):
+                  inside = 'lib/arm64-v8a/' + lib
+                  (target / lib).write_bytes(archive.read(inside))
+                  print('Reused', inside, 'bytes', (target / lib).stat().st_size)
+          PY
+      - name: Repackage with separate experimental Android package ID
+        run: python3 scripts/package_apk.py
+      - name: Verify APK installs beside original Studio
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from subprocess import check_output
+          from zipfile import ZipFile
+          p=Path('dist/rbx-native-android-0.6.11-arm64-v8a-experimental-debug.apk')
+          assert p.exists(), f'No experimental APK: {p}'
+          with ZipFile(p) as apk:
+              assert 'lib/arm64-v8a/librbx_android_studio.so' in apk.namelist()
+              assert 'lib/arm64-v8a/librbx_android_player.so' in apk.namelist()
+          import os
+          aapt=Path(os.environ['ANDROID_HOME']) / 'build-tools/35.0.0/aapt'
+          badges=check_output([str(aapt),'dump','badging',str(p)], text=True)
+          assert "package: name='com.rbxnative.androidport.experimental'" in badges, badges[:500]
+          assert 'Rbx Studio Experimental' in badges, badges[:1000]
+          print('Correct standalone experimental Android package:',p.name)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rbxstudio-0.6.11-arm64-fix-installation
+          path: |
+            dist/*-experimental-debug.apk
+            dist/*-experimental-debug.apk.sha256
+          retention-days: 14
