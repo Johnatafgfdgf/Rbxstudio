@@ -1,4 +1,4 @@
-name: Experimental RBX Studio 0.6.11 ARM64 APK
+name: Experimental RBX Studio 0.6.11 ARM64 separate-install APK
 
 on:
   push:
@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 75
     env:
       PORT_APP: studio
+      PORT_EXPERIMENTAL_PACKAGE: '1'
       PORT_ARCH: aarch64-linux-android
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
@@ -61,20 +62,23 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
           import hashlib
-          p = Path("dist/rbx-native-android-0.6.11-arm64-v8a-debug.apk")
+          p = Path("dist/rbx-native-android-0.6.11-arm64-v8a-experimental-debug.apk")
           assert p.exists(), f"Missing APK: {p}"
           with ZipFile(p) as apk:
               libs = [name for name in apk.namelist() if name.startswith("lib/")]
               assert "lib/arm64-v8a/librbx_android_studio.so" in libs, libs
               assert "lib/arm64-v8a/librbx_android_player.so" in libs, libs
               assert not any(name.startswith("lib/x86_64/") for name in libs), libs
-          print("ARM64 APK verified; SHA256", hashlib.sha256(p.read_bytes()).hexdigest())
+          from subprocess import check_output
+          badging = check_output([str(Path(__import__("os").environ["ANDROID_HOME"]) / "build-tools/35.0.0/aapt"), "dump", "badging", str(p)], text=True)
+          assert "package: name=\'com.rbxnative.androidport.experimental\'" in badging, badging[:300]
+          print("Standalone experimental ARM64 APK verified; SHA256", hashlib.sha256(p.read_bytes()).hexdigest())
           PY
       - name: Upload ARM64 APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rbxstudio-0.6.11-arm64-v8a-experimental
+          name: rbxstudio-0.6.11-arm64-v8a-separate-install
           path: |
             dist/*arm64-v8a-debug.apk
             dist/*arm64-v8a-debug.apk.sha256
