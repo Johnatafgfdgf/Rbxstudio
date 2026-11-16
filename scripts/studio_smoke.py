@@ -273,8 +273,12 @@ try:
             adb('shell', 'input', 'tap', '430', '535')
             time.sleep(2)
     if os.environ.get('STUDIO_SKIP_SETUP') == '1':
-        # Position observed in the real POCO-geometry onboarding capture.
-        adb('shell', 'input', 'tap', '430', '535')
+        # The real 0.6.11 native capture places a 48px X in the upper-right
+        # corner of onboarding (center 1235,40 at the controlled 1280x576
+        # emulator geometry). In the Android wizard this X now calls
+        # skip_key() and opens Home without requiring a Roblox credential.
+        # The old (430,535) was a feature card, not the Skip button.
+        adb('shell', 'input', 'tap', '1235', '40')
         time.sleep(4)
         healthy(logs())
         if adb('shell', 'pidof', PACKAGE).strip() != original_pid:
