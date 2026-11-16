@@ -56,6 +56,7 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_AGENT_CALLS = MAX_AGENT_READS + 1;
     private static final int MAX_EDIT_OLD = 400;
     private static final int MAX_EDIT_NEW = 2400;
+    private static final int MAX_SCRIPT_SOURCE = 10000;
     private static final String AGENT_PROTOCOL =
         "Você analisa um projeto Roblox com ferramentas de LEITURA AUTORIZADA. " +
         "Responda SOMENTE com um objeto JSON válido, sem Markdown. Formatos: " +
@@ -81,7 +82,19 @@ public final class StudioAiHub extends Activity {
         "com no máximo 400 caracteres; new_string pode conter até 2400 caracteres. " +
         "Não invente código existente. A proposta será exibida e só poderá ser aplicada " +
         "após confirmação humana; a IA NUNCA chama multi_edit diretamente.";
-
+    private static final String CREATE_PROTOCOL =
+        "\nPara CRIAR um script novo, primeiro use search_game_tree com path IGUAL ao pai " +
+        "(exemplo: ServerScriptService), max_depth:1 e keywords:nome do script. " +
+        "Depois proponha UM script novo como JSON {\\"action\\":\\"propose_script_create\\"," +
+        "\\"target_file\\":\\"ServerScriptService.Inventario\\",\\"className\\":\\"Script\\"," +
+        "\\"source\\":\\"-- código Luau completo\\",\\"reason\\":\\"motivo\\\"}. " +
+        "Apenas classes Script, LocalScript, ModuleScript. Pais permitidos: " +
+        "ServerScriptService, ReplicatedStorage, ServerStorage, StarterGui, " +
+        "StarterPlayer.StarterPlayerScripts, StarterPlayer.StarterCharacterScripts, Workspace. " +
+        "Nome novo só pode conter letras, números e sublinhado, até 40 caracteres. " +
+        "O código pode ter até 10000 caracteres. Nunca gere um script na existência de outro " +
+        "com o mesmo nome; peça confirmação para criar. Não tente chamar multi_edit, " +
+        "criar modelos ou executar Luau. A criação real requer confirmação humana.";
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
@@ -99,12 +112,17 @@ public final class StudioAiHub extends Activity {
     private static final class EditProposal {
         final String path, oldText, newText, reason;
         final int startLine;
-        EditProposal(String path, String oldText, String newText, String reason, int startLine) {
+        final String className;
+        final boolean create;
+        EditProposal(String path, String oldText, String newText, String reason,
+                int startLine, String className) {
             this.path = path;
             this.oldText = oldText;
             this.newText = newText;
             this.reason = reason;
             this.startLine = startLine;
+            this.className = className;
+            this.create = !className.isEmpty();
         }
     }
 
@@ -309,7 +327,7 @@ public final class StudioAiHub extends Activity {
         autoInspect.setChecked(false);
         add(root, autoInspect, 7);
         proposeEdits = new CheckBox(this);
-        proposeEdits.setText("Permitir que a IA proponha uma alteração Luau para minha revisão");
+        proposeEdits.setText("Permitir propostas para criar ou alterar scripts Luau (exige minha aprovação)");
         proposeEdits.setTextColor(Color.rgb(228, 236, 250));
         proposeEdits.setChecked(false);
         add(root, proposeEdits, 6);
@@ -691,9 +709,10 @@ public final class StudioAiHub extends Activity {
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
                 (codeConsent ? "\nLeitura de scripts e Output autorizada pelo usuário." :
                 "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
-                (allowProposals ? EDIT_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.")});
+                (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.")});
         int reads = 0;
         String lastReadPath = "";
+        String lastSearchedParent = "";
         String lastScriptOutput = "";
         int lastReadLine = 1;
         StringBuilder toolTrace = new StringBuilder();
@@ -736,6 +755,15 @@ public final class StudioAiHub extends Activity {
                         "Nenhum script foi modificado. Arquivo: " + proposal.path +
                         "\nMotivo: " + proposal.reason, proposal);
             }
+            if ("propose_script_create".equals(action)) {
+                if (!allowProposals || !codeConsent || lastSearchedParent.isEmpty()) {
+                    throw new IOException("Criação sem autorização ou sem inspeção do local");
+                }
+                EditProposal proposal = validateCreateProposal(decision, lastSearchedParent);
+                return new AgentOutcome("Script novo proposto para revisão. " +
+                        "Nenhum arquivo foi criado. Caminho: " + proposal.path +
+                        " (" + proposal.className + ")\nMotivo: " + proposal.reason, proposal);
+            }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
                     || "script_read".equals(action) || "get_console_output".equals(action))) {
@@ -753,6 +781,9 @@ public final class StudioAiHub extends Activity {
                     status.setText("MCP: " + action + " • " + readNo + "/" + MAX_AGENT_READS);
             });
             String tree = readOnlyMcp(mcpPairing, action, decision);
+            if ("search_game_tree".equals(action)) {
+                lastSearchedParent = safeField(decision, "path", 180, false);
+            }
             if ("script_read".equals(action)) {
                 lastReadPath = safeField(decision, "target_file", 180, true);
                 lastScriptOutput = tree;
@@ -798,7 +829,64 @@ public final class StudioAiHub extends Activity {
             throw new IOException("Trecho original não foi confirmado em leitura real do script");
         }
         if (oldText.equals(newText)) throw new IOException("Proposta sem alterações");
-        return new EditProposal(path, oldText, newText, reason, startLine);
+        return new EditProposal(path, oldText, newText, reason, startLine, "");
+    }
+
+    /** Creation is limited to a known service and one new final path segment. */
+    private static EditProposal validateCreateProposal(JSONObject data, String searchedParent)
+            throws Exception {
+        String path = safeField(data, "target_file", 180, true);
+        int lastDot = path.lastIndexOf('.');
+        if (lastDot < 1 || lastDot == path.length() - 1) {
+            throw new IOException("Informe o caminho do novo script dentro de um serviço");
+        }
+        String parent = path.substring(0, lastDot);
+        String name = path.substring(lastDot + 1);
+        if (!("ServerScriptService".equals(parent) || "ReplicatedStorage".equals(parent)
+                || "ServerStorage".equals(parent) || "StarterGui".equals(parent)
+                || "StarterPlayer.StarterPlayerScripts".equals(parent)
+                || "StarterPlayer.StarterCharacterScripts".equals(parent)
+                || "Workspace".equals(parent))) {
+            throw new IOException("Pasta de destino não permitida para criação assistida");
+        }
+        if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,39}") ||
+                !parent.equals(searchedParent)) {
+            throw new IOException("Nome do script inválido ou pasta não inspecionada");
+        }
+        String className = safeField(data, "className", 16, true);
+        if (!("Script".equals(className) || "LocalScript".equals(className)
+                || "ModuleScript".equals(className))) {
+            throw new IOException("Tipo de script inválido");
+        }
+        String source = codeField(data, "source", MAX_SCRIPT_SOURCE, false);
+        String reason = safeField(data, "reason", 400, true);
+        return new EditProposal(path, "", source, reason, 1, className);
+    }
+
+    /** Fail closed if the destination exists, cannot be inspected or MCP output is truncated. */
+    private void ensureCreateDestinationFree(String paired, EditProposal edit) throws Exception {
+        int dot = edit.path.lastIndexOf('.');
+        String parent = edit.path.substring(0, dot);
+        String name = edit.path.substring(dot + 1);
+        String result = readOnlyMcp(paired, "search_game_tree",
+                new JSONObject().put("path", parent).put("max_depth", 1)
+                        .put("keywords", name));
+        if ("No instances found.".equals(result)) return;
+        // A tree whose response was capped cannot prove the script does not exist.
+        if (!result.startsWith("[") || !result.endsWith("]")) {
+            throw new IOException("Não foi possível confirmar que o nome está disponível");
+        }
+        JSONArray nodes;
+        try { nodes = new JSONArray(result); }
+        catch (Exception ex) { throw new IOException("Árvore de destino inválida", ex); }
+        for (int i = 0; i < nodes.length(); i++) {
+            JSONObject child = nodes.optJSONObject(i);
+            if (child == null) throw new IOException("Resultado de árvore inesperado");
+            if (edit.path.equalsIgnoreCase(child.optString("fullPath", ""))) {
+                throw new IOException("Já existe um objeto com esse nome. Escolha outro nome.");
+            }
+        }
+        // Recheck is advisory; MCP multi_edit still performs its own atomic edit validation.
     }
 
     private void renderPendingEdit() {
@@ -809,11 +897,15 @@ public final class StudioAiHub extends Activity {
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
         EditProposal edit = pendingEdit;
-        proposalPreview.setText("PRÉVIA • ainda NÃO aplicada\nArquivo: " + edit.path +
+        applyEdit.setText(edit.create ? "Revisar e confirmar CRIAÇÃO Luau" :
+                "Revisar e confirmar ALTERAÇÃO Luau");
+        proposalPreview.setText("PRÉVIA • ainda NÃO aplicada\n" +
+                (edit.create ? "NOVO script " + edit.className : "EDITAR script") +
+                "\nCaminho: " + edit.path +
                 "\nMotivo: " + edit.reason +
-                "\n\nANTES (texto literal a substituir):\n" + edit.oldText +
+                "\n\nANTES:\n" + (edit.create ? "(arquivo ainda inexistente)" : edit.oldText) +
                 "\n\nDEPOIS:\n" + edit.newText +
-                "\n\nApenas uma substituição exata. O MCP mantém a alteração no histórico de desfazer.");
+                "\n\nA criação e a substituição passam pelo MCP. O editor mantém o histórico de desfazer.");
     }
 
     private void confirmPendingEdit() {
@@ -825,13 +917,14 @@ public final class StudioAiHub extends Activity {
             return;
         }
         new android.app.AlertDialog.Builder(this)
-                .setTitle("Aplicar alteração real neste script?")
+                .setTitle(edit.create ? "Criar este novo script?" : "Aplicar alteração real neste script?")
                 .setMessage("Arquivo: " + edit.path + "\n\n" + edit.reason +
-                        "\n\nSerá executado um único multi_edit após conferir o trecho atual. " +
+                        "\n\nSerá executado um único multi_edit após verificar o destino. " +
                         "Você poderá desfazer no editor. A aprovação MCP do editor " +
                         "também pode ser exigida. Deseja aplicar?")
                 .setNegativeButton("Não, revisar", null)
-                .setPositiveButton("Sim, aplicar edição", (dialog, which) -> applyApprovedEdit(edit))
+                .setPositiveButton(edit.create ? "Sim, criar script" : "Sim, aplicar edição",
+                        (dialog, which) -> applyApprovedEdit(edit))
                 .show();
     }
 
@@ -844,11 +937,15 @@ public final class StudioAiHub extends Activity {
         setBusy(true, "Conferindo script antes de enviar a edição ao editor…");
         requests.execute(() -> {
             try {
-                JSONObject read = new JSONObject()
-                        .put("target_file", edit.path).put("start_line", edit.startLine);
-                String latest = readOnlyMcp(paired, "script_read", read);
-                if (!latest.contains(edit.oldText)) {
-                    throw new IOException("O script mudou desde a proposta. Gere uma nova análise.");
+                if (edit.create) {
+                    ensureCreateDestinationFree(paired, edit);
+                } else {
+                    JSONObject read = new JSONObject()
+                            .put("target_file", edit.path).put("start_line", edit.startLine);
+                    String latest = readOnlyMcp(paired, "script_read", read);
+                    if (!latest.contains(edit.oldText)) {
+                        throw new IOException("O script mudou desde a proposta. Gere uma nova análise.");
+                    }
                 }
                 if (epoch != requestEpoch) throw new IOException("Sessão mudou antes da edição");
                 JSONObject replacement = new JSONObject()
@@ -858,6 +955,7 @@ public final class StudioAiHub extends Activity {
                 JSONObject args = new JSONObject()
                         .put("file_path", edit.path).put("datamodel_type", "Edit")
                         .put("edits", new JSONArray().put(replacement));
+                if (edit.create) args.put("className", edit.className);
                 // Only here, after user approval, is a write tool reachable.
                 String outcome = callMcp(paired, "multi_edit", args);
                 runOnUiThread(() -> {
@@ -865,7 +963,7 @@ public final class StudioAiHub extends Activity {
                     applyingEdit = false;
                     pendingEdit = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta real do editor à edição recebida.");
+                    setBusy(false, "Resposta MCP recebida; confira criação/edição no Explorer.");
                     conversation.setText(conversation.getText() + "\nMCP multi_edit:\n" +
                             outcome.substring(0, Math.min(1800, outcome.length())) +
                             "\nVerifique o script no Explorer antes de publicar.");
