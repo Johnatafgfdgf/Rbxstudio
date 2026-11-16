@@ -596,7 +596,7 @@ index f381d88..83c010c 100644
  pub mod platform_view;
 +mod services;
 +pub use services::{commit_document, resource_paths, read_credentials, write_credentials, delete_credentials};
-+pub use services::{player_control, roblox_link};
++pub use services::{player_control, roblox_link, open_ai_hub};
  pub mod window;
  
  // ── public re-exports ─────────────────────────────────────────────────────────
@@ -1010,7 +1010,7 @@ new file mode 100644
 index 0000000..cc3d8e6
 --- /dev/null
 +++ b/src/android/services.rs
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,164 @@
 +//! Host services that need the application's Android manifest / Keystore.
 +use super::jni::{self, JniExt};
 +use ::jni::objects::JValue;
@@ -1122,6 +1122,25 @@ index 0000000..cc3d8e6
 +        let b = (p[1] as char).to_digit(16).ok_or_else(|| anyhow::anyhow!("Invalid credential encoding"))?;
 +        Ok(((a << 4) | b) as u8)
 +    }).collect()
++}
++
++/// Open the private Android provider center without passing any API keys.
++pub fn open_ai_hub(project: &str) -> anyhow::Result<()> {
++    jni::with_env(|env| {
++        let activity = jni::activity(env)?;
++        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioAiHub")?;
++        let name = env.new_string(project).e()?;
++        env.call_static_method(
++            &class,
++            ::jni::jni_str!("open"),
++            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;)V"),
++            &[JValue::Object(&activity), JValue::Object(&name)],
++        ).map_err(|_| {
++            env.exception_clear();
++            "Não foi possível abrir a central de IA".to_owned()
++        })?;
++        Ok(())
++    }).map_err(anyhow::Error::msg)
 +}
 +
 +pub fn localize_document(address: &str, creating: bool) -> anyhow::Result<std::path::PathBuf> {
