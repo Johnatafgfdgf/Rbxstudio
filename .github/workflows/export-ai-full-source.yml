@@ -3,7 +3,7 @@ name: Export complete RBX Studio 0.6.11 AI source with dependencies
 on:
   workflow_dispatch:
   push:
-    branches: [verify/android-menus]
+    branches: [verify/android-menus, work/ai-autonomous-read-v1]
     paths:
       - .github/workflows/export-ai-full-source.yml
 
