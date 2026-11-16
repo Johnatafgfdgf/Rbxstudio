@@ -1403,11 +1403,11 @@ index 9fd59e0..bf8475a 100644
 +                    }
 +                }
 +                let _ = this.update(cx, |home, cx| {
-+                    if let Some(Dialog::Opening { stage, .. }) = &mut home.dialog
-+                        && *stage == "Carregando os dados do mapa…"
-+                    {
-+                        *stage = "Carregando assets e preparando a cena…";
-+                        cx.notify();
++                    if let Some(Dialog::Opening { stage, .. }) = &mut home.dialog {
++                        if *stage == "Carregando os dados do mapa…" {
++                            *stage = "Carregando assets e preparando a cena…";
++                            cx.notify();
++                        }
 +                    }
 +                });
 +            }).detach();
@@ -2801,7 +2801,13 @@ diff --git a/crates/rbx_studio/src/main.rs b/crates/rbx_studio/src/main.rs
 index fe79aba..bcae670 100644
 --- a/crates/rbx_studio/src/main.rs
 +++ b/crates/rbx_studio/src/main.rs
-@@ -148,12 +148,14 @@ mod settings;
+@@ -1,4 +1,5 @@
++#![recursion_limit = "256"]
+ //! Desktop shell of the editor: the wgpu viewer of `rbx_viewer` drawn inside a
+ //! GPUI Kit window, next to the Explorer of the place, mutable through the
+ //! Command Bar (see `command_bar`).
+ //!
+@@ -148,12 +149,14 @@ mod settings;
  mod settle;
  mod shell;
  mod shortcuts;
@@ -2816,7 +2822,7 @@ index fe79aba..bcae670 100644
  mod timeline;
  mod tokens;
  mod transform;
-@@ -428,8 +430,8 @@ pub(crate) struct EditorBoot {
+@@ -428,8 +431,8 @@ pub(crate) struct EditorBoot {
  /// `boot` back with the message when the place cannot be read, so the
  /// launcher can offer another.
  ///
@@ -2827,7 +2833,7 @@ index fe79aba..bcae670 100644
  pub(crate) fn open_editor(
      path: &Path,
      boot: EditorBoot,
-@@ -438,25 +440,23 @@ pub(crate) fn open_editor(
+@@ -438,25 +441,23 @@ pub(crate) fn open_editor(
      if shell::game::manifest::is_manifest(path) {
          return shell::game::open_game(path, boot, cx);
      }
@@ -2865,7 +2871,7 @@ index fe79aba..bcae670 100644
      if let Err(err) = home::remember(home::RecentPlace {
          path: std::fs::canonicalize(path).unwrap_or(path.to_path_buf()),
          universe_id: None,
-@@ -485,7 +485,6 @@ pub(crate) fn open_editor(
+@@ -485,7 +486,6 @@ pub(crate) fn open_editor(
          cx.new(|cx| Root::new(shell, window, cx))
      })
      .expect("failed to open the main window");
@@ -2873,7 +2879,7 @@ index fe79aba..bcae670 100644
  }
  
  /// A place file, read before the window exists: the tree the Explorer lists,
-@@ -547,21 +546,70 @@ fn install_fonts(cx: &mut App) {
+@@ -547,21 +547,70 @@ fn install_fonts(cx: &mut App) {
      }
  }
  
@@ -2954,7 +2960,7 @@ index fe79aba..bcae670 100644
      let dom = rbx_viewer::read_place(path)?;
      let database = ReflectionDatabase::embedded();
  
-@@ -570,15 +618,31 @@ fn load(path: &Path, launch: &Launch, icon_pack: IconPack) -> Result<Place, Stri
+@@ -570,15 +619,31 @@ fn load(path: &Path, launch: &Launch, icon_pack: IconPack) -> Result<Place, Stri
          let _ = folder_colors.save();
      }
  
@@ -2994,7 +3000,7 @@ index fe79aba..bcae670 100644
          dom,
          database,
          path: path.to_path_buf(),
-@@ -649,3 +713,12 @@ mod tests {
+@@ -649,3 +714,12 @@ mod tests {
          assert_eq!(file_name(Path::new("Demo.rbxl")), "Demo.rbxl");
      }
  }
@@ -7430,10 +7436,10 @@ index a6b7e5a..17ee437 100644
 +            {
 +                let preview = recovery::preview_path(&path);
 +                let _ = std::fs::remove_file(&preview);
-+                if let Some((width, height, pixels)) = capture
++                if let Some(rgba) = capture
 +                    .and_then(|frame| frame.recv_timeout(Duration::from_millis(1500)).ok())
 +                    .and_then(Result::ok)
-+                    && let Some(rgba) = image::RgbaImage::from_raw(width, height, pixels)
++                    .and_then(|(width, height, pixels)| image::RgbaImage::from_raw(width, height, pixels))
 +                {
 +                    let image = image::DynamicImage::ImageRgba8(rgba).thumbnail(480, 270).to_rgb8();
 +                    let mut bytes = Vec::new();
