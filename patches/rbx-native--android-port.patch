@@ -22271,7 +22271,7 @@ diff --git a/crates/rbx_studio/src/shell/ai_permissions.rs b/crates/rbx_studio/s
 new file mode 100644
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/ai_permissions.rs
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +//! Permission policy for an external AI using Studio's existing MCP tools.
 +//! Default is inspection; edits may be trusted temporarily, external effects
 +//! and arbitrary Luau always require deliberate user approval.
