@@ -2,6 +2,15 @@
 
 Editor nativo para Android com arquivos RBXL, RBXLX, RBXM e RBXMX. O Play salva o projeto, publica uma cópia numa experiência privada de teste e abre o Roblox oficial no Android. O Rook fica disponível em Ferramentas → Test → Play local. O APK ARM64 requer Android 10 ou superior.
 
+## Versão 0.6.11 experimental
+
+- Identidade apresentada ao usuário: **Rbx Studio**. O APK Studio usa o nome `rbx-studio-android`; classes do protótipo Java 0.3 não entram no DEX do editor GPUI.
+- O projeto ainda utiliza bibliotecas de código aberto derivadas de rbx-native e Rook. Os nomes internos, caminhos de compatibilidade, créditos e licenças não devem ser confundidos com a marca exibida; remover essas dependências exige substituição técnica, não apenas renomeação.
+- IA: painel MCP e permissões. **Não** há chatbot integrado, execução universal autônoma ou garantia de publicação de animações.
+- Verificações nativas: compilação ARM64, boot, Home, criação de mapa e toques em Menu, Ferramentas, Painéis e IA. Falta validação física completa de Play, scripts, importação e publicação.
+- **Atualizações de APK de desenvolvimento:** novas assinaturas debug geradas em runners descartáveis do GitHub podem impedir atualização por cima da instalação anterior. Exporte projetos antes de remover qualquer aplicativo. Builds destinados a atualizar a instalação devem usar a **mesma** chave de assinatura anterior.
+
+
 ## Versão 0.6.9
 
 - Use **Painéis** para alternar entre Explorer, Propriedades e Toolbox. Abra os menus e a faixa de ferramentas quando precisar.
@@ -65,7 +74,7 @@ PORT_ARCH=aarch64-linux-android python3 scripts/cargo_android.py build --locked 
 PORT_APP=studio PORT_ARCH=aarch64-linux-android python3 scripts/package_apk.py
 ```
 
-Use `PORT_DEBUGGABLE=0` junto a `PORT_APP=studio` para empacotar sem a opção de depuração do Android. O resultado está em `dist/rbx-native-android-0.6.9-arm64-v8a-debug.apk`. O empacotamento usa javac, D8, aapt, zipalign e apksigner. Para um emulador x86_64, instale o alvo Rust correspondente e use `PORT_ARCH=x86_64-linux-android`. A assinatura de atualização deve usar a mesma chave da instalação anterior.
+Use `PORT_DEBUGGABLE=0` junto a `PORT_APP=studio` para empacotar sem a opção de depuração do Android. O resultado está em `dist/rbx-studio-android-0.6.11-arm64-v8a-debug.apk`. O empacotamento usa javac, D8, aapt, zipalign e apksigner. Para um emulador x86_64, instale o alvo Rust correspondente e use `PORT_ARCH=x86_64-linux-android`. A assinatura de atualização deve usar a mesma chave da instalação anterior.
 
 ```bash
 cargo test --locked -p rbx_android_core --tests
