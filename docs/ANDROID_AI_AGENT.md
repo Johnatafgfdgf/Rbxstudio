@@ -15,7 +15,7 @@ Reutilizar o MCP já existente em `crates/rbx_studio/src/mcp` / `shell/mcp.rs`, 
 - Recusa explícita de chamadas rejeitadas; fila e registro simples de ações sem incluir código-fonte ou credenciais.
 - Contrato `ai_permissions.rs` com testes de regressão.
 
-**Ainda não implementado:** modelo/LLM integrado ao APK, troca de mensagens dentro do app, ferramentas de upload de animação, planejamento e execução totalmente autônoma, conexão remota de MCP pelo próprio aplicativo, detecção universal de erros visuais, validação real de todas as ferramentas em aparelho físico. Não dizer que existem.
+**Ainda não implementado:** modelo/LLM integrado ao APK, troca de mensagens dentro do app, planejamento e execução totalmente autônoma, conexão remota de MCP pelo próprio aplicativo, detecção universal de erros visuais, validação real de todas as ferramentas em aparelho físico. Uma ferramenta MCP `publish_animation` foi adicionada para upload de KeyframeSequence e IDs devolvidos pela Open Cloud, mas a **validação real de upload ainda não ocorreu**; não anunciar como confirmada.
 
 O servidor MCP já presente aceita clientes compatíveis com o protocolo, mas o transporte atual é uma conexão local ao Android com token e um cliente/ponte externos. A assinatura ChatGPT pessoal não é automaticamente uma chave API para o aplicativo. Um cliente externo precisa ser configurado explicitamente.
 
@@ -43,7 +43,7 @@ Não usar botão que apenas simule um resultado. Funções sem backend devem mos
 | Código arbitrário | execute_luau | Confirmar individualmente sempre |
 | Salvamento e rede | save_place, upload_image | Confirmar individualmente sempre |
 | Geração de assets | APIs de geração oficiais do Roblox Studio | Não disponíveis neste editor fora do serviço correspondente |
-| Animações e publicação | A ser implementado via Open Cloud Assets API | Confirmar proprietário, escopo, custos, IDs e destino antes de publicar |
+| Animações e publicação | `publish_animation` (novo MCP) usa `Client::create_animation_asset` e devolve IDs reais em caso de sucesso; não foi validado com upload real | Confirmar proprietário, escopo, custos, IDs e destino antes de publicar |
 
 Ciclo de trabalho pretendido para tarefas como “configure todas as animações do modelo”:
 1. Ler a árvore, identificar rig R6/R15, animadores, scripts, referências de animação, dependências e owner do jogo.
@@ -89,4 +89,4 @@ Referências:
 
 Revisar o APK Android ARM64 em dispositivo real antes de promover qualquer mudança, mantendo as compilações x86_64 de emulador como teste complementar. Não misturar o APK experimental com o pacote da versão original. Não remover funções existentes do editor para adequar a UI.
 
-A etapa presente entrega **infraestrutura de conexão MCP + painel Android + aprovações**. O chatbot interno autônomo ainda precisa de um provider/API, um executor de planos e integração das ferramentas indisponíveis; a implementação de cada peça deve ser validada antes de receber status de concluída.
+A etapa presente entrega **infraestrutura de conexão MCP + painel Android + aprovações**, catálogo de skills do agente e a ferramenta de upload `publish_animation` ainda sem validação real. O chatbot interno autônomo ainda precisa de um provider/API, um executor de planos e integração das ferramentas indisponíveis; a implementação de cada peça deve ser validada antes de receber status de concluída.
