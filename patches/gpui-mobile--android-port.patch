@@ -1010,7 +1010,7 @@ new file mode 100644
 index 0000000..cc3d8e6
 --- /dev/null
 +++ b/src/android/services.rs
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,165 @@
 +//! Host services that need the application's Android manifest / Keystore.
 +use super::jni::{self, JniExt};
 +use ::jni::objects::JValue;
@@ -1125,16 +1125,17 @@ index 0000000..cc3d8e6
 +}
 +
 +/// Open the private Android provider center without passing any API keys.
-+pub fn open_ai_hub(project: &str) -> anyhow::Result<()> {
++pub fn open_ai_hub(project: &str, pairing: &str) -> anyhow::Result<()> {
 +    jni::with_env(|env| {
 +        let activity = jni::activity(env)?;
 +        let class = jni::find_app_class(env, "com.rbxnative.androidport.StudioAiHub")?;
 +        let name = env.new_string(project).e()?;
++        let pairing = env.new_string(pairing).e()?;
 +        env.call_static_method(
 +            &class,
 +            ::jni::jni_str!("open"),
-+            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;)V"),
-+            &[JValue::Object(&activity), JValue::Object(&name)],
++            ::jni::jni_sig!("(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;)V"),
++            &[JValue::Object(&activity), JValue::Object(&name), JValue::Object(&pairing)],
 +        ).map_err(|_| {
 +            env.exception_clear();
 +            "Não foi possível abrir a central de IA".to_owned()
