@@ -22,6 +22,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,7 +31,9 @@ import java.util.concurrent.Executors;
  * Real, opt-in model hub for RBX Studio. Model outputs may ask for bounded
  * reads and propose a single exact Luau edit, but cannot execute writes.
  * User confirmation is required before the separate MCP write call.
- * No model response may run Lua, import assets, read files outside MCP,
+ * A fixed, bounded Luau template may create one Part after approval;
+ * no model-authored Luau can be run by the object creation action.
+ * No model response may import assets, read files outside MCP,
  * or publish Roblox content.
  * Credentials are encrypted by StudioServices (Android Keystore) and never
  * included in project files, logs, model prompts or model listings.
@@ -95,6 +98,20 @@ public final class StudioAiHub extends Activity {
         "O código pode ter até 10000 caracteres. Nunca gere um script na existência de outro " +
         "com o mesmo nome; peça confirmação para criar. Não tente chamar multi_edit, " +
         "criar modelos ou executar Luau. A criação real requer confirmação humana.";
+
+    private static final String PART_PROTOCOL =
+        "\nPara criar UMA peça 3D, primeiro inspecione o Workspace com " +
+        "{\"action\":\"search_game_tree\",\"path\":\"Workspace\",\"max_depth\":1," +
+        "\"keywords\":\"NomeDaPeca\"}. Depois, proponha somente " +
+        "{\"action\":\"propose_part_create\",\"name\":\"Plataforma_1\"," +
+        "\"position\":[0,5,0],\"size\":[8,1,8],\"color\":[70,150,230]," +
+        "\"reason\":\"motivo\"}. O destino é sempre Workspace. " +
+        "Part Anchored=true e CanCollide=true; posição entre -256 e 256, " +
+        "tamanho em studs entre 0.2 e 64, RGB de 0 a 255. " +
+        "Somente nomes de letras/números/sublinhados (até 40 caracteres). " +
+        "Você NÃO envia código Luau; o aplicativo constrói comandos fixos " +
+        "somente após prévia e confirmação humana. Nunca tente executar ferramentas " +
+        "de escrita nem criar mais de uma peça em cada solicitação.";
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
@@ -103,9 +120,10 @@ public final class StudioAiHub extends Activity {
     private String project = "";
     private String mcpPairing = "";
     private String projectSummary = "";
-    private CheckBox includeProject, includeCode, autoInspect, proposeEdits;
+    private CheckBox includeProject, includeCode, autoInspect, proposeEdits, proposeParts;
     private boolean applyingEdit;
     private EditProposal pendingEdit;
+    private PartProposal pendingPart;
     private TextView proposalPreview;
     private Button applyEdit, discardEdit;
 
@@ -126,12 +144,31 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    private static final class PartProposal {
+        final String name, reason;
+        final double[] position, size;
+        final int[] color;
+        PartProposal(String name, double[] position, double[] size,
+                int[] color, String reason) {
+            this.name = name;
+            this.position = position;
+            this.size = size;
+            this.color = color;
+            this.reason = reason;
+        }
+    }
+
     private static final class AgentOutcome {
         final String answer;
         final EditProposal proposal;
+        final PartProposal part;
         AgentOutcome(String answer, EditProposal proposal) {
+            this(answer, proposal, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part) {
             this.answer = answer;
             this.proposal = proposal;
+            this.part = part;
         }
     }
     private volatile long requestEpoch;
@@ -331,6 +368,11 @@ public final class StudioAiHub extends Activity {
         proposeEdits.setTextColor(Color.rgb(228, 236, 250));
         proposeEdits.setChecked(false);
         add(root, proposeEdits, 6);
+        proposeParts = new CheckBox(this);
+        proposeParts.setText("Permitir propostas para criar uma peça 3D no Workspace (exige confirmação)");
+        proposeParts.setTextColor(Color.rgb(228, 236, 250));
+        proposeParts.setChecked(false);
+        add(root, proposeParts, 6);
         TextView agentNotice = text("Exige MCP ativo e autorização de leitura de scripts. " +
                 "Até 4 chamadas de API faturáveis. Propostas não são aplicadas automaticamente; " +
                 "o editor também pode exigir aprovação MCP.", 12, false);
@@ -361,12 +403,16 @@ public final class StudioAiHub extends Activity {
         add(root, proposalPreview, 6);
         applyEdit = button("Revisar e confirmar alteração Luau");
         applyEdit.setVisibility(View.GONE);
-        applyEdit.setOnClickListener(v -> confirmPendingEdit());
+        applyEdit.setOnClickListener(v -> {
+            if (pendingPart != null) confirmPendingPart();
+            else confirmPendingEdit();
+        });
         add(root, applyEdit, 5);
         discardEdit = button("Descartar proposta");
         discardEdit.setVisibility(View.GONE);
         discardEdit.setOnClickListener(v -> {
             pendingEdit = null;
+            pendingPart = null;
             renderPendingEdit();
             status.setText("Proposta descartada. Nenhum script foi alterado.");
         });
@@ -375,7 +421,7 @@ public final class StudioAiHub extends Activity {
             if (!checked) { pendingEdit = null; renderPendingEdit(); }
         });
         includeProject.setOnCheckedChangeListener((v, checked) -> {
-            if (!checked) { pendingEdit = null; renderPendingEdit(); }
+            if (!checked) { pendingEdit = null; pendingPart = null; renderPendingEdit(); }
         });
         providerPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -387,7 +433,9 @@ public final class StudioAiHub extends Activity {
                 includeCode.setChecked(false);
                 autoInspect.setChecked(false);
                 proposeEdits.setChecked(false);
+                proposeParts.setChecked(false);
                 pendingEdit = null;
+                pendingPart = null;
                 renderPendingEdit();
                 models.clear();
                 modelPicker.setAdapter(new ArrayAdapter<String>(StudioAiHub.this,
@@ -487,7 +535,9 @@ public final class StudioAiHub extends Activity {
             includeCode.setChecked(false);
             autoInspect.setChecked(false);
             proposeEdits.setChecked(false);
+            proposeParts.setChecked(false);
             pendingEdit = null;
+            pendingPart = null;
             renderPendingEdit();
             modelPicker.setAdapter(new ArrayAdapter<String>(this,
                     android.R.layout.simple_spinner_dropdown_item,
@@ -703,13 +753,14 @@ public final class StudioAiHub extends Activity {
     /** Bounded read-only agent loop with explicit project-disclosure consent. */
     private AgentOutcome runReadOnlyAgent(int p, String key, String model,
             List<String[]> turns, long epoch, boolean codeConsent,
-            boolean allowProposals) throws Exception {
+            boolean allowProposals, boolean allowParts) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
                 (codeConsent ? "\nLeitura de scripts e Output autorizada pelo usuário." :
                 "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
-                (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.")});
+                (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.") +
+                (allowParts ? PART_PROTOCOL : "\nNão proponha criar peças 3D.")});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
@@ -763,6 +814,15 @@ public final class StudioAiHub extends Activity {
                 return new AgentOutcome("Script novo proposto para revisão. " +
                         "Nenhum arquivo foi criado. Caminho: " + proposal.path +
                         " (" + proposal.className + ")\nMotivo: " + proposal.reason, proposal);
+            }
+            if ("propose_part_create".equals(action)) {
+                if (!allowParts || !"Workspace".equals(lastSearchedParent)) {
+                    throw new IOException("Peça 3D sem autorização ou sem inspeção do Workspace");
+                }
+                PartProposal part = validatePartProposal(decision);
+                return new AgentOutcome("Peça 3D proposta para revisão. " +
+                        "Nenhum objeto foi alterado. Workspace." + part.name +
+                        "\nMotivo: " + part.reason, null, part);
             }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
