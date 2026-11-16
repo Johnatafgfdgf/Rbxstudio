@@ -43,6 +43,25 @@ assert '"execute_luau"' not in java, "Chat must not execute arbitrary Luau"
 assert '"insert_asset"' not in java, "Chat must not import Toolbox models without review"
 assert '"save_place"' not in java, "Chat must not persist projects without approval"
 assert '"publish_animation"' not in java, "Chat must not publish assets without approval"
+# Read-only agent: only a fixed MCP tool can run, with opt-in project disclosure.
+for required in [
+    "MAX_AGENT_READS = 2",
+    "MAX_AGENT_CALLS = MAX_AGENT_READS + 1",
+    "autoInspect.setChecked(false)",
+    "includeProject.isChecked()",
+    'if (!"search_game_tree".equals(action))',
+    "readExplorerViaMcp(mcpPairing, depth)",
+    "readExplorerViaMcp(paired, 3)",
+    "epoch != requestEpoch",
+    "cancel.setOnClickListener",
+    "String tree = readExplorerViaMcp",
+    "AGENT_PROTOCOL",
+]:
+    assert required in java, required
+# Check explicit denial of all model-selected non-read actions.
+assert 'throw new IOException("O modelo solicitou ferramenta não permitida")' in java
+assert 'if (agent && (mcpPairing.isEmpty() || !includeProject.isChecked()))' in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
