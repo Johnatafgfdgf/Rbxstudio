@@ -810,8 +810,8 @@ index 7d5463b..aa47914 100644
 +    fn tuning(&self) -> gpui::GestureTuning {
 +        gpui::GestureTuning {
 +            scroll_physics: gpui::ScrollPhysics::android(),
-+            min_fling_velocity: 200.,
-+            max_fling_velocity: 2400.,
++            min_fling_velocity: 290.,
++            max_fling_velocity: 1250.,
 +            ..Default::default()
 +        }
 +    }
