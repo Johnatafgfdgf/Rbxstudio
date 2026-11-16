@@ -32,7 +32,7 @@ for safety in [
     'StudioServices.credential(this, "read"',
     'StudioServices.credential(this, "delete"',
     "conn.setInstanceFollowRedirects(false)",
-    'new Socket(InetAddress.getByName("127.0.0.1"), port)',
+    'socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 3000)',
     'put("name", tool)',
     'includeProject.setChecked(false)',
     'String message = include',
