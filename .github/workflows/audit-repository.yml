@@ -4,10 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [verify/android-menus]
-    paths:
-      - scripts/audit_repository.py
-      - scripts/check_studio_branding.py
-      - .github/workflows/audit-repository.yml
 
 permissions:
   contents: read
