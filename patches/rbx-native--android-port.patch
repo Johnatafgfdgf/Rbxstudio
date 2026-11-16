@@ -22310,7 +22310,7 @@ new file mode 100644
 +        // Inserting a Toolbox model may import scripts. Arbitrary Luau,
 +        // publishing and external uploads require individual approval.
 +        "insert_asset" | "execute_luau" | "save_place" | "upload_image"
-        | "publish_animation"
++        | "publish_animation"
 +        | "open_cloud_invoke" | "generate_animation" | "generate_mesh"
 +        | "generate_material" | "generate_procedural_model"
 +        | "generate_texture" | "segment_mesh" | "store_image"
