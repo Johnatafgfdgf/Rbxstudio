@@ -2,7 +2,7 @@ name: Experimental RBX Studio 0.6.11 ARM64 separate-install APK
 
 on:
   push:
-    branches: [verify/android-menus]
+    branches: [verify/android-menus, work/ai-autonomous-read-v1]
     paths:
       - .github/workflows/experimental-arm64-apk.yml
       - patches/**
