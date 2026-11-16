@@ -6096,7 +6096,7 @@ new file mode 100644
 index 0000000..53f572f
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/dock.rs
-@@ -0,0 +1,318 @@
+@@ -0,0 +1,328 @@
 +use gpui_kit::assets::IconName;
 +use gpui_kit::component::{h_flex, v_flex};
 +use gpui_kit::prelude::FluentBuilder as _;
@@ -6294,9 +6294,19 @@ index 0000000..53f572f
 +            (Panel::Toolbox, IconName::Package, "Toolbox"),
 +        ];
 +        let known = catalog.iter().any(|&(entry, _, _)| entry == panel);
++        // On narrow phone drawers, retain the selected tab and use the
++        // persistent Painéis picker for the rest; no clipped half-buttons.
++        let narrow = cfg!(target_os = "android")
++            && mobile_metrics::drawer_width(
++                f32::from(window.viewport_size().width),
++                self.mobile_docks.side_width,
++                self.mobile_docks.side_expanded,
++            ) < 340.;
 +        if known {
 +            for (entry, icon, label) in catalog {
-+                if side.stacked() && (entry == Panel::Explorer) != (panel == Panel::Explorer) {
++                if (narrow && entry != panel)
++                    || (side.stacked() && (entry == Panel::Explorer) != (panel == Panel::Explorer))
++                {
 +                    continue;
 +                }
 +                tabs = tabs.child(
