@@ -22105,7 +22105,7 @@ new file mode 100644
 +        &self,
 +        window: &Window,
 +        cx: &mut Context<Self>,
-+    ) -> Div {
++    ) -> impl IntoElement {
 +        let screen_width = f32::from(window.viewport_size().width);
 +        let width = (screen_width * 0.48).clamp(286., 520.).min((screen_width - 16.).max(1.));
 +        let active = self.mcp.is_some();
