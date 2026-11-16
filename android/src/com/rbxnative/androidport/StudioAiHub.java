@@ -1348,6 +1348,33 @@ public final class StudioAiHub extends Activity {
         return new PartProposal(name, position, size, color, rotation, reason);
     }
 
+    /** One reviewed Model: 2-5 validated, unique, app-created primitive Parts. */
+    private static CompositeProposal validateCompositeProposal(JSONObject data) throws Exception {
+        String name = safeField(data, "model_name", 40, true);
+        if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")) {
+            throw new IOException("Nome de modelo inválido");
+        }
+        JSONArray entries = data.optJSONArray("parts");
+        if (entries == null || entries.length() < 2 || entries.length() > 5) {
+            throw new IOException("Um Model deve ter de 2 a 5 peças");
+        }
+        String reason = safeField(data, "reason", 400, true);
+        List<PartProposal> parts = new ArrayList<>();
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject item = entries.optJSONObject(i);
+            if (item == null) throw new IOException("Peça composta inválida");
+            JSONObject safeCopy = new JSONObject(item.toString()).put("reason", reason);
+            PartProposal part = validatePartProposal(safeCopy);
+            for (PartProposal prior : parts) {
+                if (prior.name.equalsIgnoreCase(part.name)) {
+                    throw new IOException("Nome de peça repetido no modelo: " + part.name);
+                }
+            }
+            parts.add(part);
+        }
+        return new CompositeProposal(name, reason, parts);
+    }
+
     private static String luauVector(double[] coordinates) {
         return Double.toString(coordinates[0]) + ", " +
                 Double.toString(coordinates[1]) + ", " + Double.toString(coordinates[2]);
@@ -1389,8 +1416,12 @@ public final class StudioAiHub extends Activity {
     }
 
     private void ensurePartNameFree(String paired, PartProposal part) throws Exception {
+        ensureWorkspaceNameFree(paired, part.name);
+    }
+
+    private void ensureWorkspaceNameFree(String paired, String name) throws Exception {
         String result = readOnlyMcp(paired, "search_game_tree", new JSONObject()
-                .put("path", "Workspace").put("max_depth", 1).put("keywords", part.name));
+                .put("path", "Workspace").put("max_depth", 1).put("keywords", name));
         if ("No instances found.".equals(result)) return;
         if (!result.startsWith("[") || !result.endsWith("]")) {
             throw new IOException("Não foi possível verificar o destino da peça 3D");
@@ -1401,7 +1432,7 @@ public final class StudioAiHub extends Activity {
         for (int i = 0; i < found.length(); i++) {
             JSONObject row = found.optJSONObject(i);
             if (row == null) throw new IOException("Resultado inesperado do Explorer");
-            if (("Workspace." + part.name).equalsIgnoreCase(row.optString("fullPath", ""))) {
+            if (("Workspace." + name).equalsIgnoreCase(row.optString("fullPath", ""))) {
                 throw new IOException("Já existe uma peça ou objeto com este nome no Workspace");
             }
         }
@@ -1645,6 +1676,100 @@ public final class StudioAiHub extends Activity {
         return code.toString();
     }
 
+    /** Build a single fixed Luau edit from only validated typed values. */
+    private static String fixedCompositeLuau(CompositeProposal model) {
+        StringBuilder code = new StringBuilder();
+        code.append("local ws = game:GetService(\"Workspace\")\n")
+                .append("if ws:FindFirstChild(\"").append(model.name)
+                .append("\") then return \"NAME_EXISTS\" end\n")
+                .append("local model = Instance.new(\"Model\")\n")
+                .append("model.Name = \"").append(model.name).append("\"\n");
+        for (PartProposal part : model.parts) {
+            code.append("do\nlocal p = Instance.new(\"Part\")\n")
+                    .append("p.Name = \"").append(part.name).append("\"\n")
+                    .append("p.Anchored = true\np.CanCollide = true\n")
+                    .append("p.Size = Vector3.new(").append(luauVector(part.size)).append(")\n");
+            if (part.rotation != null) {
+                code.append("p.CFrame = CFrame.new(")
+                        .append(luauVector(part.position))
+                        .append(") * CFrame.Angles(")
+                        .append(luauRadians(part.rotation)).append(")\n");
+            } else {
+                code.append("p.Position = Vector3.new(")
+                        .append(luauVector(part.position)).append(")\n");
+            }
+            code.append("p.Color = Color3.fromRGB(").append(part.color[0])
+                    .append(", ").append(part.color[1]).append(", ")
+                    .append(part.color[2]).append(")\n")
+                    .append("p.Parent = model\nend\n");
+        }
+        code.append("model.Parent = ws\nreturn \"CREATED_MODEL:")
+                .append(model.name).append("\"");
+        return code.toString();
+    }
+
+    /** Shared real MCP transport for approved, app-generated 3D operations only. */
+    private String executeApproved3dCode(String paired, String code) throws Exception {
+        if (code.length() > 6500) throw new IOException("Modelo 3D acima do limite");
+        JSONObject args = new JSONObject().put("datamodel_type", "Edit")
+                .put("code", code);
+        return callMcp(paired, "execute_luau", args);
+    }
+
+    private void confirmPendingComposite() {
+        final CompositeProposal model = pendingComposite;
+        if (model == null || busy) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeParts.isChecked()) {
+            status.setText("Autorize a análise e a proposta 3D antes de confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar este modelo 3D?")
+                .setMessage("Workspace." + model.name + "\n" + model.parts.size() +
+                        " peças simples, ancoradas e com colisão.\n\nMotivo: " +
+                        model.reason + "\n\nConfira todas as peças na prévia. " +
+                        "O editor poderá pedir uma autorização MCP adicional; " +
+                        "a operação deverá compor uma etapa de Desfazer.")
+                .setNegativeButton("Revisar peças", null)
+                .setPositiveButton("Sim, criar modelo",
+                        (dialog, which) -> applyApprovedComposite(model))
+                .show();
+    }
+
+    private void applyApprovedComposite(CompositeProposal model) {
+        if (busy || pendingComposite != model || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Verificando nome e preparando modelo 3D...");
+        requests.execute(() -> {
+            try {
+                ensureWorkspaceNameFree(paired, model.name);
+                if (epoch != requestEpoch) throw new IOException("Sessão mudou antes de criar");
+                String response = executeApproved3dCode(paired, fixedCompositeLuau(model));
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingComposite = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta do MCP recebida; confira o modelo no Explorer.");
+                    conversation.setText(conversation.getText() + "\nModelo 3D MCP:\n" +
+                            response.substring(0, Math.min(1200, response.length())) +
+                            "\nConfira a criação e o Desfazer no editor.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Criação do modelo não confirmada: " +
+                            (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
+                            ". Verifique o Explorer.");
+                });
+            }
+        });
+    }
+
     /** Write tool has exactly one app-owned, typed, user-confirmed entry point. */
     private String runApprovedPartCommand(String paired, PartProposal create,
             PartChangeProposal update) throws Exception {
@@ -1653,10 +1778,7 @@ public final class StudioAiHub extends Activity {
         }
         String command = create != null ? fixedPartCreateLuau(create) :
                 fixedPartUpdateLuau(update);
-        if (command.length() > 3000) throw new IOException("Comando fixo acima do limite");
-        JSONObject args = new JSONObject().put("datamodel_type", "Edit")
-                .put("code", command);
-        return callMcp(paired, "execute_luau", args);
+        return executeApproved3dCode(paired, command);
     }
 
     private void confirmPendingPartChange() {
