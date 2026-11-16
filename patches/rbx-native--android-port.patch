@@ -22349,7 +22349,7 @@ diff --git a/crates/rbx_studio/src/shell/mobile/ai.rs b/crates/rbx_studio/src/sh
 new file mode 100644
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/ai.rs
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,196 @@
 +//! Mobile AI control center. It is a real MCP connection to the active
 +//! editor, not a mock chat. Remote model execution lives in the MCP client.
 +//! Dangerous requests go through the on-screen approval queue.
@@ -22472,7 +22472,10 @@ new file mode 100644
 +                                    let name = shell.path.file_name().map(|value|
 +                                        value.to_string_lossy().into_owned())
 +                                        .unwrap_or_else(|| "Projeto local".to_owned());
-+                                    if gpui_mobile::android::open_ai_hub(&name).is_err() {
++                                    let pairing = shell.mcp.as_ref()
++                                        .map(|server| server.endpoint().to_json())
++                                        .unwrap_or_default();
++                                    if gpui_mobile::android::open_ai_hub(&name, &pairing).is_err() {
 +                                        shell.ai_log("Não foi possível abrir a central de provedores.");
 +                                    } else {
 +                                        shell.ai_log("Central de provedores Android aberta.");
