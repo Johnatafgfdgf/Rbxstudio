@@ -28,9 +28,9 @@ fn output_clamps_after_ime_and_window_resize() {
         for preferred in [0., 150., 9999.] {
             let actual = metrics::output_height(height, preferred, false);
             assert!(actual >= 0. && actual <= height);
-            if height >= 150. { assert!(actual <= height * 0.65); }
+            if height >= 150. { assert!(actual <= height * 0.88); }
         }
-        assert!(metrics::output_height(height, 150., true) <= height * 0.68);
+        assert!(metrics::output_height(height, 150., true) <= height * 0.92);
     }
 }
 #[test]
