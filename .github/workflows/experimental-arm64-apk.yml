@@ -52,6 +52,8 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Verify original source and patch integrity
         run: python3 scripts/check_preparation.py
+      - name: Verify active Android Studio branding
+        run: python3 scripts/check_studio_branding.py
       - name: Verify MCP agent approval policy
         run: |
           rustc --edition=2021 --test tests/mobile_ai_permissions.rs -o /tmp/rbx-mobile-agent-policy
