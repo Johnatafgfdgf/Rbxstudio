@@ -82,8 +82,45 @@ for required in [
 assert 'throw new IOException("O modelo solicitou ferramenta não permitida")' in java
 assert 'if (agent && (mcpPairing.isEmpty() || !includeProject.isChecked()))' in java
 
+# Preview-only proposal path: the model must read real Luau before proposing one edit.
+for required in [
+    "proposeEdits.setChecked(false)",
+    "boolean allowProposals",
+    "if (\"propose_script_edit\".equals(action))",
+    "validateProposal(decision, lastReadPath,",
+    "lastScriptOutput = tree",
+    "lastReadPath = safeField(decision",
+    "lastReadOutput.contains(oldText)",
+    "MAX_EDIT_OLD = 400",
+    "MAX_EDIT_NEW = 2400",
+    "proposed = outcome.proposal",
+    "renderPendingEdit();",
+    "confirmPendingEdit()",
+    ".setPositiveButton(\"Sim, aplicar edição\", (dialog, which) -> applyApprovedEdit(edit))",
+    "if (busy || pendingEdit != edit || mcpPairing.isEmpty()) return;",
+    "String latest = readOnlyMcp(paired, \"script_read\", read);",
+    "if (!latest.contains(edit.oldText))",
+    'put("replace_all", false)',
+    'put("datamodel_type", "Edit")',
+    'put("edits", new JSONArray().put(replacement))',
+    'String outcome = callMcp(paired, "multi_edit", args);',
+    "pendingEdit = includeProject.isChecked() && includeCode.isChecked() &&",
+    "requestClose()",
+]:
+    assert required in java, required
+# Exactly one native write entry point; no model-selected write tools or project publication.
+assert java.count('callMcp(paired, "multi_edit", args)') == 1
+assert java.index('String latest = readOnlyMcp(paired, "script_read", read);') < java.index(
+    'String outcome = callMcp(paired, "multi_edit", args);'
+)
+assert 'case "multi_edit"' not in java
+assert '"replace_all", true' not in java
+assert 'callMcp(mcpPairing, action' not in java
+assert '"execute_luau"' not in java
+assert '"publish_place"' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
-print("Android AI provider hub contracts passed (static; no live API keys used).")
+print("Android AI provider, read-only tool and explicit Luau-edit approval contracts passed (static; no live API keys used).")
