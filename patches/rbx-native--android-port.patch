@@ -16949,3 +16949,74 @@ diff --git a/assets/themes/default/widgets.json b/assets/themes/default/widgets.
 +    }
 +  ]
 +}
+diff --git a/crates/rbx_studio/src/shell/ai_permissions.rs b/crates/rbx_studio/src/shell/ai_permissions.rs
+new file mode 100644
+--- /dev/null
++++ b/crates/rbx_studio/src/shell/ai_permissions.rs
+@@ -0,0 +1,66 @@
++//! Permission policy for an external AI using Studio's existing MCP tools.
++//! Default is inspection; edits may be trusted temporarily, external effects
++//! and arbitrary Luau always require deliberate user approval.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub(crate) enum Risk {
++    Read,
++    Edit,
++    Confirm,
++}
++impl Risk {
++    pub(crate) fn needs_approval(self, trust_local_edits: bool) -> bool {
++        match self {
++            Risk::Read => false,
++            Risk::Edit => !trust_local_edits,
++            Risk::Confirm => true,
++        }
++    }
++    pub(crate) fn label(self) -> &'static str {
++        match self {
++            Risk::Read => "Leitura",
++            Risk::Edit => "Alteração no projeto",
++            Risk::Confirm => "Ação sensível",
++        }
++    }
++}
++/// Unknown tools fail closed; the client cannot evade approval by renaming.
++pub(crate) fn risk(tool: &str) -> Risk {
++    match tool {
++        "search_game_tree" | "inspect_instance" | "script_read"
++        | "script_search" | "script_grep" | "get_studio_state"
++        | "list_roblox_studios" | "get_console_output"
++        | "screen_capture" | "search_asset" | "skill" | "http_get"
++        | "wait_job_finished" => Risk::Read,
++        "multi_edit" | "start_stop_play" | "user_mouse_input"
++        | "user_keyboard_input" | "character_navigation" => Risk::Edit,
++        // Inserting a Toolbox model may import scripts. Arbitrary Luau,
++        // publishing and external uploads require individual approval.
++        "insert_asset" | "execute_luau" | "save_place" | "upload_image"
++        | "open_cloud_invoke" | "generate_animation" | "generate_mesh"
++        | "generate_material" | "generate_procedural_model"
++        | "generate_texture" | "segment_mesh" | "store_image"
++        | "subagent" => Risk::Confirm,
++        _ => Risk::Confirm,
++    }
++}
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn reads_are_not_blocked() {
++        for tool in ["search_game_tree", "script_read", "screen_capture", "inspect_instance"] {
++            assert!(!risk(tool).needs_approval(false));
++        }
++    }
++    #[test]
++    fn scripts_need_consent_until_session_trusted() {
++        assert!(risk("multi_edit").needs_approval(false));
++        assert!(!risk("multi_edit").needs_approval(true));
++    }
++    #[test]
++    fn arbitrary_code_uploads_and_unknown_actions_always_prompt() {
++        for tool in ["execute_luau", "insert_asset", "upload_image", "save_place", "new_tool"] {
++            assert!(risk(tool).needs_approval(true));
++        }
++    }
++}
