@@ -155,7 +155,8 @@ assert 'case "execute_luau"' not in java
 assert 'case "multi_edit"' not in java
 assert '"replace_all", true' not in java
 assert 'callMcp(mcpPairing, action' not in java
-assert '"execute_luau"' not in java
+# Only the app-built and user-confirmed Part template may invoke execute_luau.
+assert 'case "execute_luau"' not in java
 assert '"publish_place"' not in java
 
 
