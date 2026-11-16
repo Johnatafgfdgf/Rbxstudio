@@ -22087,7 +22087,7 @@ diff --git a/crates/rbx_studio/src/shell/mobile/ai.rs b/crates/rbx_studio/src/sh
 new file mode 100644
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/ai.rs
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,168 @@
 +//! Mobile AI control center. It is a real MCP connection to the active
 +//! editor, not a mock chat. Remote model execution lives in the MCP client.
 +//! Dangerous requests go through the on-screen approval queue.
@@ -22172,6 +22172,23 @@ new file mode 100644
 +                        .child(div().text_size(px(12.)).text_color(style::muted()).child(status))
 +                        .children(info.map(|text| div().text_size(px(11.))
 +                            .text_color(style::muted()).child(text)))
++                        .when(active, |container| container
++                            .child(compact_action(
++                                "mobile-ai-copy-pairing",
++                                IconName::Check,
++                                "Copiar dados de conexão",
++                                false,
++                            ).on_click(cx.listener(|shell, _, _, cx| {
++                                if let Some(server) = &shell.mcp {
++                                    cx.write_to_clipboard(ClipboardItem::new_string(
++                                        server.endpoint().to_json(),
++                                    ));
++                                    shell.ai_log("Dados de pareamento copiados com sua autorização.");
++                                    cx.notify();
++                                }
++                            })))
++                            .child(div().text_size(px(11.)).text_color(style::muted())
++                                .child("Os dados copiados incluem uma credencial privada. Compartilhe somente com um cliente de IA de confiança.")))
 +                        .child(compact_action(
 +                            "mobile-ai-connect",
 +                            if active { IconName::X } else { IconName::Check },
