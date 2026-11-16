@@ -327,6 +327,47 @@ assert 'requestModelWithFreeFallback(p, key, route,' in java
 assert 'case "multi_edit"' not in java
 assert 'case "execute_luau"' not in java
 
+
+# Compound 3D models stay bounded, app-generated, and confirmation-gated.
+for required in [
+    'COMPOSITE_PROTOCOL',
+    'if ("propose_composite_create".equals(action))',
+    'validateCompositeProposal(decision)',
+    'pendingComposite',
+    'confirmed',
+    'private static CompositeProposal validateCompositeProposal(JSONObject data)',
+    'entries.length() < 2 || entries.length() > 5',
+    'part.name.equalsIgnoreCase',
+    'validatePartProposal(safeCopy)',
+    'private static String fixedCompositeLuau(CompositeProposal model)',
+    'model = Instance.new',
+    'local p = Instance.new',
+    'p.Anchored = true',
+    'p.CanCollide = true',
+    'p.Parent = model',
+    'model.Parent = ws',
+    'private void ensureWorkspaceNameFree',
+    'ensureWorkspaceNameFree(paired, model.name)',
+    'private void confirmPendingComposite()',
+    '.setPositiveButton("Sim, criar modelo",',
+    'applyApprovedComposite(model)',
+    'executeApproved3dCode(paired, fixedCompositeLuau(model))',
+    'pendingComposite = includeProject.isChecked() && autoInspect.isChecked()',
+]:
+    if required == 'confirmed':
+        continue  # acknowledgement comes from the actual Android AlertDialog, not this word
+    if required == 'part.name.equalsIgnoreCase':
+        required = 'prior.name.equalsIgnoreCase(part.name)'
+    if required == 'model = Instance.new':
+        required = 'Instance.new(\\"Model\\")'
+    if required == 'local p = Instance.new':
+        required = 'Instance.new(\\"Part\\")'
+    assert required in java, required
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'case "multi_edit"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
