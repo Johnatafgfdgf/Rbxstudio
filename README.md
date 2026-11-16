@@ -9,6 +9,18 @@ Editor nativo para Android com arquivos RBXL, RBXLX, RBXM e RBXMX. O Play salva 
 - IA: painel MCP e permissões. **Não** há chatbot integrado, execução universal autônoma ou garantia de publicação de animações.
 - Verificações nativas: compilação ARM64, boot, Home, criação de mapa e toques em Menu, Ferramentas, Painéis e IA. Falta validação física completa de Play, scripts, importação e publicação.
 - **Atualizações de APK de desenvolvimento:** novas assinaturas debug geradas em runners descartáveis do GitHub podem impedir atualização por cima da instalação anterior. Exporte projetos antes de remover qualquer aplicativo. Builds destinados a atualizar a instalação devem usar a **mesma** chave de assinatura anterior.
+- O APK produzido é inspecionado por `scripts/check_studio_apk.py` para impedir que a antiga `MainActivity` e seus textos voltem à versão GPUI. As duas referências privadas de credenciais legadas são preservadas até haver migração segura.
+
+### Chave persistente para atualizar o aplicativo
+
+No GitHub, em **Settings → Secrets and variables → Actions**, configure estes segredos no repositório (nunca os envie no chat nem adicione o arquivo .jks ao Git):
+
+- `RBX_STUDIO_ANDROID_KEYSTORE_B64`: conteúdo em base64 de **uma chave de assinatura privada existente e guardada em segurança**.
+- `RBX_STUDIO_ANDROID_STORE_PASS`: senha do keystore.
+- `RBX_STUDIO_ANDROID_KEY_PASS`: senha da chave, quando diferente da senha anterior.
+- `RBX_STUDIO_ANDROID_KEY_ALIAS`: alias da chave (por padrão `androiddebugkey`).
+
+Os workflows Android usam o keystore somente dentro do runner e os parâmetros `--ks-pass env:...` e `--key-pass env:...`. Se os segredos não existirem, continuam gerando um APK de teste com aviso de que a assinatura pode mudar. **Uma nova chave persistente não permite atualizar APKs já instalados com outra assinatura**. O app precisa ser instalado pela primeira vez com a assinatura que permanecerá nas próximas versões; faça backup dos projetos e preserve os dados antes de qualquer migração. Não há migração automática de identificador Android, credenciais ou projetos nesta etapa.
 
 
 ## Versão 0.6.9
