@@ -5,9 +5,9 @@ Base: `verify/android-menus` no commit `dde238cfc2abaeec0354a1c5bda0ce2b53f5e5f4
 
 ## Alterações de código
 
-- `StudioAiHub.java` oferece o checkbox **Agente: investigar o Explorer**. Ele começa **desativado** e exige que o usuário ative o servidor MCP e marque a autorização de envio do contexto.
-- O modelo pode escolher entre produzir uma resposta final ou solicitar a ferramenta fixa `search_game_tree`, com profundidade de 1 a 4.
-- Cada solicitação faz uma chamada **real** ao MCP local autenticado (`127.0.0.1`). Não há mock de leitura, nem ferramentas editoriais acessíveis neste ciclo.
+- `StudioAiHub.java` oferece o checkbox **Agente: analisar objetos e scripts por nome**. Ele começa **desativado** e exige que o usuário ative o servidor MCP e marque a autorização de envio do contexto.
+- O modelo pode escolher entre concluir ou usar quatro ferramentas MCP de leitura validadas contra os schemas do rbx-native: `search_game_tree` (árvore, profundidade 1–4, nome/caminho), `inspect_instance` (propriedades), `script_search` (localizar nomes de scripts) e `get_studio_state` (estado atual).
+- Cada solicitação faz uma chamada **real** ao MCP local autenticado (`127.0.0.1`). Não há mock de leitura, nem ferramentas mutáveis acessíveis neste ciclo. Argumentos livres são limitados em tamanho e rejeitam controles.
 - O agente recebe o resultado da árvore e pode utilizá-lo na próxima resposta. São no máximo duas leituras e três chamadas ao provedor por pedido; a conclusão informa o número de leituras realizadas.
 - O modelo nunca recebe o token da conexão MCP ou a API Key. Os resultados de leitura são tratados como dados não confiáveis; os argumentos aceitos são delimitados pelo código, não pela resposta da IA.
 - O botão **Cancelar análise** interrompe a continuidade e impede que resultados atrasados apareçam na tela. A chamada HTTP ativa pode terminar pelo timeout configurado; cancelar não promete reverter cobrança de chamada já iniciada.
@@ -29,4 +29,4 @@ Base: `verify/android-menus` no commit `dde238cfc2abaeec0354a1c5bda0ce2b53f5e5f4
 
 A etapa **não** executa `multi_edit`, `execute_luau`, `insert_asset`, `save_place`, `publish_animation`, animações, Play ou publicações. Essas operações continuam sob a política MCP existente e exigem fluxo seguro de autorização e testes de ponta a ponta antes de receberem autonomia. O agente pode concluir sem consultar a ferramenta; nesse caso, a resposta identifica explicitamente zero consultas reais.
 
-O chat ainda não é flutuante, não oferece especialistas independentes nem memória persistente. O objetivo desta entrega incremental é ligar **uma** ferramenta verificável ao modelo com consentimento, orçamento de chamadas e cancelamento, sem degradar o editor.
+O chat ainda não é flutuante, não oferece especialistas independentes nem memória persistente. O objetivo desta entrega incremental é ligar **quatro ferramentas de leitura verificáveis** ao modelo com consentimento, orçamento de chamadas e cancelamento, sem degradar o editor.
