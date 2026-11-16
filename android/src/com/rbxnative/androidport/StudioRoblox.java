@@ -21,9 +21,12 @@ public final class StudioRoblox {
         } catch (PackageManager.NameNotFoundException absent) {
             return 1;
         }
+        // The Roblox app's legacy custom-scheme handler can open Home
+        // without forwarding the requested place. Prefer the documented
+        // games/start launcher; retain the custom scheme as fallback.
         String[] links = {
-            "roblox://placeId=" + place,
-            "https://www.roblox.com/games/start?placeId=" + place
+            "https://www.roblox.com/games/start?placeId=" + place,
+            "roblox://placeId=" + place
         };
         for (String link : links) {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(link))
