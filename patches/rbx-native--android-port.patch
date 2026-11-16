@@ -22201,11 +22201,11 @@ diff --git a/assets/themes/default/widgets.json b/assets/themes/default/widgets.
 -  ]
 -}
 +{
-+  "name": "rbx-native",
-+  "author": "rbx-native",
++  "name": "Rbx Studio",
++  "author": "Rbx Studio",
 +  "themes": [
 +    {
-+      "name": "rbx-native Dark",
++      "name": "Rbx Studio Dark",
 +      "mode": "dark",
 +      "radius": 12,
 +      "radius.lg": 16,
@@ -22556,7 +22556,7 @@ diff --git a/crates/rbx_studio/src/mcp/tools/extra_tools.json b/crates/rbx_studi
 +  {
 +    "name": "save_place",
 +    "title": "Save Place",
-+    "description": "rbx-native's own tool, not one of Studio's (Studio's MCP has no way to save). Saves the place to its file, as File > Save does. Given a path, saves there instead and keeps working on that file from then on, as Save As does: .rbxl writes binary, .rbxlx XML, and a relative path is taken from the place's folder. Answers with the file written.",
++    "description": "This editor's local save tool (separate from Roblox Studio's MCP). Saves the place to its file, as File > Save does. Given a path, saves there instead and keeps working on that file from then on, as Save As does: .rbxl writes binary, .rbxlx XML, and a relative path is taken from the place's folder. Answers with the file written.",
 +    "inputSchema": {
 +      "properties": {
 +        "path": {
@@ -22935,7 +22935,7 @@ diff --git a/crates/rbx_studio/src/mcp/tools/skills.rs b/crates/rbx_studio/src/m
 +    let entries: String = skills()
 +        .map(|skill| {
 +            format!(
-+                "  <skill>\n    <name>{}</name>\n    <source>rbx-native</source>\n    \
++                "  <skill>\n    <name>{}</name>\n    <source>Rbx Studio</source>\n    \
 +                 <description>{}</description>\n  </skill>\n",
 +                skill.name, skill.description
 +            )
