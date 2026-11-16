@@ -105,7 +105,9 @@ public final class StudioAiHub extends Activity {
         "\"keywords\":\"NomeDaPeca\"}. Depois, proponha somente " +
         "{\"action\":\"propose_part_create\",\"name\":\"Plataforma_1\"," +
         "\"position\":[0,5,0],\"size\":[8,1,8],\"color\":[70,150,230]," +
-        "\"reason\":\"motivo\"}. O destino é sempre Workspace. " +
+        "\"rotation\":[0,0,0],\"reason\":\"motivo\"}. " +
+        "rotation é OPCIONAL e define orientação absoluta [X,Y,Z] em graus (-180 a 180). " +
+        "O destino é sempre Workspace. " +
         "Part Anchored=true e CanCollide=true; posição entre -256 e 256, " +
         "tamanho em studs entre 0.2 e 64, RGB de 0 a 255. " +
         "Somente nomes de letras/números/sublinhados (até 40 caracteres). " +
@@ -113,14 +115,17 @@ public final class StudioAiHub extends Activity {
         "somente após prévia e confirmação humana. Nunca tente executar ferramentas " +
         "de escrita nem criar mais de uma peça em cada solicitação.";
     private static final String PART_UPDATE_PROTOCOL =
-        "\nPara MOVER, REDIMENSIONAR ou MUDAR COR de uma Part EXISTENTE diretamente " +
+        "\nPara MOVER, GIRAR, REDIMENSIONAR ou MUDAR COR de uma Part EXISTENTE diretamente " +
         "no Workspace, primeiro chame " +
         "{\"action\":\"inspect_instance\",\"path\":\"Workspace.Plataforma_1\"}. " +
         "Depois proponha " +
         "{\"action\":\"propose_part_update\",\"path\":\"Workspace.Plataforma_1\"," +
         "\"position\":[0,8,0],\"size\":[8,1,8],\"color\":[70,150,230]," +
-        "\"reason\":\"motivo\"}. position, size e color são OPCIONAIS: inclua SOMENTE " +
+        "\"rotation\":[0,90,0],\"reason\":\"motivo\"}. " +
+        "position, size, color e rotation são OPCIONAIS; inclua SOMENTE " +
         "as propriedades que quer mudar (pelo menos uma). " +
+        "rotation é orientação absoluta [X,Y,Z] em graus (-180 a 180), " +
+        "não rotação incremental. " +
         "Apenas Part diretamente em Workspace, com nome simples e validado. " +
         "Nunca proponha mudar outros objetos, scripts ou propriedades usando esta função. " +
         "A IA nunca envia Luau; o app mostra valores reais ANTES/DEPOIS e exige aprovação.";
@@ -160,36 +165,40 @@ public final class StudioAiHub extends Activity {
 
     private static final class PartProposal {
         final String name, reason;
-        final double[] position, size;
+        final double[] position, size, rotation;
         final int[] color;
         PartProposal(String name, double[] position, double[] size,
-                int[] color, String reason) {
+                int[] color, double[] rotation, String reason) {
             this.name = name;
             this.position = position;
             this.size = size;
             this.color = color;
+            this.rotation = rotation;
             this.reason = reason;
         }
     }
 
     private static final class PartChangeProposal {
         final String path, reason;
-        final double[] beforePosition, beforeSize, beforeColor;
+        final double[] beforePosition, beforeSize, beforeColor, beforeRotation;
         final String[] beforeFields;
-        final double[] position, size;
+        final double[] position, size, rotation;
         final int[] color;
         PartChangeProposal(String path, String reason,
                 double[] beforePosition, double[] beforeSize, double[] beforeColor,
-                String[] beforeFields, double[] position, double[] size, int[] color) {
+                double[] beforeRotation, String[] beforeFields,
+                double[] position, double[] size, int[] color, double[] rotation) {
             this.path = path;
             this.reason = reason;
             this.beforePosition = beforePosition;
             this.beforeSize = beforeSize;
             this.beforeColor = beforeColor;
+            this.beforeRotation = beforeRotation;
             this.beforeFields = beforeFields;
             this.position = position;
             this.size = size;
             this.color = color;
+            this.rotation = rotation;
         }
     }
 
@@ -1057,13 +1066,30 @@ public final class StudioAiHub extends Activity {
             }
             color[i] = (int) value;
         }
+        double[] rotation = input.has("rotation") ? partVector(input, "rotation", -180, 180) : null;
         String reason = safeField(input, "reason", 400, true);
-        return new PartProposal(name, position, size, color, reason);
+        return new PartProposal(name, position, size, color, rotation, reason);
     }
 
     private static String luauVector(double[] coordinates) {
         return Double.toString(coordinates[0]) + ", " +
                 Double.toString(coordinates[1]) + ", " + Double.toString(coordinates[2]);
+    }
+
+    /** The app controls all angle calculations; the model supplies only bounded degrees. */
+    private static String luauNumbers(double[] values) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) result.append(", ");
+            result.append(Double.toString(values[i]));
+        }
+        return result.toString();
+    }
+
+    private static String luauRadians(double[] degrees) {
+        return "math.rad(" + Double.toString(degrees[0]) + "), " +
+                "math.rad(" + Double.toString(degrees[1]) + "), " +
+                "math.rad(" + Double.toString(degrees[2]) + ")";
     }
 
     /** Entire command is app-owned; user/model never supplies executable source. */
@@ -1075,7 +1101,10 @@ public final class StudioAiHub extends Activity {
                 "p.Anchored = true\n" +
                 "p.CanCollide = true\n" +
                 "p.Size = Vector3.new(" + luauVector(part.size) + ")\n" +
-                "p.Position = Vector3.new(" + luauVector(part.position) + ")\n" +
+                (part.rotation == null
+                    ? "p.Position = Vector3.new(" + luauVector(part.position) + ")\n"
+                    : "p.CFrame = CFrame.new(" + luauVector(part.position) +
+                      ") * CFrame.Angles(" + luauRadians(part.rotation) + ")\n") +
                 "p.Color = Color3.fromRGB(" + part.color[0] + ", " +
                 part.color[1] + ", " + part.color[2] + ")\n" +
                 "p.Parent = ws\n" +
@@ -1194,6 +1223,28 @@ public final class StudioAiHub extends Activity {
         return result;
     }
 
+    private static double[] inspectedRotation(JSONObject properties) throws IOException {
+        Object raw = properties.opt("CFrame.Rotation");
+        if (!(raw instanceof String)) {
+            throw new IOException("Inspeção sem rotação real");
+        }
+        String[] values = ((String) raw).split(",", -1);
+        if (values.length != 9) {
+            throw new IOException("Matriz de orientação 3D inválida");
+        }
+        double[] result = new double[9];
+        for (int i = 0; i < 9; i++) {
+            try { result[i] = Double.parseDouble(values[i].trim()); }
+            catch (NumberFormatException ex) {
+                throw new IOException("Valor inválido na matriz de rotação", ex);
+            }
+            if (!Double.isFinite(result[i]) || result[i] < -1.001 || result[i] > 1.001) {
+                throw new IOException("Matriz de rotação fora dos limites");
+            }
+        }
+        return result;
+    }
+
     private static String[] inspectedPartFields(JSONObject props) throws IOException {
         String[] keys = {"CFrame.Position", "Size", "Color", "CFrame.Rotation"};
         String[] fields = new String[keys.length];
@@ -1243,19 +1294,23 @@ public final class StudioAiHub extends Activity {
                 -1000000, 1000000);
         double[] beforeSize = inspectedComponents(original, "Size", 0, 1000000);
         double[] beforeColor = inspectedComponents(original, "Color", 0, 1);
+        double[] beforeRotation = inspectedRotation(original);
         String[] fingerprint = inspectedPartFields(original);
         boolean move = decision.has("position");
         boolean resize = decision.has("size");
         boolean recolor = decision.has("color");
-        if (!move && !resize && !recolor) {
+        boolean rotate = decision.has("rotation");
+        if (!move && !resize && !recolor && !rotate) {
             throw new IOException("Proposta 3D sem propriedades a alterar");
         }
         double[] position = move ? partVector(decision, "position", -256, 256) : null;
         double[] size = resize ? partVector(decision, "size", 0.2, 64) : null;
         int[] color = recolor ? optionalUpdateColor(decision) : null;
+        double[] rotation = rotate ? partVector(decision, "rotation", -180, 180) : null;
         String reason = safeField(decision, "reason", 400, true);
         return new PartChangeProposal(path, reason,
-                beforePosition, beforeSize, beforeColor, fingerprint, position, size, color);
+                beforePosition, beforeSize, beforeColor, beforeRotation, fingerprint,
+                position, size, color, rotation);
     }
 
     private void verifyPartUnchanged(String paired, PartChangeProposal proposal)
@@ -1285,11 +1340,23 @@ public final class StudioAiHub extends Activity {
                 .append("if math.abs(oldColor.R - ").append(part.beforeColor[0])
                 .append(") > 0.005 or math.abs(oldColor.G - ").append(part.beforeColor[1])
                 .append(") > 0.005 or math.abs(oldColor.B - ").append(part.beforeColor[2])
-                .append(") > 0.005 then return \"STALE_PART\" end\n");
+                .append(") > 0.005 then return \"STALE_PART\" end\n")
+                .append("local oldRotation = {select(4, p.CFrame:GetComponents())}\n")
+                .append("local expectedRotation = {")
+                .append(luauNumbers(part.beforeRotation)).append("}\n")
+                .append("for i = 1, 9 do if math.abs(oldRotation[i] - expectedRotation[i]) > ")
+                .append("0.005 then return \"STALE_PART\" end end\n");
         if (part.size != null) {
             code.append("p.Size = Vector3.new(").append(luauVector(part.size)).append(")\n");
         }
-        if (part.position != null) {
+        if (part.rotation != null) {
+            code.append("p.CFrame = CFrame.new(")
+                    .append(part.position == null ? "p.Position" :
+                            "Vector3.new(" + luauVector(part.position) + ")")
+                    .append(") * CFrame.Angles(")
+                    .append(luauRadians(part.rotation)).append(")\n");
+        } else if (part.position != null) {
+            // Setting Position preserves the existing orientation.
             code.append("p.Position = Vector3.new(").append(luauVector(part.position)).append(")\n");
         }
         if (part.color != null) {
@@ -1328,7 +1395,7 @@ public final class StudioAiHub extends Activity {
                 .setMessage("Objeto: " + change.path + "\nMotivo: " + change.reason +
                         "\n\nA prévia mostra os valores atuais e propostos. " +
                         "O app vai conferir a peça novamente antes de editar. " +
-                        "O comando é fixo e só modifica posição, tamanho ou cor. " +
+                        "O comando é fixo e só modifica posição, tamanho, cor ou rotação. " +
                         "O editor pode exigir uma segunda autorização MCP.")
                 .setNegativeButton("Revisar", null)
                 .setPositiveButton("Sim, aplicar mudança",
@@ -1384,14 +1451,17 @@ public final class StudioAiHub extends Activity {
                     "Motivo: " + change.reason + "\n\nANTES (inspeção MCP real):\n" +
                     "Posição: " + Arrays.toString(change.beforePosition) + "\n" +
                     "Tamanho: " + Arrays.toString(change.beforeSize) + "\n" +
-                    "Cor RGB aprox.: " + Arrays.toString(colorRgb(change.beforeColor)) +
+                    "Cor RGB aprox.: " + Arrays.toString(colorRgb(change.beforeColor)) + "\n" +
+                    "Orientação atual (matriz 3x3): " + Arrays.toString(change.beforeRotation) +
                     "\n\nDEPOIS (proposta):\n" +
                     "Posição: " + (change.position == null ? "inalterada" :
                             Arrays.toString(change.position)) + "\n" +
                     "Tamanho: " + (change.size == null ? "inalterado" :
                             Arrays.toString(change.size)) + "\n" +
                     "Cor RGB: " + (change.color == null ? "inalterada" :
-                            Arrays.toString(change.color)) +
+                            Arrays.toString(change.color)) + "\n" +
+                    "Rotação XYZ (graus): " + (change.rotation == null ? "inalterada" :
+                            Arrays.toString(change.rotation)) +
                     "\n\nSomente campos indicados serão alterados. Aprovação obrigatória.");
             return;
         }
@@ -1403,6 +1473,8 @@ public final class StudioAiHub extends Activity {
                     "Posição: " + Arrays.toString(part.position) + "\n" +
                     "Tamanho (studs): " + Arrays.toString(part.size) + "\n" +
                     "Cor RGB: " + Arrays.toString(part.color) + "\n" +
+                    "Rotação XYZ (graus): " + (part.rotation == null ? "[0, 0, 0]" :
+                            Arrays.toString(part.rotation)) + "\n" +
                     "Ancorada: sim • colisão: sim\n" +
                     "Motivo: " + part.reason + "\n\n" +
                     "Somente uma peça. Comando gerado e validado pelo aplicativo, " +
