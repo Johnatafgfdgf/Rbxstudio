@@ -192,6 +192,9 @@ public final class StudioAiHub extends Activity {
         save = button("Salvar chave com segurança");
         save.setOnClickListener(v -> saveKey());
         add(root, save, 7);
+        Button revoke = button("Remover chave deste provedor");
+        revoke.setOnClickListener(v -> revokeKey());
+        add(root, revoke, 8);
         refresh = button("Consultar modelos disponíveis • testar conexão");
         refresh.setOnClickListener(v -> refreshModels());
         add(root, refresh, 9);
@@ -258,6 +261,7 @@ public final class StudioAiHub extends Activity {
                 conversation.setText("Novo chat com " + NAMES[provider] +
                         ". Nenhuma alteração será aplicada automaticamente ao projeto.");
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt("provider", provider).apply();
+                setBusy(false, "Provedor selecionado.");
                 readStatus();
             }
         });
@@ -328,6 +332,24 @@ public final class StudioAiHub extends Activity {
             status.setText("Chave criptografada e salva. Consulte os modelos para testar.");
         } catch (Exception problem) {
             status.setText("Falha ao salvar a chave no Android Keystore.");
+        }
+    }
+
+    private void revokeKey() {
+        try {
+            StudioServices.credential(this, "delete", service(provider), "", "");
+            apiKey.setText("");
+            models.clear();
+            history.clear();
+            projectSummary = "";
+            includeProject.setChecked(false);
+            modelPicker.setAdapter(new ArrayAdapter<String>(this,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    new String[]{"Consulte os modelos primeiro"}));
+            conversation.setText("Chave removida. Nenhuma mensagem será enviada sem nova autorização.");
+            status.setText("Credencial deste provedor removida do Android Keystore.");
+        } catch (Exception problem) {
+            status.setText("Não foi possível remover a credencial.");
         }
     }
 
@@ -453,7 +475,8 @@ public final class StudioAiHub extends Activity {
         final String model = modelPicker.getSelectedItem() == null ? ""
                 : modelPicker.getSelectedItem().toString();
         final String question = prompt.getText().toString().trim();
-        if (!models.contains(model) || question.isEmpty()) {
+        if (!models.contains(model) || question.isEmpty() ||
+                !model.matches("[a-zA-Z0-9_./:-]{1,180}")) {
             status.setText("Escolha um modelo conectado e escreva sua mensagem.");
             return;
         }
@@ -514,7 +537,7 @@ public final class StudioAiHub extends Activity {
         switch (p) {
             case 0: return "https://api.openai.com/v1/responses";
             case 1: return "https://generativelanguage.googleapis.com/v1beta/models/" +
-                    java.net.URLEncoder.encode(model, StandardCharsets.UTF_8) + ":generateContent";
+                    model + ":generateContent";
             case 2: return "https://api.anthropic.com/v1/messages";
             default: return "https://openrouter.ai/api/v1/chat/completions";
         }
@@ -634,7 +657,8 @@ public final class StudioAiHub extends Activity {
                 byte[] buffer = new byte[8192];
                 int bytes;
                 while ((bytes = input.read(buffer)) >= 0) {
-                    if (data.size() + bytes > MAX_RESPONSE_BYTES) throw new IOException("Resposta muito grande.");
+                    int limit = (body == null && p == 3) ? MAX_RESPONSE_BYTES * 4 : MAX_RESPONSE_BYTES;
+                    if (data.size() + bytes > limit) throw new IOException("Resposta muito grande.");
                     data.write(buffer, 0, bytes);
                 }
                 return new JSONObject(data.toString(StandardCharsets.UTF_8.name()));
