@@ -177,6 +177,21 @@ def capture_mobile_chrome(frame, pid):
                 touches.append({'button': 'Explorer + Properties and scene drag', 'changed_pixels': changed})
         else:
             tap(x, row_y)
+    # Fourth leading button is the IA control in 0.6.11. Capture the
+    # actual native panel rather than a design preview; no network or
+    # external AI client is required for this smoke check.
+    if len(runs) >= 4 and os.environ.get('STUDIO_APK_VERSION') == '0.6.11':
+        x = (runs[3][0] + runs[3][1]) // 2
+        before = capture('mobile-before-ai.png')
+        tap(x, row_y)
+        opened = capture('mobile-ai-panel.png')
+        bounds = (left, top + round(52 * scale), right, bottom)
+        diff = ImageChops.difference(before.crop(bounds), opened.crop(bounds))
+        changed = sum(1 for pixel in diff.getdata() if max(pixel) > 24)
+        touches.append({'button': 'assistant IA', 'changed_pixels': changed})
+        if changed < width:
+            raise RuntimeError('The IA button did not visibly open its mobile panel')
+        tap(x, row_y)
     (OUT / 'mobile-menu-touches.json').write_text(json.dumps(touches, indent=2) + '\n')
 
 try:
