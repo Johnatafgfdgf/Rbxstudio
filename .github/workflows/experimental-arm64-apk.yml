@@ -60,7 +60,23 @@ jobs:
           /tmp/rbx-mobile-agent-policy
       - name: Build Android ARM64 Studio and local player
         run: python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
+      - name: Restore private persistent signing key (optional)
+        env:
+          RBX_STUDIO_KEYSTORE_B64: ${{ secrets.RBX_STUDIO_ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$RBX_STUDIO_KEYSTORE_B64" ]; then
+            mkdir -p "$RUNNER_TEMP/rbxstudio-private"
+            printf '%s' "$RBX_STUDIO_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/rbxstudio-private/signing.jks"
+            chmod 600 "$RUNNER_TEMP/rbxstudio-private/signing.jks"
+            echo "PORT_SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/rbxstudio-private/signing.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No persistent signing key configured. This test APK may not upgrade an existing installation; export projects before uninstalling."
+          fi
       - name: Package signed debug APK
+        env:
+          PORT_SIGNING_STORE_PASS: ${{ secrets.RBX_STUDIO_ANDROID_STORE_PASS }}
+          PORT_SIGNING_KEY_PASS: ${{ secrets.RBX_STUDIO_ANDROID_KEY_PASS }}
+          PORT_SIGNING_KEY_ALIAS: ${{ secrets.RBX_STUDIO_ANDROID_KEY_ALIAS }}
         run: python3 scripts/package_apk.py
       - name: Verify ARM64 ABI, signature and checksum
         run: |
