@@ -87,7 +87,8 @@ with zipfile.ZipFile(raw,"a") as apk:
 aligned=BUILD/"aligned.apk";run(BT/"zipalign","-f","-P","16","4",raw,aligned)
 key=ROOT/"tools/debug.keystore";key.parent.mkdir(exist_ok=True)
 if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname",("CN=Rbx Studio Android Debug,O=Development,C=BR" if studio else "CN=rbx-native Android Debug,O=Development,C=BR"))
-apk=DIST/("rbx-native-android-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
+product_prefix="rbx-studio-android" if studio else "rbx-native-android"
+apk=DIST/(product_prefix+"-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
 signed=BUILD/"signed.apk"
 run(BT/"apksigner","sign","--ks",key,"--ks-pass","pass:android","--key-pass","pass:android","--v4-signing-enabled","false","--out",signed,aligned)
 run(BT/"apksigner","verify","--verbose",signed)
