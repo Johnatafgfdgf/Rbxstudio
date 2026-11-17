@@ -5667,7 +5667,7 @@ index 0000000..0000000 100644
      let message = lua_error_message(e);
      let mut text = message;
      let stack = mlua_traceback(e)
-@@ -297,21 +299,68 @@
+@@ -297,21 +299,70 @@
              // Debris may outlive what it was given; destroyed is destroyed.
              let _ = crate::removal::destroy(lua, id);
          }
@@ -5693,7 +5693,7 @@ index 0000000..0000000 100644
 +fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>,
 +        observe: bool) -> (Option<bool>, u32) {
 +    #[cfg(target_os = "android")]
-+    let errors_before = with_world(lua, |w| w.errors);
++    let errors_before = observe.then(|| with_world(lua, |w| w.errors));
 +    #[cfg(target_os = "android")]
 +    let journal_before = if observe {
 +        Some(with_world(lua, |w| {
@@ -5705,7 +5705,7 @@ index 0000000..0000000 100644
 +    let _ = observe;
 +    let outcome = match handler {
 +        Handler::Call(f) => match spawn(lua, f, MultiValue::from_vec(args)) {
-+            Ok(thread) => Some(thread.status() == ThreadStatus::Finished),
++            Ok(thread) => Some(observe && thread.status() == ThreadStatus::Finished),
 +            Err(e) => {
 -fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
 -    match handler {
@@ -5718,7 +5718,7 @@ index 0000000..0000000 100644
              }
 +        },
 +        Handler::Resume(thread) => {
-+            let runnable = thread.status() == ThreadStatus::Resumable
++            let runnable = observe && thread.status() == ThreadStatus::Resumable
 +                && !stopped_thread(lua, &thread);
 +            resume(lua, &thread, MultiValue::from_vec(args));
 +            Some(runnable && thread.status() == ThreadStatus::Finished)
@@ -5734,7 +5734,9 @@ index 0000000..0000000 100644
 +    #[cfg(not(target_os = "android"))]
 +    let dom_changes = 0;
 +    #[cfg(target_os = "android")]
-+    if with_world(lua, |w| w.errors) > errors_before {
++    if let Some(before) = errors_before
++        && with_world(lua, |w| w.errors) > before
++    {
 +        return (None, dom_changes);
 -        }
 -        Handler::Resume(thread) => resume(lua, &thread, MultiValue::from_vec(args)),
@@ -5743,7 +5745,7 @@ index 0000000..0000000 100644
  }
  
  /// Drain the deferred queue, including jobs deferred while draining.
-@@ -340,6 +389,10 @@
+@@ -340,6 +391,10 @@
              with_world(lua, |w| w.signals.disconnect(connection));
              continue;
          }
@@ -5754,7 +5756,7 @@ index 0000000..0000000 100644
          match behavior {
              SignalBehavior::Deferred => with_world(lua, |w| {
                  w.scheduler.defer(Job::Fire {
-@@ -354,7 +407,15 @@
+@@ -354,7 +409,15 @@
                      with_world(lua, |w| w.push_log(MessageType::Error, e.to_string()));
                      continue;
                  }

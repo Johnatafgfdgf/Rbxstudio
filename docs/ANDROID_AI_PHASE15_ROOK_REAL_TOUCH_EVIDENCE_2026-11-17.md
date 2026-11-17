@@ -203,3 +203,11 @@ inspecionada e não se guardam valores, objetos ou scripts. Se o diário
 estiver desabilitado, zero é inconclusivo. Eventos `Deferred` fora da
 janela de observação continuam sem confirmação. O Java rejeita dados
 fora dos limites ou contagens de handlers impossíveis.
+
+## Performance: custo apenas com consentimento
+
+A busca por erros novos e por alterações no diário do DOM só ocorre
+quando um handler do sinal de toque foi acompanhado na sessão. O
+tratamento normal dos demais handlers não ganha essas leituras extras.
+O listener de GUI é desinstalado após o 200º sinal real registrado e
+não segue capturando caminhos de botões ou mutações após esse limite.
