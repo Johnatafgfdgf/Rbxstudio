@@ -4440,6 +4440,203 @@ public final class StudioAiHub extends Activity {
         return executeApproved3dCode(paired, command);
     }
 
+
+    /** Restrict all Luau enum suffixes to known Roblox materials. */
+    private static boolean allowedPartMaterial(String value) {
+        return value != null && value.matches(
+                "Plastic|SmoothPlastic|Wood|WoodPlanks|Concrete|Brick|Metal|" +
+                "Glass|Neon|Grass|Sand|Slate|Marble|Granite|Ice");
+    }
+
+    private static String inspectedPartMaterial(JSONObject props) throws IOException {
+        Object raw = props.opt("Material");
+        if (!(raw instanceof String) ||
+                !((String) raw).matches("Enum\\.Material\\.[A-Za-z][A-Za-z0-9_]{0,47}"))
+            throw new IOException("Material da Part ausente ou fora do formato esperado");
+        return ((String) raw).substring("Enum.Material.".length());
+    }
+
+    private static double inspectedPartTransparency(JSONObject props) throws IOException {
+        Object raw = props.opt("Transparency");
+        if (!(raw instanceof Number)) throw new IOException("Transparency MCP não é numérica");
+        double n = ((Number) raw).doubleValue();
+        if (!Double.isFinite(n) || n < 0 || n > 1)
+            throw new IOException("Transparency MCP fora de 0 a 1");
+        return n;
+    }
+
+    private static boolean inspectedPartBoolean(JSONObject props, String key)
+            throws IOException {
+        Object raw = props.opt(key);
+        if (!(raw instanceof Boolean))
+            throw new IOException("Campo booleano da Part ausente: " + key);
+        return (Boolean) raw;
+    }
+
+    private static Boolean optionalPartBoolean(JSONObject input, String key)
+            throws IOException {
+        if (!input.has(key)) return null;
+        Object raw = input.opt(key);
+        if (!(raw instanceof Boolean)) throw new IOException(key + " deve ser true ou false");
+        return (Boolean) raw;
+    }
+
+    private static PartStyleProposal validatePartStyleProposal(JSONObject input,
+            String inspectedPath, String inspectedText) throws Exception {
+        String path = safeField(input, "path", 100, true);
+        if (!path.matches("Workspace\\.[A-Za-z][A-Za-z0-9_]{0,39}") ||
+                !path.equals(inspectedPath))
+            throw new IOException("Apenas Part única e inspecionada direto em Workspace");
+        JSONObject props = verifiedPartInspection(path, inspectedText);
+        String beforeMaterial = inspectedPartMaterial(props);
+        double beforeTransparency = inspectedPartTransparency(props);
+        boolean beforeAnchored = inspectedPartBoolean(props, "Anchored");
+        boolean beforeCanCollide = inspectedPartBoolean(props, "CanCollide");
+        String material = null;
+        if (input.has("material")) {
+            Object value = input.opt("material");
+            if (!(value instanceof String) ||
+                    !allowedPartMaterial((String) value))
+                throw new IOException("Material fora da lista de segurança");
+            material = (String) value;
+        }
+        Double transparency = optionalLightingNumber(input, "transparency", 0, 1);
+        Boolean anchored = optionalPartBoolean(input, "anchored");
+        Boolean canCollide = optionalPartBoolean(input, "can_collide");
+        if (material == null && transparency == null && anchored == null &&
+                canCollide == null)
+            throw new IOException("Proposta de estilo não altera nenhuma propriedade");
+        String reason = safeField(input, "reason", 400, true);
+        return new PartStyleProposal(path, reason, beforeMaterial,
+                beforeTransparency, beforeAnchored, beforeCanCollide,
+                material, transparency, anchored, canCollide);
+    }
+
+    private static boolean partStyleMatches(JSONObject props, PartStyleProposal style)
+            throws IOException {
+        String material = inspectedPartMaterial(props);
+        double transparency = inspectedPartTransparency(props);
+        boolean anchored = inspectedPartBoolean(props, "Anchored");
+        boolean collide = inspectedPartBoolean(props, "CanCollide");
+        return material.equals(style.material == null ? style.beforeMaterial : style.material) &&
+                Math.abs(transparency - (style.transparency == null ?
+                        style.beforeTransparency : style.transparency)) <= 0.005 &&
+                anchored == (style.anchored == null ? style.beforeAnchored : style.anchored) &&
+                collide == (style.canCollide == null ? style.beforeCanCollide : style.canCollide);
+    }
+
+    /** Fixed source, never code from the AI. Rechecks all four old values in Edit. */
+    private static String fixedPartStyleLuau(PartStyleProposal style) {
+        String name = style.path.substring("Workspace.".length());
+        StringBuilder code = new StringBuilder()
+                .append("local ws = game:GetService(\"Workspace\")\n")
+                .append("local p = ws:FindFirstChild(\"").append(name).append("\")\n")
+                .append("if not p or not p:IsA(\"Part\") or p.Parent ~= ws " +
+                        "then return \"INVALID_PART\" end\n")
+                .append("if p.Material ~= Enum.Material.").append(style.beforeMaterial)
+                .append(" or math.abs(p.Transparency - ")
+                .append(Double.toString(style.beforeTransparency))
+                .append(") > 0.005 or p.Anchored ~= ")
+                .append(Boolean.toString(style.beforeAnchored))
+                .append(" or p.CanCollide ~= ")
+                .append(Boolean.toString(style.beforeCanCollide))
+                .append(" then return \"STALE_PART_STYLE\" end\n");
+        if (style.material != null)
+            code.append("p.Material = Enum.Material.").append(style.material).append("\n");
+        if (style.transparency != null)
+            code.append("p.Transparency = ").append(style.transparency).append("\n");
+        if (style.anchored != null)
+            code.append("p.Anchored = ").append(style.anchored).append("\n");
+        if (style.canCollide != null)
+            code.append("p.CanCollide = ").append(style.canCollide).append("\n");
+        return code.append("return \"UPDATED_STYLE:").append(name).append("\"").toString();
+    }
+
+    private void confirmPendingPartStyle() {
+        final PartStyleProposal style = pendingPartStyle;
+        if (style == null || busy || applyingEdit) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeParts.isChecked()) {
+            status.setText("Reative o agente, Explorer e permissão de peças.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Alterar propriedades físicas/visuais desta Part?")
+                .setMessage("Objeto: " + style.path + "\nMotivo: " + style.reason +
+                        "\n\nMaterial: " + style.beforeMaterial + " → " +
+                        (style.material == null ? "inalterado" : style.material) +
+                        "\nTransparência: " + style.beforeTransparency + " → " +
+                        (style.transparency == null ? "inalterada" : style.transparency) +
+                        "\nAncorada: " + style.beforeAnchored + " → " +
+                        (style.anchored == null ? "inalterada" : style.anchored) +
+                        "\nColisão: " + style.beforeCanCollide + " → " +
+                        (style.canCollide == null ? "inalterada" : style.canCollide) +
+                        "\n\nO editor será reinspecionado antes e depois. Alterar colisão " +
+                        "ou ancoragem pode mudar o comportamento em Play.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Confirmar propriedades",
+                        (dialog, which) -> applyApprovedPartStyle(style))
+                .show();
+    }
+
+    private void applyApprovedPartStyle(PartStyleProposal style) {
+        if (busy || applyingEdit || pendingPartStyle != style || mcpPairing.isEmpty()) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeParts.isChecked()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Reinspecionando Material, Transparency e propriedades físicas…");
+        requests.execute(() -> {
+            try {
+                JSONObject before = verifiedPartInspection(style.path, readOnlyMcp(paired,
+                        "inspect_instance", new JSONObject().put("path", style.path)));
+                // Before checking and writing, compare against the original snapshot.
+                if (!inspectedPartMaterial(before).equals(style.beforeMaterial) ||
+                        Math.abs(inspectedPartTransparency(before) -
+                                style.beforeTransparency) > 0.005 ||
+                        inspectedPartBoolean(before, "Anchored") != style.beforeAnchored ||
+                        inspectedPartBoolean(before, "CanCollide") != style.beforeCanCollide)
+                    throw new IOException("Propriedades da Part mudaram desde a proposta");
+                if (epoch != requestEpoch)
+                    throw new IOException("Sessão MCP mudou antes da edição");
+                String result = checkedEditReceipt(
+                        executeApproved3dCode(paired, fixedPartStyleLuau(style)),
+                        "UPDATED_STYLE:" + style.path.substring("Workspace.".length()));
+                boolean verified;
+                try {
+                    verified = partStyleMatches(verifiedPartInspection(style.path,
+                            readOnlyMcp(paired, "inspect_instance",
+                                    new JSONObject().put("path", style.path))), style);
+                } catch (Exception unreadable) {
+                    verified = false;
+                }
+                final boolean confirmed = verified;
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingPartStyle = null;
+                    renderPendingEdit();
+                    setBusy(false, readBackNotice(confirmed, style.path));
+                    recordEditorOutcome("UPDATE_PART_STYLE", style.path, confirmed);
+                    conversation.setText(conversation.getText() +
+                            "\nPropriedades da Part MCP: " + result +
+                            "\nConfira visualmente o mapa e teste colisão no Play.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pausePlanAfterFailedWrite();
+                    setBusy(false, "Estilo da Part não confirmado. " +
+                            (error.getMessage() == null ? "Verifique o Explorer." :
+                                    error.getMessage()) +
+                            " Não reaplique sem conferir a Part no editor.");
+                });
+            }
+        });
+    }
+
     private void confirmPendingPartChange() {
         final PartChangeProposal change = pendingPartChange;
         if (change == null || busy) return;
