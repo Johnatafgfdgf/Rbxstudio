@@ -696,9 +696,9 @@ for required in [
     'includeProject.isChecked() && includeMemory.isChecked()',
     'includeMemory.setChecked(false)',
     'StudioServices.credential(this, "delete",',
-    'history.clear(); // Revoking code consent also drops cached provider context.',
-    'history.clear(); // Project contents must not remain in stale provider turns.',
-    'history.clear(); // Do not resend previously approved memory via old turns.',
+    'revokeSharedContext(); // Also cancels active model reads.',
+    'revokeSharedContext(); // Project data must not remain in stale turns.',
+    'revokeSharedContext(); // Do not resend approved memory from old turns.',
     'recordEditorOutcome("CREATE_PART", objectPath, verified)',
     'recordEditorOutcome("CREATE_MODEL", objectPath, allPartsVerified)',
     'recordEditorOutcome("UPDATE_PART", change.path, verified)',
@@ -712,6 +712,16 @@ assert java.count('recordEditorOutcome(') == 8  # helper plus 7 verified editor 
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
+# A consent withdrawal also invalidates any ongoing model read and prevents
+# a late editor response from repopulating revoked context.
+for required in [
+    'private void revokeSharedContext()',
+    'if (busy && !applyingEdit)',
+    'requestEpoch++;',
+    'abortInFlight();',
+    'if (includeProject != null && includeProject.isChecked()) {',
+]:
+    assert required in java, required
 # Explicit continuation keeps app/model tool history consistent and does not
 # start chargeable work without a button press and session consent.
 for required in [
