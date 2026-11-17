@@ -63,15 +63,15 @@ public final class PlaySmokeHarness {
         yes(checkedLocalPlayMode(edit).equals("EDIT"));
         yes(checkedLocalPlayMode(starting).equals("INICIANDO"));
 
-        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "", false, null, false, null, false, false, false, false);
+        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "", false, null, false, null, false, false, false, false, false, false);
         yes(all.contains("Início autorizado com recibo: confirmado"));
         yes(all.contains("Client/Server durante Play: confirmados"));
         yes(all.contains("Retorno ao Edit: confirmado"));
         yes(all.contains("Árvore Server.Workspace: confirmada"));
         yes(all.contains("Árvore Client.Players: confirmada"));
-        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "", false, null, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "", false, null, false, null, false, false, false, false, false, false)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "", false, null, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "", false, null, false, null, false, false, false, false, false, false)
                 .contains("INCONCLUSIVO"));
         yes(all.contains("PASSOU somente nas verificações"));
         LiveToolGuiAudit ready = new LiveToolGuiAudit(
@@ -79,36 +79,48 @@ public final class PlaySmokeHarness {
                 true, true, true, true, true, true);
         yes(ready.complete());
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, new LocalPlayerScenario(true, true, true, true), true, ready, false, false, false, false).contains("PASSOU somente nas verificações"));
+                true, new LocalPlayerScenario(true, true, true, true), true, ready, false, false, false, false, false, false).contains("PASSOU somente nas verificações"));
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, new LocalPlayerScenario(true, true, true, true), true, null, false, false, false, false).contains("INCONCLUSIVO"));
+                true, new LocalPlayerScenario(true, true, true, true), true, null, false, false, false, false, false, false).contains("INCONCLUSIVO"));
         LiveToolGuiAudit unready = new LiveToolGuiAudit(
                 "Players.Alex.Backpack.Sword", "Players.Alex.PlayerGui.Menu.Buy",
                 true, true, false, true, true, true);
         yes(!unready.complete() && !unready.toolReady());
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, new LocalPlayerScenario(true, true, true, true), true, unready, false, false, false, false).contains("INCONCLUSIVO"));
+                true, new LocalPlayerScenario(true, true, true, true), true, unready, false, false, false, false, false, false).contains("INCONCLUSIVO"));
 
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
                 true, new LocalPlayerScenario(true, true, true, true),
-                false, null, true, true, true, true).contains("PASSOU somente"));
+                false, null, true, true, true, true, false, false).contains("PASSOU somente"));
         String noReceipt = buildPlaySmokeSummary(true, play, true, true, "log", true, "",
                 true, new LocalPlayerScenario(true, true, true, true),
-                false, null, true, false, true, false);
+                false, null, true, false, true, false, false, false);
         yes(noReceipt.contains("INCONCLUSIVO"));
         String noReadBack = buildPlaySmokeSummary(true, play, true, true, "log", true, "",
                 true, new LocalPlayerScenario(true, true, true, true),
-                false, null, true, true, false, false);
+                false, null, true, true, false, false, false, false);
         yes(noReadBack.contains("Tool no personagem por leitura MCP independente: não confirmada"));
         yes(noReadBack.contains("INCONCLUSIVO"));
         String noEquippedEvent = buildPlaySmokeSummary(true, play, true, true, "log", true, "",
                 true, new LocalPlayerScenario(true, true, true, true),
-                false, null, true, true, true, false);
+                false, null, true, true, true, false, false, false);
         yes(noEquippedEvent.contains("Evento real Tool.Equipped no Client: não confirmado"));
         yes(noEquippedEvent.contains("INCONCLUSIVO"));
+        String activationOk = buildPlaySmokeSummary(true, play, true, true,
+                "log", true, "", true,
+                new LocalPlayerScenario(true, true, true, true),
+                false, null, true, true, true, true, true, true);
+        yes(activationOk.contains("Evento real Tool.Activated no Client: observado"));
+        yes(activationOk.contains("PASSOU somente"));
+        String activationMissing = buildPlaySmokeSummary(true, play, true, true,
+                "log", true, "", true,
+                new LocalPlayerScenario(true, true, true, true),
+                false, null, true, true, true, true, true, false);
+        yes(activationMissing.contains("Evento real Tool.Activated no Client: não confirmado"));
+        yes(activationMissing.contains("INCONCLUSIVO"));
         yes(buildPlaySmokeSummary(true, play, true, true, "log", false, "",
                 true, new LocalPlayerScenario(true, true, true, true),
-                false, null, true, true, true, true).contains("INCONCLUSIVO"));
+                false, null, true, true, true, true, false, false).contains("INCONCLUSIVO"));
         yes(new LiveToolGuiAudit("Sword", "Gui", true, false, false,
                 true, true, true).complete());
         yes(!new LiveToolGuiAudit("Sword", "Gui", null, false, false,
@@ -117,28 +129,28 @@ public final class PlaySmokeHarness {
                 false, true, true).complete());
         LocalPlayerScenario complete = new LocalPlayerScenario(true, true, true, true);
         LocalPlayerScenario missingHumanoid = new LocalPlayerScenario(true, true, true, false);
-        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, complete, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, complete, false, null, false, false, false, false, false, false)
                 .contains("PASSOU somente nas verificações"));
         String missing = buildPlaySmokeSummary(true, play, true, true,
-                "log", true, "", true, missingHumanoid, false, null, false, false, false, false);
+                "log", true, "", true, missingHumanoid, false, null, false, false, false, false, false, false);
         yes(missing.contains("Humanoid do personagem correspondente: não confirmado"));
         yes(missing.contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null, false, null, false, false, false, false, false, false)
                 .contains("INCONCLUSIVO"));
         yes(all.contains("não comprovam") && all.contains("Não testa colisões"));
         String partial = buildPlaySmokeSummary(true, edit, true, true, "log", true,
-                "Client/Server ausentes", false, null, false, null, false, false, false, false);
+                "Client/Server ausentes", false, null, false, null, false, false, false, false, false, false);
         yes(partial.contains("INCONCLUSIVO"));
         yes(!partial.contains("PASSOU somente"));
-        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "", false, null, false, null, false, false, false, false);
+        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "", false, null, false, null, false, false, false, false, false, false);
         yes(failedStop.contains("Retorno ao Edit: NÃO CONFIRMADO"));
         yes(failedStop.contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "", false, null, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "", false, null, false, null, false, false, false, false, false, false)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "", false, null, false, null, false, false, false, false)
+        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "", false, null, false, null, false, false, false, false, false, false)
                 .contains("Output durante o teste: indisponível"));
         String longText = "E".repeat(3000);
-        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "", false, null, false, null, false, false, false, false);
+        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "", false, null, false, null, false, false, false, false, false, false);
         yes(trimmed.contains("[Output limitado]"));
         yes(trimmed.length() < 2600);
         System.out.println("Local Play smoke production Java helpers: passed");
