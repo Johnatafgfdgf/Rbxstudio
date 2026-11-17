@@ -149,6 +149,17 @@ public final class StudioAiHub extends Activity {
         "Nunca proponha mudar outros objetos, scripts ou propriedades usando esta função. " +
         "A IA nunca envia Luau; o app mostra valores reais ANTES/DEPOIS e exige aprovação.";
 
+    private static final String LIGHTING_PROTOCOL =
+        "\nPara ajustar o HORÁRIO DO DIA ou BRILHO global de Lighting, primeiro " +
+        "use {\"action\":\"inspect_instance\",\"path\":\"Lighting\"}. " +
+        "Depois proponha {\"action\":\"propose_lighting_update\"," +
+        "\"clock_time\":16,\"brightness\":2,\"reason\":\"motivo\"}. " +
+        "clock_time e brightness são opcionais, mas informe ao menos um; " +
+        "horário permitido de 0 a 24 e brilho de 0 a 10. " +
+        "O app confere valores reais antigos, mostra prévia, exige confirmação " +
+        "e valida leitura MCP após escrever. A IA não envia Luau executável " +
+        "nem altera quaisquer outras propriedades ou serviços.";
+
     private static final String COMPOSITE_PROTOCOL =
         "\nPara criar um MODELO composto de 2 a 5 peças, primeiro consulte a árvore " +
         "do Workspace com search_game_tree (path Workspace, max_depth:1). " +
@@ -247,6 +258,7 @@ public final class StudioAiHub extends Activity {
     private BillboardProposal pendingBillboard;
     private ScreenGuiProposal pendingScreen;
     private ReceiveToolProposal pendingKit;
+    private LightingProposal pendingLighting;
     private TaskPlan pendingTaskPlan, activeTaskPlan;
     private CheckBox persistPlanCheckpoints;
     private Button restorePlanCheckpoint, erasePlanCheckpoint;
@@ -307,6 +319,20 @@ public final class StudioAiHub extends Activity {
             this.size = size;
             this.color = color;
             this.rotation = rotation;
+        }
+    }
+
+    private static final class LightingProposal {
+        final String reason;
+        final double beforeClockTime, beforeBrightness;
+        final Double clockTime, brightness;
+        LightingProposal(String reason, double beforeClockTime, double beforeBrightness,
+                Double clockTime, Double brightness) {
+            this.reason = reason;
+            this.beforeClockTime = beforeClockTime;
+            this.beforeBrightness = beforeBrightness;
+            this.clockTime = clockTime;
+            this.brightness = brightness;
         }
     }
 
