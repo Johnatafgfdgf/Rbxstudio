@@ -107,7 +107,7 @@ public final class TouchContract {
         yes(nativeEvidence.contains("EVIDÊNCIA: eventos de toque chegaram ao loop winit"));
         yes(nativeEvidence.contains("Touch Started: 2"));
         yes(nativeEvidence.contains("Touch Ended: 2"));
-        yes(nativeEvidence.contains("não comprova GuiButton.Activated"));
+        yes(nativeEvidence.contains("GuiButton.Activated por toque: não confirmado"));
         yes(!nativeEvidence.contains("clique confirmado"));
         yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 0, 0).contains("INCONCLUSIVO"));
         yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 1, 0).contains("inconsistente"));
