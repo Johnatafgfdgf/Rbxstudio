@@ -1502,7 +1502,7 @@ public final class StudioAiHub extends Activity {
                         "Tool:Deactivate() programática. Isso dispara possíveis " +
                         "scripts e efeitos já existentes. NÃO equivale a um toque " +
                         "real no Android e não interage com GuiButtons.\n\n" : "") +
-                        "Isso não publica jogos nem injeta toques Android ou "
+                        "Isso não publica jogos nem injeta toques Android ou " +
                         "altera os scripts salvos. Se a comunicação falhar, " +
                         "confira manualmente se o Play foi encerrado. " +
                         "Nenhum log vai para a IA.")
