@@ -22,6 +22,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -195,6 +196,8 @@ public final class StudioAiHub extends Activity {
         "de scripts e a operação inteira explicitamente.";
 
     private static final String PREFS = "rbxstudio-ai-hub-v1";
+    private static final int MAX_PROJECT_MEMORY = 16;
+    private static final int MAX_PROJECT_NAME = 160;
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
     private int provider;
@@ -392,6 +395,8 @@ public final class StudioAiHub extends Activity {
     private final List<ModelEntry> discoveredModels = new ArrayList<>();
     private final List<ModelEntry> visibleModels = new ArrayList<>();
     private final List<String> backupIds = new ArrayList<>();
+    private CheckBox rememberVerified, includeMemory;
+    private TextView memoryPreview;
     private EditText apiKey, prompt;
     private TextView status, conversation;
     private Button refresh, send, save, cancel;
@@ -656,6 +661,38 @@ public final class StudioAiHub extends Activity {
         includeCode.setTextColor(Color.rgb(228, 236, 250));
         includeCode.setChecked(false);
         add(root, includeCode, 5);
+
+        add(root, text("Memória do projeto (opcional)", 14, true), 4);
+        TextView memoryInfo = text("Somente nomes/tipos de ações confirmadas são " +
+                "salvos com Android Keystore. Sem código, mensagens, chaves ou imagens. " +
+                "O escopo usa o nome do projeto; mapas com nomes iguais compartilham a memória.", 12, false);
+        add(root, memoryInfo, 6);
+        rememberVerified = new CheckBox(this);
+        rememberVerified.setText("Registrar alterações verificadas neste projeto");
+        rememberVerified.setTextColor(Color.rgb(228, 236, 250));
+        rememberVerified.setChecked(false);
+        add(root, rememberVerified, 3);
+        includeMemory = new CheckBox(this);
+        includeMemory.setText("Autorizo enviar o registro local à IA nesta sessão");
+        includeMemory.setTextColor(Color.rgb(228, 236, 250));
+        includeMemory.setChecked(false);
+        add(root, includeMemory, 5);
+        Button viewMemory = button("Ver operações confirmadas deste projeto");
+        viewMemory.setOnClickListener(v -> showProjectMemory());
+        add(root, viewMemory, 4);
+        Button clearMemory = button("Apagar memória local do projeto");
+        clearMemory.setOnClickListener(v -> clearProjectMemory());
+        add(root, clearMemory, 4);
+        memoryPreview = text("", 12, false);
+        memoryPreview.setVisibility(View.GONE);
+        add(root, memoryPreview, 9);
+        boolean namedProject = project != null && !project.trim().isEmpty() &&
+                project.length() <= MAX_PROJECT_NAME;
+        rememberVerified.setEnabled(namedProject);
+        includeMemory.setEnabled(namedProject);
+        viewMemory.setEnabled(namedProject);
+        clearMemory.setEnabled(namedProject);
+
         autoInspect = new CheckBox(this);
         autoInspect.setText("Agente: analisar objetos, scripts autorizados e Output (até 3 leituras MCP)");
         autoInspect.setTextColor(Color.rgb(228, 236, 250));
@@ -741,13 +778,29 @@ public final class StudioAiHub extends Activity {
         });
         add(root, discardEdit, 12);
         includeCode.setOnCheckedChangeListener((v, checked) -> {
-            if (!checked) { pendingEdit = null; renderPendingEdit(); }
+            if (!checked) {
+                pendingEdit = null;
+                history.clear(); // Revoking code consent also drops cached provider context.
+                conversation.setText("Permissão de código revogada; histórico da sessão limpo.");
+                renderPendingEdit();
+            }
+        });
+        includeMemory.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) {
+                history.clear(); // Do not resend previously approved memory via old turns.
+                conversation.setText("Memória não será enviada à IA nesta sessão.");
+            }
         });
         includeProject.setOnCheckedChangeListener((v, checked) -> {
-            if (!checked) { pendingEdit = null; pendingPart = null;
+            if (!checked) {
+                includeMemory.setChecked(false);
+                history.clear(); // Project contents must not remain in stale provider turns.
+                conversation.setText("Contexto do projeto revogado; histórico da sessão limpo.");
+                pendingEdit = null; pendingPart = null;
                 pendingPartChange = null; pendingComposite = null;
                 pendingBillboard = null; pendingScreen = null;
-                pendingKit = null; renderPendingEdit(); }
+                pendingKit = null; renderPendingEdit();
+            }
         });
         proposeParts.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingPart = null; pendingPartChange = null;
@@ -770,6 +823,7 @@ public final class StudioAiHub extends Activity {
                 abortInFlight();
                 includeProject.setChecked(false);
                 includeCode.setChecked(false);
+                includeMemory.setChecked(false);
                 autoInspect.setChecked(false);
                 proposeEdits.setChecked(false);
                 proposeParts.setChecked(false);
@@ -821,11 +875,156 @@ public final class StudioAiHub extends Activity {
         if (autoFallback != null) autoFallback.setEnabled(!waiting);
         if (backupPicker != null) backupPicker.setEnabled(!waiting);
         if (modelPicker != null) modelPicker.setEnabled(!waiting);
+        if (rememberVerified != null) rememberVerified.setEnabled(!waiting &&
+                project != null && !project.trim().isEmpty());
+        if (includeMemory != null) includeMemory.setEnabled(!waiting &&
+                project != null && !project.trim().isEmpty());
         status.setText(message);
     }
 
     private String service(int p) {
         return "rbxstudio.ai.provider." + IDS[p];
+    }
+
+
+    /**
+     * Persistent metadata only: never store source, model replies, screenshots,
+     * credentials or user prompts. Reuse the existing Android Keystore AES-GCM.
+     * Identity is currently the exact project title supplied by the editor.
+     * Two separate places with the same title can share this journal: warn users.
+     */
+    private String projectMemoryService() throws Exception {
+        if (project == null || project.trim().isEmpty() ||
+                project.length() > MAX_PROJECT_NAME) {
+            throw new IOException("Projeto sem nome exclusivo para o histórico");
+        }
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(
+                project.getBytes(StandardCharsets.UTF_8));
+        return "rbxstudio.ai.project.memory.v1." + hex(digest);
+    }
+
+    private JSONArray readProjectMemory() throws Exception {
+        String packed = StudioServices.credential(
+                this, "read", projectMemoryService(), "", "");
+        if (packed == null) return new JSONArray();
+        int colon = packed.indexOf(':');
+        if (colon <= 0) throw new IOException("Memória criptografada inválida");
+        byte[] bytes = unhex(packed.substring(0, colon));
+        if (bytes.length > 6400) throw new IOException("Memória excede o limite local");
+        JSONObject data = new JSONObject(new String(bytes, StandardCharsets.UTF_8));
+        if (data.optInt("version", -1) != 1 ||
+                !project.equals(data.optString("project", ""))) {
+            throw new IOException("Memória não pertence ao projeto atual");
+        }
+        JSONArray stored = data.optJSONArray("events");
+        if (stored == null || stored.length() > MAX_PROJECT_MEMORY)
+            throw new IOException("Histórico do projeto inválido");
+        return stored;
+    }
+
+    private void saveProjectMemory(JSONArray events) throws Exception {
+        if (events.length() > MAX_PROJECT_MEMORY)
+            throw new IOException("Histórico acima do limite");
+        String payload = new JSONObject().put("version", 1).put("project", project)
+                .put("events", events).toString();
+        if (payload.getBytes(StandardCharsets.UTF_8).length > 6400)
+            throw new IOException("Histórico muito grande");
+        StudioServices.credential(this, "write", projectMemoryService(), payload, "");
+    }
+
+    private void showProjectMemory() {
+        if (busy) return;
+        try {
+            JSONArray entries = readProjectMemory();
+            StringBuilder output = new StringBuilder("Projeto: " + project +
+                    "\nRegistro protegido no Android (" + entries.length() +
+                    " operações confirmadas).\n");
+            for (int i = 0; i < entries.length(); i++) {
+                JSONObject event = entries.getJSONObject(i);
+                output.append(i + 1).append(". ")
+                        .append(event.optString("kind", "Operação"))
+                        .append(" • ").append(event.optString("path", ""))
+                        .append("\n");
+            }
+            output.append("\nNão é backup do mapa nem valida funcionamento em Play. " +
+                    "Projetos com o mesmo nome compartilham este registro.");
+            memoryPreview.setText(output.toString());
+            memoryPreview.setVisibility(View.VISIBLE);
+        } catch (Exception error) {
+            status.setText("Não foi possível ler a memória deste projeto.");
+        }
+    }
+
+    private String memoryForPrompt() throws Exception {
+        JSONArray events = readProjectMemory();
+        if (events.length() == 0) return "";
+        StringBuilder summary = new StringBuilder(
+                "\n\nRegistro LOCAL autorizado de alterações previamente confirmadas " +
+                "(não prova que ainda existem; inspecione o editor antes de editar):\n");
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.getJSONObject(i);
+            String kind = event.optString("kind", "");
+            String path = event.optString("path", "");
+            if (!kind.matches("[A-Z_]{3,32}") ||
+                    !path.matches("[A-Za-z0-9_.]{1,180}")) continue;
+            summary.append(kind).append(": ").append(path).append("\n");
+        }
+        return summary.length() > 2600 ? summary.substring(0, 2600) : summary.toString();
+    }
+
+    /**
+     * Adds a factual result to the current conversation, so a subsequent
+     * "continue" is grounded. Persist only verified action metadata, and only
+     * when the user explicitly enabled the journal for this project.
+     */
+    private void recordEditorOutcome(String kind, String path, boolean verified) {
+        String evidence = verified
+                ? "Leitura MCP confirmou " + kind + " em " + path
+                : "Gravação MCP inconclusiva para " + kind + " em " + path +
+                    "; NÃO repetir sem inspecionar o Explorer.";
+        history.add(new String[]{"assistant", "[Resultado real do editor] " + evidence});
+        while (history.size() > MAX_HISTORY) history.remove(0);
+        if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;
+        try {
+            if (!kind.matches("[A-Z_]{3,32}") ||
+                    !path.matches("[A-Za-z0-9_.]{1,180}")) {
+                throw new IOException("Identificador da operação não é seguro");
+            }
+            JSONArray events = readProjectMemory();
+            events.put(new JSONObject().put("kind", kind).put("path", path)
+                    .put("at", System.currentTimeMillis()));
+            while (events.length() > MAX_PROJECT_MEMORY) events.remove(0);
+            saveProjectMemory(events);
+            // Never display stale decrypted content after a new journal write.
+            if (memoryPreview != null) memoryPreview.setVisibility(View.GONE);
+        } catch (Exception error) {
+            status.setText("Alteração do editor concluída; falhou apenas o registro " +
+                    "criptografado da memória.");
+        }
+    }
+
+    private void clearProjectMemory() {
+        if (busy || applyingEdit) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Apagar a memória deste projeto?")
+                .setMessage("Apaga somente o histórico criptografado das operações " +
+                        "da IA para este nome de projeto. Não altera nem exclui o mapa.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Apagar memória", (dialog, which) -> {
+                    try {
+                        StudioServices.credential(this, "delete",
+                                projectMemoryService(), "", "");
+                        includeMemory.setChecked(false);
+                        rememberVerified.setChecked(false);
+                        history.clear();
+                        conversation.setText("Histórico local apagado. " +
+                                "Mensagens antigas não serão reenviadas.");
+                        memoryPreview.setVisibility(View.GONE);
+                        status.setText("Memória criptografada do projeto apagada.");
+                    } catch (Exception error) {
+                        status.setText("Não foi possível apagar a memória local.");
+                    }
+                }).show();
     }
 
     private void readStatus() {
@@ -3217,9 +3416,17 @@ public final class StudioAiHub extends Activity {
         if (key == null) { status.setText("Chave não cadastrada."); return; }
         final List<String[]> turns = new ArrayList<>(history);
         final boolean include = includeProject.isChecked() && !projectSummary.isEmpty();
-        final String message = include
+        final String memory;
+        try {
+            memory = includeProject.isChecked() && includeMemory.isChecked()
+                    ? memoryForPrompt() : "";
+        } catch (Exception error) {
+            status.setText("Falha lendo memória criptografada; desative o envio da memória.");
+            return;
+        }
+        final String message = (include
                 ? question + "\n\nContexto somente leitura autorizado pelo usuário:\n" + projectSummary
-                : question;
+                : question) + memory;
         turns.add(new String[]{"user", message});
         final long epoch = ++requestEpoch;
         pendingEdit = null;
