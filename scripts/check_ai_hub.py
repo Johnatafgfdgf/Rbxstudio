@@ -712,6 +712,20 @@ assert java.count('recordEditorOutcome(') == 8  # helper plus 7 verified editor 
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
+# Explicit continuation keeps app/model tool history consistent and does not
+# start chargeable work without a button press and session consent.
+for required in [
+    'continueTask = button("Continuar tarefa anterior • usa a API")',
+    'continueTask.setOnClickListener(v -> continueLastTask())',
+    'private void continueLastTask()',
+    'if (!autoInspect.isChecked() || !includeProject.isChecked())',
+    'Nenhuma tarefa anterior nesta sessão.',
+    'NÃO repita operações cuja gravação ficou inconclusiva.',
+    'String toolReceipt = "[Resultado real do editor] " + evidence;',
+    '"assistant".equals(history.get(history.size() - 1)[0])',
+    'previous[1] = previous[1] + "\\n\\n" + toolReceipt;',
+]:
+    assert required in java, required
 assert 'prompt.getText().toString()' not in java[java.index('private void recordEditorOutcome('):java.index('private void clearProjectMemory()')]
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
