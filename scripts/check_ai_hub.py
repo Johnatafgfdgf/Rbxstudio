@@ -648,6 +648,35 @@ for required in [
     assert required in java, required
 assert 'new JSONObject().put("code", "' not in java
 
+# Every approved creation now distinguishes a successful MCP return from
+# confirmed presence in the actual Edit datamodel. An uncertain read-back
+# must not automatically execute the write a second time.
+for required in [
+    'private boolean verifiedEditorObject(String paired, String path, String expectedClass)',
+    'private boolean verifiedScriptEdit(String paired, EditProposal edit, String before)',
+    'private static String readBackNotice(boolean verified, String path)',
+    'readOnlyMcp(paired, "inspect_instance",',
+    'name.equals(found.optString("name", ""))',
+    'expectedClass.equals(found.optString("className", ""))',
+    'verifiedEditorObject(paired, objectPath, "Part")',
+    'verifiedEditorObject(paired, objectPath, "Model")',
+    'verifiedEditorObject(paired, objectPath, "ScreenGui")',
+    'verifiedEditorObject(paired, objectPath, "BillboardGui")',
+    'verifiedEditorObject(paired, "ReplicatedStorage." + kit.remoteName(), "RemoteEvent")',
+    'verifiedEditorObject(paired, "ServerScriptService." + kit.serverName(), "Script")',
+    'verifiedEditorObject(paired, "ServerStorage." + kit.toolName(), "Tool")',
+    'verifiedEditorObject(paired, edit.path, edit.className)',
+    'verifiedScriptEdit(paired, edit, beforeScript)',
+    'a operação pode já ter sido aplicada.',
+]:
+    assert required in java, required
+assert java.count('readBackNotice(') == 7  # method + six approved write types
+assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
+    'verifiedEditorObject(paired, objectPath, "Part")')
+assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < java.index(
+    'verifiedScriptEdit(paired, edit, beforeScript)')
+assert 'retryApprovedWrite' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
