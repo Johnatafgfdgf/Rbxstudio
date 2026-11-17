@@ -5652,7 +5652,7 @@ index 0000000..0000000 100644
      let message = lua_error_message(e);
      let mut text = message;
      let stack = mlua_traceback(e)
-@@ -297,19 +299,45 @@
+@@ -297,21 +299,47 @@
              // Debris may outlive what it was given; destroyed is destroyed.
              let _ = crate::removal::destroy(lua, id);
          }
@@ -5671,18 +5671,6 @@ index 0000000..0000000 100644
      }
  }
  
--fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
--    match handler {
--        Handler::Call(f) => {
--            if let Err(e) = spawn(lua, f, MultiValue::from_vec(args)) {
--                with_world(lua, |w| {
--                    w.push_log(MessageType::Error, lua_error_message(&e))
--                });
--            }
--        }
--        Handler::Resume(thread) => resume(lua, &thread, MultiValue::from_vec(args)),
--    }
--}
 +// Observe the first synchronous resumption only, never arbitrary future
 +// continuations or Deferred handlers.
 +fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) -> Option<bool> {
@@ -5692,11 +5680,15 @@ index 0000000..0000000 100644
 +        Handler::Call(f) => match spawn(lua, f, MultiValue::from_vec(args)) {
 +            Ok(thread) => Some(thread.status() == ThreadStatus::Unresumable),
 +            Err(e) => {
-+                with_world(lua, |w| {
-+                    w.push_log(MessageType::Error, lua_error_message(&e))
-+                });
+-fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
+-    match handler {
+-        Handler::Call(f) => {
+-            if let Err(e) = spawn(lua, f, MultiValue::from_vec(args)) {
+                 with_world(lua, |w| {
+                     w.push_log(MessageType::Error, lua_error_message(&e))
+                 });
 +                None
-+            }
+             }
 +        },
 +        Handler::Resume(thread) => {
 +            let runnable = thread.status() == ThreadStatus::Resumable
@@ -5708,9 +5700,13 @@ index 0000000..0000000 100644
 +    #[cfg(target_os = "android")]
 +    if with_world(lua, |w| w.errors) > errors_before {
 +        return None;
-+    }
+-        }
+-        Handler::Resume(thread) => resume(lua, &thread, MultiValue::from_vec(args)),
+     }
 +    outcome
-+}
+ }
+ 
+ /// Drain the deferred queue, including jobs deferred while draining.
 @@ -340,6 +368,10 @@
              with_world(lua, |w| w.signals.disconnect(connection));
              continue;
@@ -5722,20 +5718,21 @@ index 0000000..0000000 100644
          match behavior {
              SignalBehavior::Deferred => with_world(lua, |w| {
                  w.scheduler.defer(Job::Fire {
-@@ -354,6 +386,12 @@
+@@ -354,7 +386,13 @@
                      with_world(lua, |w| w.push_log(MessageType::Error, e.to_string()));
                      continue;
                  }
 +                #[cfg(target_os = "android")]
 +                let tracked = crate::signal_probe::attempted(connection);
--                run_handler(lua, handler, args.to_vec());
 +                let outcome = run_handler(lua, handler, args.to_vec());
 +                #[cfg(target_os = "android")]
 +                if tracked { crate::signal_probe::finished(outcome); }
 +                #[cfg(not(target_os = "android"))]
 +                let _ = outcome;
+-                run_handler(lua, handler, args.to_vec());
                  with_world(lua, |w| w.signals.leave());
              }
+         }
 diff --git a/crates/rook-lua/src/user_settings.rs b/crates/rook-lua/src/user_settings.rs
 index 7a5aadf..5dd0890 100644
 --- a/crates/rook-lua/src/user_settings.rs
