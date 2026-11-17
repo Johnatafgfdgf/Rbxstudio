@@ -622,8 +622,8 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
-    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate;
-    private TextView playProbeResult, playSmokeResult;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe;
+    private TextView playProbeResult, playSmokeResult, rookTouchResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
     private CheckBox allowLocalModelAudit, shareModelAudit;
@@ -1466,10 +1466,64 @@ public final class StudioAiHub extends Activity {
         return report.toString();
     }
 
+    /** Until Android Rook exports its live Client/Server DOM into this MCP
+     * session, start_stop_play would follow the EXTERNAL publication path.
+     * This explicit guard prevents accidental uploads or misleading success. */
+    private boolean requireVerifiedAndroidMcpPlay() {
+        if (StudioTouchDiagnostics.hasVerifiedLocalMcpPlayBridge()) return true;
+        String explanation = "Play automático da IA indisponível nesta versão Android: " +
+                "start_stop_play ainda segue a rota EXTERNA de publicação, sem ponte " +
+                "verificada para Client/Server do Rook. Nenhum Play foi iniciado. " +
+                "Use o Play Rook local existente no editor e o diagnóstico de toques " +
+                "abaixo. A publicação externa NÃO foi autorizada.";
+        if (playSmokeResult != null) {
+            playSmokeResult.setText(explanation);
+            playSmokeResult.setVisibility(View.VISIBLE);
+        }
+        if (status != null) status.setText("Teste automático protegido: Play MCP externo bloqueado.");
+        return false;
+    }
+
+    private void armRookTouchEvidence() {
+        if (allowRookTouchProbe == null || !allowRookTouchProbe.isChecked()) {
+            status.setText("Marque a autorização de diagnóstico de toque Rook primeiro.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Autorizar contagem local dos toques Android?")
+                .setMessage("Válido apenas para o PRÓXIMO Play Rook local, por 10 minutos. " +
+                        "O player contará eventos DOWN/UP/CANCEL que passarem pelo " +
+                        "Java NativeActivity, sem coordenadas, conteúdo de texto, " +
+                        "imagens nem envio à IA. Não injeta toques e NÃO valida " +
+                        "GuiButton.Activated. O input pode seguir a fila nativa " +
+                        "e não aparecer neste diagnóstico.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Autorizar diagnóstico local", (d, w) -> {
+                    if (allowRookTouchProbe == null || !allowRookTouchProbe.isChecked()) return;
+                    try {
+                        rookTouchResult.setText(StudioTouchDiagnostics.arm(this));
+                        rookTouchResult.setVisibility(View.VISIBLE);
+                    } catch (Exception failed) {
+                        rookTouchResult.setText("Não foi possível preparar o teste de toques.");
+                        rookTouchResult.setVisibility(View.VISIBLE);
+                    }
+                }).show();
+    }
+
+    private void readRookTouchEvidence() {
+        if (allowRookTouchProbe == null || !allowRookTouchProbe.isChecked()) {
+            status.setText("Autorize a leitura local do diagnóstico de toque.");
+            return;
+        }
+        rookTouchResult.setText(StudioTouchDiagnostics.readSummary(this));
+        rookTouchResult.setVisibility(View.VISIBLE);
+    }
+
     /** Only this user-confirmed code path may invoke start_stop_play.
      * All cleanup calls remain explicit, bounded and in the same MCP editor. */
     private void confirmLocalPlaySmoke() {
         if (busy || applyingEdit) return;
+        if (!requireVerifiedAndroidMcpPlay()) return;
         if (mcpPairing.isEmpty()) {
             status.setText("Sem integração MCP local do editor.");
             return;
@@ -1939,6 +1993,7 @@ public final class StudioAiHub extends Activity {
     }
 
     private void runLocalPlaySmoke() {
+        if (!requireVerifiedAndroidMcpPlay()) return;
         if (busy || applyingEdit || mcpPairing.isEmpty() ||
                 allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
         final String paired = mcpPairing;
@@ -2505,6 +2560,41 @@ public final class StudioAiHub extends Activity {
         inspectLocalPlay = button("Verificar Play/Output do editor • somente leitura");
         inspectLocalPlay.setOnClickListener(v -> inspectLocalPlayOutput());
         add(root, inspectLocalPlay, 5);
+        add(root, text("Play Rook local • diagnóstico de toques Android", 14, true), 5);
+        TextView rookTouchHelp = text(
+                "O Play externo do Roblox NÃO é monitorado aqui. " +
+                "No player Rook local, uma autorização de uso único registra somente " +
+                "totais de eventos touchscreen recebidos pelo Java. " +
+                "Não injeta toques, não lê scripts e NÃO comprova cliques nas GUIs. " +
+                "Se o Rook usar somente a fila nativa, o resultado será inconclusivo.", 12, false);
+        add(root, rookTouchHelp, 4);
+        allowRookTouchProbe = new CheckBox(this);
+        allowRookTouchProbe.setText("Autorizo medir entrada touchscreen no próximo Play Rook local");
+        allowRookTouchProbe.setTextColor(Color.rgb(228, 236, 250));
+        allowRookTouchProbe.setChecked(false);
+        add(root, allowRookTouchProbe, 4);
+        Button armRookTouch = button("Preparar diagnóstico real de toque • próximo Play local");
+        armRookTouch.setOnClickListener(v -> armRookTouchEvidence());
+        add(root, armRookTouch, 5);
+        Button checkRookTouch = button("Ler resultado de toques do player Rook");
+        checkRookTouch.setOnClickListener(v -> readRookTouchEvidence());
+        add(root, checkRookTouch, 4);
+        Button eraseRookTouch = button("Apagar autorização e dados locais de toque");
+        eraseRookTouch.setOnClickListener(v -> {
+            StudioTouchDiagnostics.clear(this);
+            if (allowRookTouchProbe != null) allowRookTouchProbe.setChecked(false);
+            if (rookTouchResult != null) {
+                rookTouchResult.setText("");
+                rookTouchResult.setVisibility(View.GONE);
+            }
+            status.setText("Diagnóstico de toque apagado localmente.");
+        });
+        add(root, eraseRookTouch, 4);
+        rookTouchResult = text("", 12, false);
+        rookTouchResult.setPadding(dp(11), dp(11), dp(11), dp(11));
+        rookTouchResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        rookTouchResult.setVisibility(View.GONE);
+        add(root, rookTouchResult, 7);
         allowLocalPlaySmoke = new CheckBox(this);
         allowLocalPlaySmoke.setText("Autorizo INICIAR e ENCERRAR um Play local para teste");
         allowLocalPlaySmoke.setTextColor(Color.rgb(228, 236, 250));
@@ -2751,6 +2841,15 @@ public final class StudioAiHub extends Activity {
                 localModelAuditSummary = "";
                 shareModelAudit.setChecked(false);
                 shareModelAudit.setEnabled(false);
+            }
+        });
+        allowRookTouchProbe.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) {
+                StudioTouchDiagnostics.clear(this);
+                if (rookTouchResult != null) {
+                    rookTouchResult.setText("");
+                    rookTouchResult.setVisibility(View.GONE);
+                }
             }
         });
         allowLocalPlaySmoke.setOnCheckedChangeListener((v, checked) -> {
