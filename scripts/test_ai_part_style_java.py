@@ -58,6 +58,11 @@ public final class PartStyleHarness {
                 .put("CanCollide", collide);
     }
     public static void main(String[] args) throws Exception {
+        yes(allowedStylePath("Workspace.Piso"));
+        yes(allowedStylePath("Workspace.Casa.Piso"));
+        yes(!allowedStylePath("Workspace.Casa.Andar.Piso"));
+        yes(!allowedStylePath("Workspace.Casa.Piso;require(12345)"));
+        yes(!allowedStylePath("ReplicatedStorage.Casa.Piso"));
         yes(allowedPartMaterial("Neon"));
         yes(allowedPartMaterial("Concrete"));
         yes(allowedPartMaterial("SmoothPlastic"));
@@ -101,6 +106,23 @@ public final class PartStyleHarness {
         yes(!glass.contains("p.Anchored = "));
         yes(!glass.contains("p.CanCollide = "));
         yes(partStyleMatches(props("Glass", 0, true, false), onlyGlass));
+        PartStyleProposal nested = new PartStyleProposal(
+                "Workspace.Casa.Piso", "safe nested style", "Plastic",
+                0.0, true, true, "Wood", 0.2, null, null);
+        String nestedCode = fixedPartStyleLuau(nested);
+        yes(nestedCode.contains("local parent = ws:FindFirstChild(\\\"Casa\\\")"));
+        yes(nestedCode.contains("parent:IsA(\\\"Model\\\")"));
+        yes(nestedCode.contains("parent.Parent ~= ws"));
+        yes(nestedCode.contains("p.Parent ~= parent"));
+        yes(nestedCode.contains("UPDATED_STYLE:Casa.Piso"));
+        yes(nestedCode.contains("p.Material = Enum.Material.Wood"));
+        yes(!nestedCode.contains("require("));
+        boolean invalidRejected = false;
+        try {
+            fixedPartStyleLuau(new PartStyleProposal("Workspace.Casa.Piso;require(4)",
+                    "unsafe", "Plastic", 0, true, true, "Neon", null, null, null));
+        } catch (IllegalArgumentException expected) { invalidRejected = true; }
+        yes(invalidRejected);
         System.out.println("Production Part style Java values and fixed Luau: passed");
     }
 }
