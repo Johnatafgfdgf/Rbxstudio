@@ -750,10 +750,10 @@ for required in [
     'private static TaskPlan validateTaskPlan(JSONObject data, int reads,',
     'if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia")',
     'items.length() < 2 || items.length() > 5',
-    '"SCRIPT".equals(kind) && allowScripts',
-    '"PART".equals(kind) && allowParts',
-    '"GUI".equals(kind) && (allowLabels || allowScreens)',
-    '"ITEM".equals(kind) && allowItems',
+    '"SCRIPT".equals(step.kind) && allowScripts',
+    '"PART".equals(step.kind) && allowParts',
+    '"GUI".equals(step.kind) && (allowLabels || allowScreens)',
+    '"ITEM".equals(step.kind) && allowItems',
     'private static boolean actionMatchesPlannedKind(String action, String kind)',
     'if (executingPlanStep && action.startsWith("propose_")',
     'private static boolean planStepMatches(String step, String kind)',
@@ -784,6 +784,44 @@ assert 'submittingPlanStep = true;' in java
 assert 'submittingPlanStep = false;' in java
 assert 'if (executingPlanStep)\n                    throw new IOException("A etapa atual não pode criar outro plano")' in java
 assert 'nenhum objeto será desfeito automaticamente.' in java
+
+# Encrypted checkpoints only contain a bounded plan and verified progress.
+# Recovering them is an explicit, non-network operation and never grants MCP
+# permissions or authorization to execute a pending write.
+for required in [
+    'MAX_PLAN_CHECKPOINT_BYTES = 4600',
+    'private String projectPlanService() throws Exception',
+    'return projectMemoryService() + ".task-plan-checkpoint.v1";',
+    'private static JSONObject encodePlanCheckpoint(TaskPlan plan, String title)',
+    'private static TaskPlan decodePlanCheckpoint(JSONObject data, String title)',
+    'private static TaskPlan parseTaskPlanShape(JSONObject data)',
+    'data.optInt("version", -1) != 1',
+    '!title.equals(data.optString("project", ""))',
+    'completed < 0 || completed > plan.steps.size()',
+    'plain.length > MAX_PLAN_CHECKPOINT_BYTES',
+    'StudioServices.credential(this, "write", projectPlanService(), value, "")',
+    'private void saveCurrentPlanCheckpoint()',
+    'private void restoreSavedPlan()',
+    'private void eraseSavedPlan()',
+    'restoring', # This tag is replaced by a real UI-recovery assertion below.
+    'persistPlanCheckpoints.setChecked(false)',
+    'restorePlanCheckpoint = button("Revisar e recuperar checkpoint salvo")',
+    'erasePlanCheckpoint = button("Apagar checkpoint salvo")',
+    'saveCurrentPlanCheckpoint();',
+    'pausePlanAfterFailedWrite();',
+]:
+    if required == 'restoring':
+        required = 'setPositiveButton("Restaurar pausado",'
+    assert required in java, required
+assert java.count('pausePlanAfterFailedWrite();') == 7
+assert java.index('activeTaskPlan.completed++;') < java.index(
+    'saveCurrentPlanCheckpoint();', java.index('activeTaskPlan.completed++;'))
+restorer = java[java.index('private void restoreSavedPlan()'):java.index('private void eraseSavedPlan()')]
+assert 'planPaused = true;' in restorer
+assert 'planStepOutstanding = false;' in restorer
+assert 'history.clear();' in restorer
+assert 'callMcp(' not in restorer and 'requestModelWithFreeFallback(' not in restorer
+assert 'Nenhum checkpoint criptografado salvo' in restorer
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
