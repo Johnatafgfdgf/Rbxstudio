@@ -30,6 +30,11 @@ import org.xmlpull.v1.XmlPullParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -71,6 +76,9 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_TOOLBOX_XML_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TOOLBOX_XML_ITEMS = 1200;
     private static final int MAX_TOOLBOX_XML_SCRIPTS = 100;
+    private static final int MAX_MODEL_AUDIT_TREES = 12;
+    private static final int MAX_MODEL_AUDIT_SCRIPTS = 16;
+    private static final int MAX_MODEL_AUDIT_PAGES = 2;
     private static final String AGENT_PROTOCOL =
         "Você analisa um projeto Roblox com ferramentas de LEITURA AUTORIZADA. " +
         "Responda SOMENTE com um objeto JSON válido, sem Markdown. Formatos: " +
@@ -509,8 +517,12 @@ public final class StudioAiHub extends Activity {
     private final List<ModelEntry> visibleModels = new ArrayList<>();
     private final List<String> backupIds = new ArrayList<>();
     private CheckBox rememberVerified, includeMemory;
-    private TextView memoryPreview, toolboxScanResult;
-    private Button scanToolboxFile;
+    private TextView memoryPreview, toolboxScanResult, modelAuditResult;
+    private Button scanToolboxFile, auditInsertedModel;
+    private EditText modelAuditPath;
+    private CheckBox allowLocalModelAudit, shareModelAudit;
+    private boolean auditingInsertedModel;
+    private String localModelAuditSummary = "";
     private EditText apiKey, prompt;
     private TextView status, conversation;
     private Button refresh, send, continueTask, save, cancel;
