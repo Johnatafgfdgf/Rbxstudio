@@ -849,12 +849,37 @@ public final class StudioAiHub extends Activity {
             if (busy || planStepOutstanding) return;
             planPaused = !planPaused;
             renderPlanState();
+            saveCurrentPlanCheckpoint();
         });
         add(root, togglePlan, 4);
         cancelPlan = button("Cancelar plano");
         cancelPlan.setVisibility(View.GONE);
         cancelPlan.setOnClickListener(v -> clearActivePlan());
         add(root, cancelPlan, 8);
+        TextView checkpointNote = text("Checkpoint opcional: guarda objetivo, " +
+                "nomes, instruções curtas e progresso com Android Keystore. " +
+                "Não salva scripts completos ou credenciais. Mapas com o mesmo " +
+                "nome podem compartilhar o checkpoint; confira o mapa ao restaurar.", 12, false);
+        add(root, checkpointNote, 5);
+        persistPlanCheckpoints = new CheckBox(this);
+        persistPlanCheckpoints.setText("Salvar checkpoints criptografados deste plano");
+        persistPlanCheckpoints.setTextColor(Color.rgb(228, 236, 250));
+        persistPlanCheckpoints.setChecked(false);
+        persistPlanCheckpoints.setOnCheckedChangeListener((v, checked) -> {
+            if (checked) saveCurrentPlanCheckpoint();
+        });
+        add(root, persistPlanCheckpoints, 5);
+        restorePlanCheckpoint = button("Revisar e recuperar checkpoint salvo");
+        restorePlanCheckpoint.setOnClickListener(v -> restoreSavedPlan());
+        add(root, restorePlanCheckpoint, 4);
+        erasePlanCheckpoint = button("Apagar checkpoint salvo");
+        erasePlanCheckpoint.setOnClickListener(v -> eraseSavedPlan());
+        add(root, erasePlanCheckpoint, 8);
+        boolean checkpointAvailable = project != null &&
+                !project.trim().isEmpty() && project.length() <= MAX_PROJECT_NAME;
+        persistPlanCheckpoints.setEnabled(checkpointAvailable);
+        restorePlanCheckpoint.setEnabled(checkpointAvailable);
+        erasePlanCheckpoint.setEnabled(checkpointAvailable);
 
         conversation = text("O histórico desta conversa permanece somente nesta sessão. O chat não altera scripts sem aprovação.", 13, false);
         conversation.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -1024,6 +1049,15 @@ public final class StudioAiHub extends Activity {
         if (autoFallback != null) autoFallback.setEnabled(!waiting);
         if (backupPicker != null) backupPicker.setEnabled(!waiting);
         if (modelPicker != null) modelPicker.setEnabled(!waiting);
+        boolean canCheckpoint = !waiting && !applyingEdit &&
+                project != null && !project.trim().isEmpty() &&
+                project.length() <= MAX_PROJECT_NAME;
+        if (persistPlanCheckpoints != null)
+            persistPlanCheckpoints.setEnabled(canCheckpoint);
+        if (restorePlanCheckpoint != null)
+            restorePlanCheckpoint.setEnabled(canCheckpoint);
+        if (erasePlanCheckpoint != null)
+            erasePlanCheckpoint.setEnabled(canCheckpoint);
         renderPlanState();
         if (rememberVerified != null) rememberVerified.setEnabled(!waiting &&
                 project != null && !project.trim().isEmpty() &&
@@ -1157,6 +1191,7 @@ public final class StudioAiHub extends Activity {
                 activeTaskPlan.completed++;
                 planStepOutstanding = false;
                 renderPlanState();
+                saveCurrentPlanCheckpoint();
             } else {
                 // An ambiguous write may already exist; never auto-retry.
                 planStepOutstanding = false;
@@ -1221,6 +1256,7 @@ public final class StudioAiHub extends Activity {
         planStepOutstanding = false;
         planPaused = true;
         renderPlanState();
+        saveCurrentPlanCheckpoint();
         history.clear();
     }
 
@@ -3760,6 +3796,7 @@ public final class StudioAiHub extends Activity {
                     renderPendingEdit();
                     renderPlanState();
                     status.setText("Plano aprovado. Use Próxima etapa quando desejar.");
+                    saveCurrentPlanCheckpoint();
                 }).show();
     }
 
@@ -3841,7 +3878,14 @@ public final class StudioAiHub extends Activity {
                     pendingKit = null;
                     renderPendingEdit();
                     renderPlanState();
-                    status.setText("Plano descartado; o mapa não foi modificado.");
+                    try {
+                        StudioServices.credential(this, "delete",
+                                projectPlanService(), "", "");
+                        status.setText("Plano e checkpoint descartados; mapa preservado.");
+                    } catch (Exception error) {
+                        status.setText("Plano local descartado; não foi possível " +
+                                "apagar o checkpoint criptografado.");
+                    }
                 }).show();
     }
 
