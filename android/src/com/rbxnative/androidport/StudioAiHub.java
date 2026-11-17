@@ -1969,6 +1969,216 @@ public final class StudioAiHub extends Activity {
         return code.toString();
     }
 
+    /** A true, unique StarterGui inspection must show every direct child. */
+    private static JSONObject checkedScreenGuiRoot(String text, String name) throws Exception {
+        JSONObject root;
+        try { root = new JSONObject(text); }
+        catch (Exception error) { throw new IOException("Inspeção StarterGui inválida", error); }
+        if (!"StarterGui".equals(root.optString("className", "")) ||
+                !"StarterGui".equals(root.optString("path", ""))) {
+            throw new IOException("O destino não é o StarterGui real do projeto");
+        }
+        JSONObject children = root.optJSONObject("children");
+        JSONArray immediate = children == null ? null :
+                children.optJSONArray("immediateChildren");
+        if (immediate == null || children.optInt("childrenCount", -1) != immediate.length()) {
+            throw new IOException("Não foi possível verificar todos os filhos de StarterGui");
+        }
+        for (int i = 0; i < immediate.length(); i++) {
+            JSONObject child = immediate.optJSONObject(i);
+            if (child == null) throw new IOException("Objeto GUI inválido no Explorer");
+            if (("StarterGui." + name).equalsIgnoreCase(child.optString("path", ""))) {
+                throw new IOException("Já existe um objeto com esse nome em StarterGui");
+            }
+        }
+        return root;
+    }
+
+    private static ScreenGuiProposal validateScreenGuiProposal(JSONObject input,
+            String inspectedPath, String inspectedOutput) throws Exception {
+        if (!"StarterGui".equals(inspectedPath)) {
+            throw new IOException("StarterGui não foi inspecionado");
+        }
+        String name = safeField(input, "gui_name", 40, true);
+        if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,39}")) {
+            throw new IOException("Nome inválido para o ScreenGui");
+        }
+        String title = safeField(input, "title", 60, true);
+        JSONArray items = input.optJSONArray("lines");
+        if (items == null || items.length() < 1 || items.length() > 3) {
+            throw new IOException("O painel deve ter entre 1 e 3 linhas");
+        }
+        List<String> lines = new ArrayList<>();
+        for (int i = 0; i < items.length(); i++) {
+            Object raw = items.opt(i);
+            if (!(raw instanceof String)) throw new IOException("Linha do painel inválida");
+            String line = safeField(new JSONObject().put("line", raw), "line", 90, true);
+            lines.add(line);
+        }
+        int[] accent = input.has("accent") ?
+                optionalUpdateColor(new JSONObject().put("color", input.opt("accent"))) :
+                new int[]{65, 147, 230};
+        String position = safeField(input, "position", 8, false);
+        if (position.isEmpty()) position = "center";
+        if (!("top".equals(position) || "center".equals(position) ||
+                "bottom".equals(position))) {
+            throw new IOException("Posição de painel desconhecida");
+        }
+        String reason = safeField(input, "reason", 400, true);
+        JSONObject original = checkedScreenGuiRoot(inspectedOutput, name);
+        return new ScreenGuiProposal(name, title, position, reason,
+                original.optString("uniqueId", ""), lines, accent);
+    }
+
+    /** App-owned, fixed, responsive informational GUI; no scripts or buttons. */
+    private static String fixedScreenGuiLuau(ScreenGuiProposal gui) {
+        int panelHeight = 92 + gui.lines.size() * 46;
+        String anchor = "center".equals(gui.position) ? "0.5, 0.5" :
+                "top".equals(gui.position) ? "0.5, 0" : "0.5, 1";
+        String panelPosition = "center".equals(gui.position) ? "0.5, 0, 0.5, 0" :
+                "top".equals(gui.position) ? "0.5, 0, 0.05, 0" :
+                        "0.5, 0, 0.94, 0";
+        StringBuilder code = new StringBuilder();
+        code.append("local service = game:GetService(\"StarterGui\")\n")
+                .append("if service:FindFirstChild(\"").append(gui.name)
+                .append("\") then return \"GUI_EXISTS\" end\n")
+                .append("local screen = Instance.new(\"ScreenGui\")\n")
+                .append("screen.Name = \"").append(gui.name).append("\"\n")
+                .append("screen.ResetOnSpawn = false\n")
+                .append("screen.IgnoreGuiInset = false\n")
+                .append("screen.DisplayOrder = 5\n")
+                .append("screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling\n")
+                .append("local panel = Instance.new(\"Frame\")\n")
+                .append("panel.Name = \"Panel\"\n")
+                .append("panel.AnchorPoint = Vector2.new(").append(anchor).append(")\n")
+                .append("panel.Position = UDim2.new(").append(panelPosition).append(")\n")
+                .append("panel.Size = UDim2.new(0.85, 0, 0, ")
+                .append(panelHeight).append(")\n")
+                .append("panel.BackgroundColor3 = Color3.fromRGB(19, 30, 49)\n")
+                .append("panel.BorderSizePixel = 0\n")
+                .append("local bounds = Instance.new(\"UISizeConstraint\")\n")
+                .append("bounds.MinSize = Vector2.new(180, 125)\n")
+                .append("bounds.MaxSize = Vector2.new(460, 300)\n")
+                .append("bounds.Parent = panel\n")
+                .append("local corner = Instance.new(\"UICorner\")\n")
+                .append("corner.CornerRadius = UDim.new(0, 16)\n")
+                .append("corner.Parent = panel\n")
+                .append("local border = Instance.new(\"UIStroke\")\n")
+                .append("border.Thickness = 1.5\n")
+                .append("border.Transparency = 0.2\n")
+                .append("border.Color = Color3.fromRGB(")
+                .append(gui.accent[0]).append(", ").append(gui.accent[1])
+                .append(", ").append(gui.accent[2]).append(")\n")
+                .append("border.Parent = panel\n")
+                .append("local padding = Instance.new(\"UIPadding\")\n")
+                .append("padding.PaddingLeft = UDim.new(0, 14)\n")
+                .append("padding.PaddingRight = UDim.new(0, 14)\n")
+                .append("padding.PaddingTop = UDim.new(0, 12)\n")
+                .append("padding.PaddingBottom = UDim.new(0, 12)\n")
+                .append("padding.Parent = panel\n")
+                .append("local list = Instance.new(\"UIListLayout\")\n")
+                .append("list.FillDirection = Enum.FillDirection.Vertical\n")
+                .append("list.SortOrder = Enum.SortOrder.LayoutOrder\n")
+                .append("list.Padding = UDim.new(0, 6)\n")
+                .append("list.Parent = panel\n")
+                .append("local title = Instance.new(\"TextLabel\")\n")
+                .append("title.Name = \"Title\"\n")
+                .append("title.LayoutOrder = 1\n")
+                .append("title.Size = UDim2.new(1, 0, 0, 42)\n")
+                .append("title.BackgroundTransparency = 1\n")
+                .append("title.TextWrapped = true\n")
+                .append("title.TextScaled = true\n")
+                .append("title.RichText = false\n")
+                .append("title.Font = Enum.Font.GothamBold\n")
+                .append("title.TextColor3 = Color3.fromRGB(")
+                .append(gui.accent[0]).append(", ").append(gui.accent[1])
+                .append(", ").append(gui.accent[2]).append(")\n")
+                .append("title.Text = ").append(luauTextLiteral(gui.title)).append("\n")
+                .append("local titleSize = Instance.new(\"UITextSizeConstraint\")\n")
+                .append("titleSize.MinTextSize = 11\n")
+                .append("titleSize.MaxTextSize = 22\n")
+                .append("titleSize.Parent = title\n")
+                .append("title.Parent = panel\n");
+        for (int i = 0; i < gui.lines.size(); i++) {
+            code.append("do\nlocal line = Instance.new(\"TextLabel\")\n")
+                    .append("line.Name = \"Line").append(i+1).append("\"\n")
+                    .append("line.LayoutOrder = ").append(i+2).append("\n")
+                    .append("line.Size = UDim2.new(1, 0, 0, 35)\n")
+                    .append("line.BackgroundTransparency = 1\n")
+                    .append("line.TextWrapped = true\n")
+                    .append("line.TextScaled = true\n")
+                    .append("line.RichText = false\n")
+                    .append("line.Font = Enum.Font.Gotham\n")
+                    .append("line.TextColor3 = Color3.fromRGB(226, 236, 249)\n")
+                    .append("line.Text = ").append(luauTextLiteral(gui.lines.get(i))).append("\n")
+                    .append("local limit = Instance.new(\"UITextSizeConstraint\")\n")
+                    .append("limit.MinTextSize = 10\nlimit.MaxTextSize = 18\n")
+                    .append("limit.Parent = line\nline.Parent = panel\nend\n");
+        }
+        code.append("panel.Parent = screen\n")
+                .append("screen.Parent = service\n")
+                .append("return \"CREATED_SCREEN_GUI:").append(gui.name).append("\"");
+        return code.toString();
+    }
+
+    private void confirmPendingScreen() {
+        final ScreenGuiProposal gui = pendingScreen;
+        if (gui == null || busy) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeScreens.isChecked()) {
+            status.setText("Reative a autorização de ScreenGui para confirmar.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar este painel ScreenGui?")
+                .setMessage("StarterGui." + gui.name + "\nTítulo: " + gui.title +
+                        "\nLinhas: " + gui.lines.size() +
+                        "\n\nO painel informativo adapta sua largura à tela. " +
+                        "Não cria scripts, botões ou eventos. " +
+                        "O editor poderá exigir aprovação MCP adicional.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Sim, criar painel",
+                        (dialog, which) -> applyApprovedScreen(gui))
+                .show();
+    }
+
+    private void applyApprovedScreen(ScreenGuiProposal gui) {
+        if (busy || pendingScreen != gui || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Verificando StarterGui e o nome do painel…");
+        requests.execute(() -> {
+            try {
+                String current = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", "StarterGui"));
+                JSONObject root = checkedScreenGuiRoot(current, gui.name);
+                if (!gui.originalServiceId.equals(root.optString("uniqueId", ""))) {
+                    throw new IOException("O serviço StarterGui mudou após a proposta");
+                }
+                if (epoch != requestEpoch) throw new IOException("Sessão alterada");
+                String outcome = executeApproved3dCode(paired, fixedScreenGuiLuau(gui));
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingScreen = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta MCP recebida; confira StarterGui e Play.");
+                    conversation.setText(conversation.getText() + "\nScreenGui MCP:\n" +
+                            outcome.substring(0, Math.min(1200, outcome.length())) +
+                            "\nO painel é visível durante o Play. Confira a GUI e o Desfazer.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Criação de ScreenGui não confirmada: " +
+                            (error.getMessage() == null ? "erro MCP" : error.getMessage()));
+                });
+            }
+        });
+    }
+
     private void confirmPendingBillboard() {
         final BillboardProposal label = pendingBillboard;
         if (label == null || busy) return;
