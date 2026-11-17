@@ -249,7 +249,7 @@ public final class StudioAiHub extends Activity {
     private String mcpPairing = "";
     private String projectSummary = "";
     private CheckBox includeProject, includeCode, autoInspect, proposeEdits, proposeParts,
-            proposeLabels, proposeScreens, proposeKits;
+            proposeLabels, proposeScreens, proposeKits, proposeLighting;
     private boolean applyingEdit;
     private EditProposal pendingEdit;
     private PartProposal pendingPart;
@@ -437,7 +437,8 @@ public final class StudioAiHub extends Activity {
             if (item == null) throw new IOException("Etapa do plano inválida");
             String kind = safeField(item, "kind", 12, true);
             if (!("SCRIPT".equals(kind) || "PART".equals(kind) ||
-                    "GUI".equals(kind) || "ITEM".equals(kind)))
+                    "GUI".equals(kind) || "ITEM".equals(kind) ||
+                    "LIGHTING".equals(kind)))
                 throw new IOException("Tipo desconhecido de etapa");
             String title = safeField(item, "title", 70, true);
             String instruction = safeField(item, "instruction", 260, true);
@@ -448,7 +449,7 @@ public final class StudioAiHub extends Activity {
 
     private static TaskPlan validateTaskPlan(JSONObject data, int reads,
             boolean allowScripts, boolean allowParts, boolean allowLabels,
-            boolean allowScreens, boolean allowItems) throws Exception {
+            boolean allowScreens, boolean allowItems, boolean allowLighting) throws Exception {
         if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia");
         TaskPlan plan = parseTaskPlanShape(data);
         for (PlanStep step : plan.steps) {
@@ -456,7 +457,8 @@ public final class StudioAiHub extends Activity {
                     ("SCRIPT".equals(step.kind) && allowScripts) ||
                     ("PART".equals(step.kind) && allowParts) ||
                     ("GUI".equals(step.kind) && (allowLabels || allowScreens)) ||
-                    ("ITEM".equals(step.kind) && allowItems);
+                    ("ITEM".equals(step.kind) && allowItems) ||
+                    ("LIGHTING".equals(step.kind) && allowLighting);
             if (!permitted)
                 throw new IOException("Tipo de etapa sem ferramenta autorizada: " + step.kind);
         }
@@ -471,6 +473,7 @@ public final class StudioAiHub extends Activity {
             case "GUI": return "CREATE_SCREEN_GUI".equals(kind) ||
                     "CREATE_BILLBOARD".equals(kind);
             case "ITEM": return "CREATE_TOOL_KIT".equals(kind);
+            case "LIGHTING": return "UPDATE_LIGHTING".equals(kind);
             default: return false;
         }
     }
@@ -485,6 +488,10 @@ public final class StudioAiHub extends Activity {
         final ScreenGuiProposal screen;
         final ReceiveToolProposal kit;
         final TaskPlan plan;
+        final LightingProposal lighting;
+        static AgentOutcome forLighting(String answer, LightingProposal lighting) {
+            return new AgentOutcome(answer, null, null, null, null, null, null, null, null, lighting);
+        }
         static AgentOutcome planned(String answer, TaskPlan plan) {
             return new AgentOutcome(answer, null, null, null, null, null, null, null, plan);
         }
@@ -522,7 +529,15 @@ public final class StudioAiHub extends Activity {
                 PartChangeProposal partChange, CompositeProposal composite,
                 BillboardProposal billboard, ScreenGuiProposal screen,
                 ReceiveToolProposal kit, TaskPlan plan) {
+            this(answer, proposal, part, partChange, composite, billboard,
+                    screen, kit, plan, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange, CompositeProposal composite,
+                BillboardProposal billboard, ScreenGuiProposal screen,
+                ReceiveToolProposal kit, TaskPlan plan, LightingProposal lighting) {
             this.plan = plan;
+            this.lighting = lighting;
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
