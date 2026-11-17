@@ -88,3 +88,29 @@ O teste `scripts/test_ai_android_touch_java.py` verifica o formatter Java de
 produção e os contratos de autorização e encaminhamento da rota Rust. A
 compilação ARM64, instalação e teste manual do Play devem ser validados no
 commit específico; CI Java verde isoladamente não é prova de runtime.
+
+## Continuação — sinal GuiButton.Activated por toque nativo
+
+O Rook original já possui `DataModel::gui_touch`; o patch Android preserva
+seu tratamento de toque. A instrumentação agora observa **somente** o ponto
+em que o próprio Rook emite `self.fire(button, "Activated", ...)` após um
+toque real concluído em botão, e nunca o caminho de mouse ou execução arbitrária.
+
+A nova checkbox **Autorizo registrar até 200 sinais de GUI e o caminho do
+último botão** é adicional, desmarcada por padrão, e exige confirmação no
+mesmo consentimento de sessão única. O Java verifica o `id` da sessão,
+`guiConsent`, `ready`, `stopped` e limites. Armazena apenas contagem e
+caminho do último botão no armazenamento privado local; apagá-los revoga o
+consentimento. Não armazena coordenadas, ponteiros ou textos digitados,
+nem envia conteúdo para API de IA. A observação é removida ao terminar Play.
+
+**Precisão do resultado:** essa observação é o sinal `GuiButton.Activated`
+emitido na ponte Rook→Luau após o toque, não a comprovação de que um
+`LocalScript` específico tratou o evento ou produziu resultado visual.
+Não há alteração no projeto, scripts novos, Play MCP externo ou
+publicação automática. A evidência depende de um Play físico e uma GUI
+real existente; testes estáticos/Java não garantem compatibilidade física.
+
+A regressão estende `scripts/test_ai_android_touch_java.py` e
+`ai-hub-android-java.yml`. O build ARM64 e o teste em aparelho físico
+devem ser checados separadamente para o commit exato.

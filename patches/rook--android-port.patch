@@ -1683,7 +1683,7 @@ index 7c5ba3f..fb05cbf 100644
                  "Press"
              } else if hovered {
                  "Hover"
-@@ -349,6 +378,123 @@ impl DataModel {
+@@ -349,6 +378,134 @@ impl DataModel {
          scrolled.is_some() || self.any_active(&hits)
      }
  
@@ -1791,7 +1791,18 @@ index 7c5ba3f..fb05cbf 100644
 +            if over && !scrolled {
 +                let count = self.click_count(button);
 +                if let Ok(object) = self.runtime.push_instance(object) {
++                    #[cfg(target_os = "android")]
++                    let observed_button = crate::touch_probe::enabled().then(|| {
++                        // Button names stay local to the device and are only
++                        // captured after separate GUI-inspection consent.
++                        format!("{}", self.runtime.world().dom.full_name(button))
++                            .chars().take(240).collect::<String>()
++                    });
 +                    self.fire(button, "Activated", (object, count));
++                    #[cfg(target_os = "android")]
++                    if let Some(path) = observed_button {
++                        crate::touch_probe::activated(&path);
++                    }
 +                }
 +            }
 +        }
@@ -2046,6 +2057,38 @@ index 0000000..1642ffa
 +            detector,
 +            kind: ClickKind::Click,
 +        })
++    }
++}
+diff --git a/crates/rook-engine/src/touch_probe.rs b/crates/rook-engine/src/touch_probe.rs
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/crates/rook-engine/src/touch_probe.rs
+@@ -0,0 +1,26 @@
++//! Opt-in, touch-only evidence from the actual Rook GUI signal emission.
++//! This is NOT a synthetic tap or a proof that a user's Luau callback ran.
++use std::sync::{Arc, Mutex};
++
++type Listener = Arc<dyn Fn(&str) + Send + Sync + 'static>;
++static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
++
++/// The isolated Android player process installs this listener only with
++/// explicit one-shot consent. No other host starts diagnostics.
++pub fn install(listener: Option<Arc<dyn Fn(&str) + Send + Sync + 'static>>) {
++    if let Ok(mut current) = LISTENER.lock() {
++        *current = listener;
++    }
++}
++
++pub(crate) fn enabled() -> bool {
++    LISTENER.lock().is_ok_and(|current| current.is_some())
++}
++
++/// Reports only *after* GUI touch handling fires the Activated event.
++pub(crate) fn activated(path: &str) {
++    let listener = LISTENER.lock().ok().and_then(|current| current.clone());
++    if let Some(listener) = listener {
++        listener(path);
 +    }
 +}
 diff --git a/crates/rook-engine/src/bridges/input/world.rs b/crates/rook-engine/src/bridges/input/world.rs
@@ -2319,15 +2362,17 @@ index cc1bf1b..0525752 100644
  mod bridges;
  pub mod build_config;
  mod chat;
-@@ -13,6 +14,7 @@ pub mod core_scripts;
+@@ -13,6 +14,9 @@ pub mod core_scripts;
  pub mod data_folder;
  mod frame;
  pub mod logging;
 +mod locomotion;
++#[cfg(target_os = "android")]
++pub mod touch_probe;
  mod rigs;
  mod scripts;
  pub mod session;
-@@ -20,7 +22,7 @@ pub mod settings;
+@@ -20,7 +24,7 @@ pub mod settings;
  pub mod user_settings;
  
  pub use bridges::camera::{CameraView, MouseLock};
@@ -2336,7 +2381,7 @@ index cc1bf1b..0525752 100644
  
  pub use bridges::render_changes::{RenderChanges, adorned_part, is_effect_class};
  
-@@ -70,6 +72,11 @@ const DEFAULT_SERVICES: &[&str] = &[
+@@ -70,6 +74,11 @@ const DEFAULT_SERVICES: &[&str] = &[
  /// Options for a DataModel host.
  #[derive(Debug, Clone)]
  pub struct Options {
@@ -2348,7 +2393,7 @@ index cc1bf1b..0525752 100644
      /// Frames per second of the fixed clock.
      pub hz: f64,
      /// Script timeout (Roblox Studio's default is 10 seconds).
-@@ -101,6 +108,8 @@ pub struct Options {
+@@ -101,6 +110,8 @@ pub struct Options {
  impl Default for Options {
      fn default() -> Self {
          Self {
@@ -2357,7 +2402,7 @@ index cc1bf1b..0525752 100644
              hz: 60.0,
              script_timeout: rook_lua::DEFAULT_SCRIPT_TIMEOUT,
              memory_limit: 1 << 30,
-@@ -143,6 +152,9 @@ pub struct DataModel {
+@@ -143,6 +154,9 @@ pub struct DataModel {
      adorned: rustc_hash::FxHashMap<InstanceId, InstanceId>,
      /// Keyboard and mouse bookkeeping (clients).
      input: input::InputTracker,
@@ -2367,7 +2412,7 @@ index cc1bf1b..0525752 100644
      content: Content,
      sounds: sounds::Sounds,
      unions: unions::Unions,
-@@ -214,6 +226,7 @@ impl DataModel {
+@@ -214,6 +228,7 @@ impl DataModel {
          self.sounds.watch.rescan(end);
          self.unions.watch.rescan(end);
          self.explosions.watch.rescan(end);
@@ -2375,7 +2420,7 @@ index cc1bf1b..0525752 100644
          if let Some(kept) = &mut self.user_settings {
              kept.rescan(end);
          }
-@@ -228,11 +241,31 @@ impl DataModel {
+@@ -228,11 +243,31 @@ impl DataModel {
      /// every reader has heard so ([`rook_lua::Runtime::trim_journal`]);
      /// input, which reads no journal, drops them as they are freed.
      pub fn trim_journal(&mut self) {
@@ -2408,7 +2453,7 @@ index cc1bf1b..0525752 100644
      }
  
      /// Every reader of the journal takes what it hasn't seen yet, noting
-@@ -256,6 +289,9 @@ impl DataModel {
+@@ -256,6 +291,9 @@ impl DataModel {
          self.check_unions();
          self.check_explosions();
          self.check_user_settings();
@@ -2418,7 +2463,7 @@ index cc1bf1b..0525752 100644
      }
  
      /// Load a place file.
-@@ -305,6 +341,17 @@ impl DataModel {
+@@ -305,6 +343,17 @@ impl DataModel {
              }
          }
          ensure_camera(&mut dom);
@@ -2436,7 +2481,7 @@ index cc1bf1b..0525752 100644
          // Roblox's client names its build here; the menu's version label shows it.
          if let Some(rs) = dom.find_service("RunService") {
              rook_dom::ignore_stale(dom.set_property_by_name(
-@@ -343,6 +390,9 @@ impl DataModel {
+@@ -343,6 +392,9 @@ impl DataModel {
          .map_err(|e| EngineError::Lua(e.to_string()))?;
          runtime.set_script_timeout(options.script_timeout);
          runtime.world_mut().signal_behavior = signal_behavior;
@@ -2446,7 +2491,7 @@ index cc1bf1b..0525752 100644
          let content = options
              .content
              .clone()
-@@ -367,7 +417,7 @@ impl DataModel {
+@@ -367,7 +419,7 @@ impl DataModel {
                  .map_err(|e| EngineError::Lua(e.to_string()))?;
          }
          let cursor = runtime.world().dom.journal().end();
@@ -2455,7 +2500,7 @@ index cc1bf1b..0525752 100644
              runtime,
              role,
              auto_trim: true,
-@@ -377,6 +427,10 @@ impl DataModel {
+@@ -377,6 +429,10 @@ impl DataModel {
              render_changes: RenderChanges::everything(),
              adorned: Default::default(),
              input: Default::default(),
@@ -2466,7 +2511,7 @@ index cc1bf1b..0525752 100644
              content: Content {
                  resolver: options.content.clone(),
                  wait_for_sounds: options.wait_for_sounds,
-@@ -387,7 +441,11 @@ impl DataModel {
+@@ -387,7 +443,11 @@ impl DataModel {
              explosions: Default::default(),
              web: Default::default(),
              user_settings: None,

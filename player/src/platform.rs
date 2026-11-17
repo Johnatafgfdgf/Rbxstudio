@@ -47,6 +47,12 @@ pub fn ready() -> anyhow::Result<()> { call("ready", "").map(|_| ()) }
 pub fn touch_probe_active() -> bool {
     matches!(call("touch-probe-enabled", ""), Ok(value) if value == "1")
 }
+pub fn gui_probe_active() -> bool {
+    matches!(call("touch-gui-enabled", ""), Ok(value) if value == "1")
+}
+pub fn report_touch_gui_activated(path: &str) {
+    let _ = call("native-gui-activated", path);
+}
 pub fn report_native_touch_counts(down: u32, up: u32, cancel: u32) {
     let report = serde_json::json!({"down":down,"up":up,"cancel":cancel});
     let _ = call("native-touch-counts", &report.to_string());

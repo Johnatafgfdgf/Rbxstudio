@@ -37,6 +37,19 @@ assert "writeNativeCounts(this, touchProbeId" in rook
 assert "StudioTouchDiagnostics.writeNativeCounts" in rook
 assert "Rook.winit.WindowEvent.Touch" in touch
 assert "nativeReported" in production
+assert "guiActivated" in production
+assert "Rook.touch.GuiButton.Activated" in touch
+assert "guiConsent(context, id)" in touch
+assert "noteGuiActivation(this, touchProbeId" in rook
+assert 'case "touch-gui-enabled"' in rook
+assert 'case "native-gui-activated"' in rook
+assert "allowRookGuiProbe.setChecked(false)" in hub
+assert "StudioTouchDiagnostics.arm(this, guiPermission" in hub
+assert "rook_engine::touch_probe::install(Some" in player
+assert "rook_engine::touch_probe::install(None)" in player
+assert "crate::touch_probe::activated(&path)" in rook_patch
+assert 'self.fire(button, "Activated", (object, count));' in rook_patch
+assert "Rook.winit.WindowEvent.Touch" in touch
 assert "on_native_touch: observe_native_touch.then" in rook_patch
 assert "WindowEvent::Touch(touch)" in rook_patch
 assert "winit::event::TouchPhase::Started" in rook_patch
@@ -97,6 +110,15 @@ public final class TouchContract {
         yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 0, 0).contains("INCONCLUSIVO"));
         yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 1, 0).contains("inconsistente"));
         yes(formatTouchEvidence(false, 0, 0, 0, false, true, 2, 2, 0).contains("INCONCLUSIVO"));
+        String guiSignal = formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "Players.PlayerGui.Inventory.Open");
+        yes(guiSignal.contains("SINAL REAL GuiButton.Activated"));
+        yes(guiSignal.contains("Players.PlayerGui.Inventory.Open"));
+        yes(guiSignal.contains("não comprova que um callback Luau rodou"));
+        yes(formatTouchEvidence(true, 0, 0, 0, false,
+                true, 2, 2, 0, 1, "").contains("inconsistente"));
+        yes(formatTouchEvidence(true, 0, 0, 0, false,
+                true, 2, 2, 0, 201, "Button").contains("inconsistente"));
         String noTouch = formatTouchEvidence(true, 0, 0, 0, false);
         yes(noTouch.contains("INCONCLUSIVO"));
         yes(noTouch.contains("Player encerrou: não confirmado"));

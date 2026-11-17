@@ -100,6 +100,12 @@ public final class RookPlayerActivity extends NativeActivity {
                     packed.substring(packed.indexOf(':') + 1)), StandardCharsets.UTF_8);
             }
             case "touch-probe-enabled": return touchProbeId == null ? "0" : "1";
+            case "touch-gui-enabled":
+                return StudioTouchDiagnostics.guiConsent(this, touchProbeId) ? "1" : "0";
+            case "native-gui-activated":
+                if (ready && touchProbeId != null)
+                    StudioTouchDiagnostics.noteGuiActivation(this, touchProbeId, value);
+                return "";
             case "native-touch-counts": {
                 if (touchProbeId == null || !ready || value == null || value.length() > 96)
                     return "";

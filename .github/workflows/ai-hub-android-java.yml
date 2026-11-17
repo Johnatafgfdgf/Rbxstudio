@@ -11,6 +11,7 @@ on:
       - android/src/com/rbxnative/androidport/RookPlayerActivity.java
       - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
       - player/src/lib.rs
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
       - player/src/platform.rs
       - patches/rook--android-port.patch
       - android/StudioManifest.xml

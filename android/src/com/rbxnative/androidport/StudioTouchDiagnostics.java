@@ -49,18 +49,30 @@ public final class StudioTouchDiagnostics {
         Files.move(pending.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
-    /** Explicit one-use authorization, expires even if the user never opens Play. */
+    /** Explicit one-use authorization, expires even if the user never opens Play.
+     * Inspecting button paths requires an additional, separately unchecked
+     * UI permission; existing uses of arm(context) never enable that. */
     public static synchronized String arm(Context context) throws Exception {
+        return arm(context, false);
+    }
+
+    public static synchronized String arm(Context context, boolean guiAuthorized)
+            throws Exception {
         String id = UUID.randomUUID().toString();
         long now = System.currentTimeMillis();
         File old = reportFile(context);
         Files.deleteIfExists(old.toPath());
         write(requestFile(context), new JSONObject().put("id", id)
-                .put("armedAt", now).put("expiresAt", now + ARM_WINDOW_MS));
+                .put("armedAt", now).put("expiresAt", now + ARM_WINDOW_MS)
+                .put("guiConsent", guiAuthorized));
         return "Monitoramento autorizado somente para o próximo Play Rook, por até 10 minutos. " +
                 "Abra o Play LOCAL do player Rook pelo editor, toque na tela " +
                 "depois de carregar e volte aqui para conferir. " +
-                "Não registra coordenadas e não comprova cliques nas GUIs.";
+                (guiAuthorized ? "Com consentimento separado, registra até 200 " +
+                        "sinais GuiButton.Activated e o caminho do último botão " +
+                        "somente neste aparelho. Não comprova execução do callback Luau."
+                    : "Não registra nomes de botões e não comprova cliques nas GUIs.") +
+                " Nunca registra coordenadas.";
     }
 
     /** Called by the actual Rook NativeActivity when it starts. The request
@@ -80,6 +92,13 @@ public final class StudioTouchDiagnostics {
                     expires - armed != ARM_WINDOW_MS)
                 return null;
             writeReport(context, id, false, 0, 0, 0, false);
+            if (body.optBoolean("guiConsent", false)) {
+                JSONObject report = read(reportFile(context));
+                if (report != null) {
+                    report.put("guiConsent", true);
+                    write(reportFile(context), report);
+                }
+            }
             return id;
         } catch (Exception invalid) {
             try { Files.deleteIfExists(request.toPath()); } catch (IOException ignored) {}
@@ -103,6 +122,18 @@ public final class StudioTouchDiagnostics {
             // A Java MotionEvent can arrive after a native winit event.
             // Preserve independent native evidence across both write routes.
             JSONObject prior = read(reportFile(context));
+            if (prior != null && id.equals(prior.optString("id", "")) &&
+                    prior.optBoolean("guiConsent", false)) {
+                report.put("guiConsent", true);
+                if ("Rook.touch.GuiButton.Activated".equals(prior.optString("guiSource", ""))
+                        && prior.optInt("guiActivated", -1) >= 0
+                        && prior.optInt("guiActivated", -1) <= 200
+                        && prior.optString("lastGuiButton", "").length() <= 240) {
+                    report.put("guiSource", "Rook.touch.GuiButton.Activated")
+                          .put("guiActivated", prior.getInt("guiActivated"))
+                          .put("lastGuiButton", prior.optString("lastGuiButton", ""));
+                }
+            }
             if (prior != null && id.equals(prior.optString("id", "")) &&
                     "Rook.winit.WindowEvent.Touch".equals(prior.optString("nativeSource", "")) &&
                     consistentTouchTotals(prior.optInt("nativeDown", -1),
@@ -139,6 +170,40 @@ public final class StudioTouchDiagnostics {
         }
     }
 
+    public static synchronized boolean guiConsent(Context context, String id) {
+        if (id == null || !id.matches("[0-9a-f-]{36}")) return false;
+        try {
+            JSONObject report = read(reportFile(context));
+            return report != null && id.equals(report.optString("id", "")) &&
+                    report.optBoolean("guiConsent", false) &&
+                    !report.optBoolean("stopped", false);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Bounded, local-only signal evidence from the actual Rook touch path.
+     * Not called by APIs or mouse paths; never accepts remote AI inputs. */
+    public static synchronized void noteGuiActivation(Context context, String id, String path) {
+        if (path == null || path.length() < 1 || path.length() > 240 ||
+                !guiConsent(context, id)) return;
+        String safePath = path.replaceAll("[\\p{Cntrl}]", " ").trim();
+        if (safePath.isEmpty()) return;
+        try {
+            JSONObject report = read(reportFile(context));
+            if (report == null || !report.optBoolean("ready", false)) return;
+            int total = report.optInt("guiActivated", 0);
+            if (total < 0 || total >= 200) return;
+            report.put("guiSource", "Rook.touch.GuiButton.Activated")
+                    .put("guiActivated", total + 1)
+                    .put("lastGuiButton", safePath)
+                    .put("recordedAt", System.currentTimeMillis());
+            write(reportFile(context), report);
+        } catch (Exception ignored) {
+            // A diagnostic must never disrupt the player's touch callback.
+        }
+    }
+
     public static synchronized String readSummary(Context context) {
         try {
             JSONObject report = read(reportFile(context));
@@ -157,12 +222,21 @@ public final class StudioTouchDiagnostics {
                     report.optString("nativeSource", ""));
             if (report.has("nativeSource") && !nativeReported)
                 return "Relatório com origem nativa desconhecida: ignorado.";
+            boolean signalReported = "Rook.touch.GuiButton.Activated".equals(
+                    report.optString("guiSource", ""));
+            if (report.has("guiSource") && !signalReported)
+                return "Relatório de GUI com origem desconhecida: ignorado.";
+            int count = signalReported ? report.optInt("guiActivated", -1) : 0;
+            String path = signalReported ? report.optString("lastGuiButton", "") : "";
+            if (signalReported && !report.optBoolean("guiConsent", false))
+                return "Sinal de GUI sem permissão específica: ignorado.";
             return formatTouchEvidence(report.optBoolean("ready", false),
                     report.optInt("down", -1), report.optInt("up", -1),
                     report.optInt("cancel", -1),
                     report.optBoolean("stopped", false),
                     nativeReported, report.optInt("nativeDown", -1),
-                    report.optInt("nativeUp", -1), report.optInt("nativeCancel", -1));
+                    report.optInt("nativeUp", -1), report.optInt("nativeCancel", -1),
+                    count, path);
         } catch (Exception ignored) {
             return "Não foi possível ler o relatório local de toques. " +
                     "Nenhum resultado foi presumido.";
@@ -180,15 +254,26 @@ public final class StudioTouchDiagnostics {
     static String formatTouchEvidence(boolean ready, int downs, int ups,
             int canceled, boolean stopped) {
         return formatTouchEvidence(ready, downs, ups, canceled, stopped,
-                false, -1, -1, -1);
+                false, -1, -1, -1, 0, "");
     }
 
     static String formatTouchEvidence(boolean ready, int downs, int ups,
             int canceled, boolean stopped, boolean nativeReported,
             int nativeDown, int nativeUp, int nativeCancel) {
+        return formatTouchEvidence(ready, downs, ups, canceled, stopped,
+                nativeReported, nativeDown, nativeUp, nativeCancel, 0, "");
+    }
+
+    static String formatTouchEvidence(boolean ready, int downs, int ups,
+            int canceled, boolean stopped, boolean nativeReported,
+            int nativeDown, int nativeUp, int nativeCancel,
+            int guiActivated, String buttonPath) {
         if (!consistentTouchTotals(downs, ups, canceled) ||
                 (nativeReported && !consistentTouchTotals(
-                        nativeDown, nativeUp, nativeCancel)))
+                        nativeDown, nativeUp, nativeCancel)) ||
+                guiActivated < 0 || guiActivated > 200 ||
+                (guiActivated > 0 && (buttonPath == null || buttonPath.isEmpty() ||
+                        buttonPath.length() > 240)))
             return "Relatório de toque inconsistente: não confirmado.";
         StringBuilder out = new StringBuilder("PLAY ROOK • ENTRADA ANDROID\n")
                 .append("Player informou pronto: ").append(ready ? "sim" : "não").append("\n")
@@ -217,9 +302,16 @@ public final class StudioTouchDiagnostics {
             out.append("Rook/winit: sem evidência nativa nesta sessão. " +
                     "Não comprova entrada no motor nativo.\n");
         }
-        out.append("Mesmo com winit, não comprova GuiButton.Activated, " +
-                "MouseButton1Click, Tool.Activated, callback Luau ou " +
-                "efeito visual. Sem coordenadas, gravação de tela ou envio à IA.");
+        if (ready && guiActivated > 0) {
+            out.append("SINAL REAL GuiButton.Activated emitido após toque: ")
+                    .append(guiActivated).append("\n")
+                    .append("Último botão (caminho local): ").append(buttonPath).append("\n");
+        } else {
+            out.append("GuiButton.Activated por toque: não confirmado.\n");
+        }
+        out.append("O sinal do motor não comprova que um callback Luau rodou, " +
+                "que a GUI modificou o jogo ou que houve efeito visual. " +
+                "Sem coordenadas, gravação de tela ou envio à IA.");
         return out.toString();
     }
 

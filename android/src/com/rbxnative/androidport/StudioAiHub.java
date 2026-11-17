@@ -622,7 +622,7 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
-    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe, allowRookGuiProbe;
     private TextView playProbeResult, playSmokeResult, rookTouchResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
@@ -1489,19 +1489,25 @@ public final class StudioAiHub extends Activity {
             status.setText("Marque a autorização de diagnóstico de toque Rook primeiro.");
             return;
         }
+        final boolean guiPermission = allowRookGuiProbe != null &&
+                allowRookGuiProbe.isChecked();
         new android.app.AlertDialog.Builder(this)
-                .setTitle("Autorizar contagem local dos toques Android?")
+                .setTitle(guiPermission ? "Autorizar diagnóstico dos botões da GUI?" :
+                        "Autorizar contagem local dos toques Android?")
                 .setMessage("Válido apenas para o PRÓXIMO Play Rook local, por 10 minutos. " +
-                        "O player contará eventos DOWN/UP/CANCEL que passarem pelo " +
-                        "Java NativeActivity, sem coordenadas, conteúdo de texto, " +
-                        "imagens nem envio à IA. Não injeta toques e NÃO valida " +
-                        "GuiButton.Activated. O input pode seguir a fila nativa " +
-                        "e não aparecer neste diagnóstico.")
+                        "Contará eventos touchscreen Java e Rook/winit sem coordenadas. " +
+                        (guiPermission ? "Também registrará até 200 sinais reais de " +
+                        "GuiButton.Activated emitidos após toque e o caminho do " +
+                        "último botão; dados privados locais, não enviados à IA. " :
+                        "Não registra nomes de botões. ") +
+                        "Não injeta eventos, não lê códigos e NÃO comprova " +
+                        "execução de callbacks Luau nem efeitos visuais.")
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("Autorizar diagnóstico local", (d, w) -> {
                     if (allowRookTouchProbe == null || !allowRookTouchProbe.isChecked()) return;
                     try {
-                        rookTouchResult.setText(StudioTouchDiagnostics.arm(this));
+                        rookTouchResult.setText(StudioTouchDiagnostics.arm(this, guiPermission &&
+                                allowRookGuiProbe != null && allowRookGuiProbe.isChecked()));
                         rookTouchResult.setVisibility(View.VISIBLE);
                     } catch (Exception failed) {
                         rookTouchResult.setText("Não foi possível preparar o teste de toques.");
@@ -2563,16 +2569,25 @@ public final class StudioAiHub extends Activity {
         add(root, text("Play Rook local • diagnóstico de toques Android", 14, true), 5);
         TextView rookTouchHelp = text(
                 "O Play externo do Roblox NÃO é monitorado aqui. " +
-                "No player Rook local, uma autorização de uso único registra somente " +
-                "totais de eventos touchscreen recebidos pelo Java. " +
-                "Não injeta toques, não lê scripts e NÃO comprova cliques nas GUIs. " +
-                "Se o Rook usar somente a fila nativa, o resultado será inconclusivo.", 12, false);
+                "No player Rook local, a autorização de uso único mede eventos " +
+                "do Android e Rook/winit. Outra autorização independente permite " +
+                "observar sinais GuiButton.Activated e o caminho do último botão " +
+                "somente no aparelho. Sem simular toques, enviar dados à IA " +
+                "ou afirmar execução de scripts.", 12, false);
         add(root, rookTouchHelp, 4);
         allowRookTouchProbe = new CheckBox(this);
         allowRookTouchProbe.setText("Autorizo medir entrada touchscreen no próximo Play Rook local");
         allowRookTouchProbe.setTextColor(Color.rgb(228, 236, 250));
         allowRookTouchProbe.setChecked(false);
         add(root, allowRookTouchProbe, 4);
+        allowRookGuiProbe = new CheckBox(this);
+        allowRookGuiProbe.setText("Autorizo registrar até 200 sinais de GUI e o caminho do último botão, só no aparelho");
+        allowRookGuiProbe.setTextColor(Color.rgb(228, 236, 250));
+        allowRookGuiProbe.setChecked(false);
+        allowRookGuiProbe.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) StudioTouchDiagnostics.clear(this);
+        });
+        add(root, allowRookGuiProbe, 4);
         Button armRookTouch = button("Preparar diagnóstico real de toque • próximo Play local");
         armRookTouch.setOnClickListener(v -> armRookTouchEvidence());
         add(root, armRookTouch, 5);
@@ -2583,6 +2598,7 @@ public final class StudioAiHub extends Activity {
         eraseRookTouch.setOnClickListener(v -> {
             StudioTouchDiagnostics.clear(this);
             if (allowRookTouchProbe != null) allowRookTouchProbe.setChecked(false);
+            if (allowRookGuiProbe != null) allowRookGuiProbe.setChecked(false);
             if (rookTouchResult != null) {
                 rookTouchResult.setText("");
                 rookTouchResult.setVisibility(View.GONE);
