@@ -742,6 +742,43 @@ for required in [
     assert required in java, required
 assert 'prompt.getText().toString()' not in java[java.index('private void recordEditorOutcome('):java.index('private void clearProjectMemory()')]
 
+# The iterative task planner cannot become a second writer or silently
+# bypass the existing per-write human confirmation + read-back pipeline.
+for required in [
+    'private static final String TASK_PLAN_PROTOCOL',
+    '"propose_task_plan".equals(action)',
+    'private static TaskPlan validateTaskPlan(JSONObject data, int reads,',
+    'if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia")',
+    'items.length() < 2 || items.length() > 5',
+    '"SCRIPT".equals(kind) && allowScripts',
+    '"PART".equals(kind) && allowParts',
+    '"GUI".equals(kind) && (allowLabels || allowScreens)',
+    '"ITEM".equals(kind) && allowItems',
+    'private static boolean actionMatchesPlannedKind(String action, String kind)',
+    'if (executingPlanStep && action.startsWith("propose_")',
+    'private static boolean planStepMatches(String step, String kind)',
+    'private void approvePendingTaskPlan()',
+    'private void executeNextPlanStep()',
+    'private void clearActivePlan()',
+    'nextPlanStep = button("Executar próxima etapa • usa API")',
+    'togglePlan = button("Pausar plano")',
+    'cancelPlan = button("Cancelar plano")',
+    'planStepOutstanding = true;',
+    'planPaused = true;',
+    'if (verified && planStepMatches(step.kind, kind))',
+    'activeTaskPlan.completed++;',
+    'pendingTaskPlan != null',
+    'renderPlanState();',
+    'A aprovação NÃO executa nenhuma etapa.',
+    'Cada operação requer uma nova inspeção do mapa',
+]:
+    assert required in java, required
+assert java.count('callMcp(paired, "multi_edit", args)') == 1
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'callMcp(paired, action' not in java
+assert 'MAX_AGENT_READS = 3' in java
+assert 'MAX_AGENT_CALLS = MAX_AGENT_READS + 1' in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
