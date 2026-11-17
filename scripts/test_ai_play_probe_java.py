@@ -20,6 +20,8 @@ harness = r"""
 import java.util.Locale;
 import java.util.regex.Pattern;
 public final class PlayProbeHarness {
+    private static final int MAX_PLAY_LOG_LINES = 8;
+    private static final int MAX_PLAY_LOG_CHARS = 1800;
 %s
     static void yes(boolean b) {
         if (!b) throw new AssertionError("Play probe contract failed");
