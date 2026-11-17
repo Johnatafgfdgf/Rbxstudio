@@ -8,6 +8,8 @@ on:
       - .github/workflows/export-ai-full-source.yml
       - android/src/com/rbxnative/androidport/StudioAiHub.java
       - scripts/check_ai_hub.py
+      - core/tests/ai_receive_tool.rs
+      - .github/workflows/engine-compatibility.yml
       - docs/ANDROID_AI_PHASE2_READ_AGENT_2026-11-16.md
 
 permissions:
