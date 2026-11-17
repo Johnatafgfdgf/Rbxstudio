@@ -18,6 +18,23 @@ A Activity Android `StudioAiHub.java` recebe **Teste rápido Play local • inic
 
 A implementação amplia o timeout de **apenas** `start_stop_play(is_start=true)` para 210 segundos, compatível com os até 200 segundos de startup do job do motor nativo. Os demais endpoints mantêm seu timeout anterior.
 
+## Cenário adicional opcional: spawn e estruturas do jogador
+
+Agora o teste rápido também oferece a caixa **Cenário opcional: Player, Backpack, PlayerGui e Humanoid**, desmarcada por padrão e separada da autorização de iniciar Play. Ao marcar, o app faz apenas duas leituras adicionais pelo MCP **Client**, depois que Play já foi confirmado:
+
+- `search_game_tree(datamodel_type=Client, path=Players, max_depth=2, head_limit=48)` para identificar um `Player`, seu `Backpack` e seu `PlayerGui` realmente presentes sob o mesmo caminho;
+- `search_game_tree(datamodel_type=Client, path=Workspace, instance_type=Humanoid, max_depth=3, head_limit=24)` para verificar um `Humanoid` associado ao mesmo nome de Player na árvore `Workspace.NomeDoJogador.Humanoid`.
+
+O avaliador exige classe e caminho exatos, não junta objetos de jogadores diferentes, não envia nomes à IA e não aceita uma resposta MCP truncada como confirmação. O relatório discrimina **Player, Backpack, PlayerGui e Humanoid**, e só considera o cenário confirmado quando os quatro correspondem ao **mesmo Player**. Falha, personagem personalizado com hierarquia diferente, logs de outro modo ou ausência de um objeto ficam como **inconclusivos**, sem impedir a tentativa de encerrar o Play.
+
+**Limite importante:** as verificações são estruturais. Elas não provam que GUI respondeu ao toque, que a Tool equipa, que Humanoid se move, nem que o mapa renderiza. Isso requer cenários instrumentados adicionais e validação física em aparelho.
+
+### Regressão adicional
+
+- `scripts/test_ai_play_scene_java.py` compila o **avaliador Java de produção** e testa correspondências corretas, classes/tipos incorretos, caminhos divergentes, múltiplos Players e casos em que os objetos pertencem a pessoas diferentes;
+- `scripts/test_ai_play_smoke_java.py` valida que o cenário opcional precisa estar completo para o relatório marcar essa verificação como concluída;
+- `scripts/check_ai_hub.py` exige autorização desligada por padrão, caminhos Client fixos, dois limites de leitura e ausência de execução arbitrária de scripts neste fluxo.
+
 ## Segurança e limites técnicos
 
 - A única operação com efeito é iniciar/parar o **Play local**. Não executa Luau arbitrário, não publica jogos, não importa assets, não altera scripts nem move o personagem.
