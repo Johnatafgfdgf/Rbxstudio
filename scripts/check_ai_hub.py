@@ -1084,6 +1084,12 @@ for required in [
     'private boolean verifyLocalEquipParent(String paired, String playerName,',
     'equipReceipt = confirmLiveEquippedTool(paired, scene.playerName,',
     'equipReadBack = verifyLocalEquipParent(paired, scene.playerName,',
+    'found.Equipped:Connect(function()',
+    'equippedListener:Disconnect()',
+    'equippedObserved = true',
+    '"EQUIPPED_EVENT".equals(receipt)',
+    '(!equipRequested || (equipReceipt && equipReadBack && equippedEvent))',
+    'Evento real Tool.Equipped no Client:',
     'allowLocalPlaySmoke.isChecked()',
     'checkLocalToolEquip.isChecked()',
     '"Workspace." + playerName',
@@ -1143,7 +1149,8 @@ assert smoke_section.count('callMcp(paired, "search_game_tree"') == 6
 assert smoke_section.count('callMcp(paired, "inspect_instance"') == 3
 assert smoke_section.count('callMcp(paired, "execute_luau"') == 1
 assert 'new JSONObject()\n                .put("datamodel_type", "Client").put("code", luau)' in smoke_section
-assert '"EQUIPPED".equals(response == null ? "" : response.trim())' in smoke_section
+assert '"EQUIPPED_EVENT".equals(receipt)' in smoke_section
+assert '"EQUIPPED_NO_EVENT".equals(receipt)' in smoke_section
 assert 'new JSONObject().put("is_start", false)' in smoke_section
 assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
 assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
