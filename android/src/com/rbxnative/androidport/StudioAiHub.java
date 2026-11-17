@@ -621,10 +621,10 @@ public final class StudioAiHub extends Activity {
     private final List<String> backupIds = new ArrayList<>();
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
-    private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay;
-    private CheckBox allowLocalPlayProbe;
+    private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke;
     private TextView playProbeResult;
-    private boolean probingLocalPlay;
+    private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
     private CheckBox allowLocalModelAudit, shareModelAudit;
     private boolean auditingInsertedModel;
@@ -1331,6 +1331,144 @@ public final class StudioAiHub extends Activity {
         return report.toString();
     }
 
+
+    /** Accept only an exact shell receipt, never substring matches or AI text. */
+    private static String checkedLocalPlayReceipt(String text, boolean starting)
+            throws IOException {
+        String expected = starting ? "Game Started" : "Game Stopped";
+        if (text == null || !expected.equals(text.trim()))
+            throw new IOException("Recibo de Play local não confirmado: " +
+                    (starting ? "início" : "encerramento"));
+        return expected;
+    }
+
+    /** Distinguish an actual Play MCP session from a functional game test. */
+    private static String buildPlaySmokeSummary(boolean startConfirmed, String playState,
+            String output, boolean stopConfirmed, String problem) {
+        boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
+                checkedLocalPlayMode(playState));
+        boolean logsAvailable = output != null;
+        StringBuilder report = new StringBuilder("TESTE RÁPIDO DO PLAY LOCAL • MCP\n")
+                .append("Início autorizado com recibo: ")
+                .append(startConfirmed ? "confirmado" : "não confirmado").append("\n")
+                .append("Client/Server durante Play: ")
+                .append(playConfirmed ? "confirmados" : "não confirmados").append("\n")
+                .append("Output durante o teste: ")
+                .append(logsAvailable ? "lido" : "indisponível").append("\n")
+                .append("Retorno ao Edit: ")
+                .append(stopConfirmed ? "confirmado" : "NÃO CONFIRMADO").append("\n");
+        if (logsAvailable) {
+            report.append("Trecho observado do Output:\n")
+                    .append(output.substring(0, Math.min(output.length(), MAX_PLAY_LOG_CHARS)))
+                    .append("\n");
+            if (output.length() > MAX_PLAY_LOG_CHARS)
+                report.append("[Output limitado]\n");
+        }
+        if (problem != null && !problem.isEmpty())
+            report.append("Limitação registrada: ").append(problem).append("\n");
+        report.append(startConfirmed && playConfirmed && logsAvailable && stopConfirmed
+                ? "PASSOU somente nas verificações de inicialização, leitura e encerramento.\n"
+                : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
+        report.append("Não verifica controles, GUIs, colisão, scripts individuais ou " +
+                "qualidade visual. Logs podem incluir mensagens de sessões anteriores. " +
+                "Nenhum comando Luau, publicação ou pedido à API de IA.");
+        return report.toString();
+    }
+
+    /** Only this user-confirmed code path may invoke start_stop_play.
+     * All cleanup calls remain explicit, bounded and in the same MCP editor. */
+    private void confirmLocalPlaySmoke() {
+        if (busy || applyingEdit) return;
+        if (mcpPairing.isEmpty()) {
+            status.setText("Sem integração MCP local do editor.");
+            return;
+        }
+        if (allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) {
+            status.setText("Autorize o teste local: início e parada do Play.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Executar teste rápido de Play local?")
+                .setMessage("O app só iniciará Play se o MCP mostrar Edit. " +
+                        "Depois consultará o estado Client/Server e Output, " +
+                        "e solicitará parar o Play aberto por este teste.\n\n" +
+                        "Isso NÃO publica um jogo, não abre o Roblox externo, " +
+                        "não controla o personagem nem escreve scripts. " +
+                        "Se a comunicação falhar durante a inicialização, " +
+                        "o Play pode continuar aberto: confira o editor " +
+                        "antes de repetir. Nenhum log será enviado à IA.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Autorizar iniciar e parar Play", (d, w) -> runLocalPlaySmoke())
+                .show();
+    }
+
+    private void runLocalPlaySmoke() {
+        if (busy || applyingEdit || mcpPairing.isEmpty() ||
+                allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        runningLocalPlaySmoke = true;
+        playProbeResult.setVisibility(View.VISIBLE);
+        playProbeResult.setText("Teste local autorizado. Verificando Edit antes de iniciar...");
+        setBusy(true, "Teste Play local • no máximo um início e um encerramento...");
+        requests.execute(() -> {
+            boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
+            String playState = "", output = null, problem = "";
+            try {
+                String before = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                if (!"EDIT".equals(checkedLocalPlayMode(before)))
+                    throw new IOException("Editor não estava em Edit; Play existente preservado");
+                if (epoch != requestEpoch) throw new IOException("Autorização cancelada");
+                // Mark intent before the possibly long MCP start: a lost reply is ambiguous.
+                startAttempted = true;
+                checkedLocalPlayReceipt(callMcp(paired, "start_stop_play",
+                        new JSONObject().put("is_start", true)), true);
+                startConfirmed = true;
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                playState = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                if (!"PLAY_LOCAL_CONFIRMADO".equals(checkedLocalPlayMode(playState)))
+                    throw new IOException("MCP iniciou Play, mas Client/Server não responderam");
+                // Brief bounded observation, not a comprehensive gameplay scenario.
+                Thread.sleep(750);
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                output = readOnlyMcp(paired, "get_console_output", new JSONObject());
+            } catch (Exception ex) {
+                problem = "Teste ou leitura incompletos; consulte o editor e o Output.";
+            } finally {
+                // A confirmed start is always offered a stop, including after cancellation.
+                // An ambiguous start is stopped only if MCP confirms Play is currently running.
+                if (startAttempted) {
+                    try {
+                        String stateNow = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                        String now = checkedLocalPlayMode(stateNow);
+                        if ("EDIT".equals(now)) {
+                            stopConfirmed = true;
+                        } else if (startConfirmed || "PLAY_LOCAL_CONFIRMADO".equals(now)) {
+                            checkedLocalPlayReceipt(callMcp(paired, "start_stop_play",
+                                    new JSONObject().put("is_start", false)), false);
+                            String finalState = readOnlyMcp(paired, "get_studio_state",
+                                    new JSONObject());
+                            stopConfirmed = "EDIT".equals(checkedLocalPlayMode(finalState));
+                        }
+                    } catch (Exception ignored) {
+                        stopConfirmed = false;
+                    }
+                }
+            }
+            final String report = buildPlaySmokeSummary(startConfirmed, playState, output,
+                    stopConfirmed, problem);
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
+                runningLocalPlaySmoke = false;
+                if (allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
+                playProbeResult.setText(report);
+                setBusy(false, stopConfirmed
+                        ? "Teste Play encerrado • veja o relatório real."
+                        : "Play pode permanecer ativo • confira e encerre no editor.");
+            });
+        });
+    }
+
     private void startInsertedModelAudit() {
         if (busy || applyingEdit) return;
         if (mcpPairing.isEmpty()) {
@@ -1744,6 +1882,14 @@ public final class StudioAiHub extends Activity {
         inspectLocalPlay = button("Verificar Play/Output do editor • somente leitura");
         inspectLocalPlay.setOnClickListener(v -> inspectLocalPlayOutput());
         add(root, inspectLocalPlay, 5);
+        allowLocalPlaySmoke = new CheckBox(this);
+        allowLocalPlaySmoke.setText("Autorizo INICIAR e ENCERRAR um Play local para teste");
+        allowLocalPlaySmoke.setTextColor(Color.rgb(228, 236, 250));
+        allowLocalPlaySmoke.setChecked(false);
+        add(root, allowLocalPlaySmoke, 4);
+        runLocalPlaySmoke = button("Teste rápido Play local • iniciar → ler Output → parar");
+        runLocalPlaySmoke.setOnClickListener(v -> confirmLocalPlaySmoke());
+        add(root, runLocalPlaySmoke, 7);
         playProbeResult = text("", 12, false);
         playProbeResult.setPadding(dp(11), dp(11), dp(11), dp(11));
         playProbeResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
@@ -1867,6 +2013,11 @@ public final class StudioAiHub extends Activity {
         cancel.setOnClickListener(v -> {
             requestEpoch++;
             abortInFlight();
+            if (runningLocalPlaySmoke) {
+                runningLocalPlaySmoke = false;
+                if (playProbeResult != null)
+                    playProbeResult.setText("Teste cancelado. Confira se o Play local foi encerrado.");
+            }
             if (probingLocalPlay) {
                 probingLocalPlay = false;
                 if (playProbeResult != null)
@@ -1952,6 +2103,20 @@ public final class StudioAiHub extends Activity {
                 localModelAuditSummary = "";
                 shareModelAudit.setChecked(false);
                 shareModelAudit.setEnabled(false);
+            }
+        });
+        allowLocalPlaySmoke.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) {
+                if (runningLocalPlaySmoke) {
+                    requestEpoch++;
+                    abortInFlight();
+                    runningLocalPlaySmoke = false;
+                    setBusy(false, "Permissão revogada. Confira se o Play foi encerrado.");
+                }
+                if (playProbeResult != null) {
+                    playProbeResult.setText("");
+                    playProbeResult.setVisibility(View.GONE);
+                }
             }
         });
         allowLocalPlayProbe.setOnCheckedChangeListener((v, checked) -> {
@@ -2066,6 +2231,7 @@ public final class StudioAiHub extends Activity {
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
+        if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
         if (modelAuditPath != null) modelAuditPath.setEnabled(!waiting);
         if (shareModelAudit != null) shareModelAudit.setEnabled(!waiting &&
                 !localModelAuditSummary.isEmpty());
@@ -2652,7 +2818,10 @@ public final class StudioAiHub extends Activity {
         activeSocket = socket;
         try (Socket opened = socket) {
             socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 3000);
-            socket.setSoTimeout("execute_luau".equals(tool) ? 45000 : 8000);
+            // The native play_start job may wait up to 200s for Rook to enter Play.
+            socket.setSoTimeout("start_stop_play".equals(tool) &&
+                    args.optBoolean("is_start", false) ? 210000 :
+                    "execute_luau".equals(tool) ? 45000 : 8000);
             OutputStream out = socket.getOutputStream();
             out.write((token + "\n" + call.toString() + "\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
