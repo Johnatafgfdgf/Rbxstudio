@@ -1087,7 +1087,7 @@ for required in [
     'allowLocalPlaySmoke.isChecked()',
     'checkLocalToolEquip.isChecked()',
     '"Workspace." + playerName',
-    'found.Parent == char and "EQUIPPED"',
+    'found.Parent == char and \"EQUIPPED\"',
     '"Client").put("path", root)',
     '"EquipTool, se solicitado, altera apenas a sessão Play local',
     '(!equipRequested || (equipReceipt && equipReadBack))',
