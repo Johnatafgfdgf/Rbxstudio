@@ -150,7 +150,7 @@ public final class StudioAiHub extends Activity {
         "A IA nunca envia Luau; o app mostra valores reais ANTES/DEPOIS e exige aprovação.";
 
     private static final String PART_STYLE_PROTOCOL =
-        "\nPara alterar MATERIAL, TRANSPARÊNCIA, ANCORAGEM ou COLISÃO de uma Part " +
+        "\nPara alterar MATERIAL, TRANSPARÊNCIA, ANCORAGEM ou COLISÃO de uma Part ou MeshPart " +
         "existente diretamente em Workspace ou dentro de um Model filho direto " +
         "de Workspace, primeiro consulte inspect_instance no caminho exato " +
         "Workspace.NomeDaPeca ou Workspace.NomeDoModel.NomeDaPeca. Depois proponha apenas " +
@@ -162,6 +162,7 @@ public final class StudioAiHub extends Activity {
         "Brick, Metal, Glass, Neon, Grass, Sand, Slate, Marble, Granite ou Ice. " +
         "transparency é número de 0 a 1; anchored e can_collide são booleanos. " +
         "A IA não pode enviar Luau nem alterar outras propriedades por esta ação. " +
+        "Somente Part ou MeshPart de classe confirmada, não outras classes. " +
         "O aplicativo valida os valores, inspeciona o objeto, apresenta prévia, " +
         "pede confirmação individual e verifica o resultado pelo MCP.";
 
@@ -342,13 +343,15 @@ public final class StudioAiHub extends Activity {
 
     private static final class PartStyleProposal {
         final String path, reason, beforeMaterial, material;
+        final String targetClass, targetId;
         final double beforeTransparency;
         final boolean beforeAnchored, beforeCanCollide;
         final Double transparency;
         final Boolean anchored, canCollide;
         PartStyleProposal(String path, String reason, String beforeMaterial,
                 double beforeTransparency, boolean beforeAnchored, boolean beforeCanCollide,
-                String material, Double transparency, Boolean anchored, Boolean canCollide) {
+                String material, Double transparency, Boolean anchored, Boolean canCollide,
+                String targetClass, String targetId) {
             this.path = path;
             this.reason = reason;
             this.beforeMaterial = beforeMaterial;
@@ -359,6 +362,8 @@ public final class StudioAiHub extends Activity {
             this.transparency = transparency;
             this.anchored = anchored;
             this.canCollide = canCollide;
+            this.targetClass = targetClass;
+            this.targetId = targetId;
         }
     }
 
@@ -3168,6 +3173,21 @@ public final class StudioAiHub extends Activity {
         return result.getJSONObject("properties");
     }
 
+    /** Style updates also accept MeshPart, but never Model, Script or generic BasePart.
+     * An ambiguous match is not an identified editing target. */
+    private static JSONObject verifiedStyleTarget(String path, String text) throws Exception {
+        JSONObject result;
+        try { result = new JSONObject(text); }
+        catch (Exception ex) { throw new IOException("Inspeção de peça inválida", ex); }
+        if (!allowedStylePath(path) ||
+                !allowedStyleClassName(result.optString("className", "")) ||
+                !path.equals(result.optString("path", "")) ||
+                !path.substring(path.lastIndexOf('.') + 1).equals(result.optString("name", "")) ||
+                result.has("matches") || result.optJSONObject("properties") == null)
+            throw new IOException("Alvo não é Part/MeshPart única no Workspace ou Model");
+        return result;
+    }
+
     /** The native MCP serializes Vector3/Color3 as three comma-separated numbers. */
     private static double[] inspectedComponents(JSONObject properties, String field,
             double min, double max) throws IOException {
@@ -4462,6 +4482,10 @@ public final class StudioAiHub extends Activity {
                 "(\\.[A-Za-z][A-Za-z0-9_]{0,39})?");
     }
 
+    private static boolean allowedStyleClassName(String value) {
+        return "Part".equals(value) || "MeshPart".equals(value);
+    }
+
     private static String inspectedPartMaterial(JSONObject props) throws IOException {
         Object raw = props.opt("Material");
         if (!(raw instanceof String) ||
@@ -4500,7 +4524,8 @@ public final class StudioAiHub extends Activity {
         String path = safeField(input, "path", 100, true);
         if (!allowedStylePath(path) || !path.equals(inspectedPath))
             throw new IOException("Apenas Part inspecionada no Workspace ou em Model direto");
-        JSONObject props = verifiedPartInspection(path, inspectedText);
+        JSONObject inspectedTarget = verifiedStyleTarget(path, inspectedText);
+        JSONObject props = inspectedTarget.getJSONObject("properties");
         String beforeMaterial = inspectedPartMaterial(props);
         double beforeTransparency = inspectedPartTransparency(props);
         boolean beforeAnchored = inspectedPartBoolean(props, "Anchored");
@@ -4522,7 +4547,8 @@ public final class StudioAiHub extends Activity {
         String reason = safeField(input, "reason", 400, true);
         return new PartStyleProposal(path, reason, beforeMaterial,
                 beforeTransparency, beforeAnchored, beforeCanCollide,
-                material, transparency, anchored, canCollide);
+                material, transparency, anchored, canCollide,
+                inspectedTarget.getString("className"), inspectedTarget.optString("uniqueId", ""));
     }
 
     private static boolean partStyleMatches(JSONObject props, PartStyleProposal style)
@@ -4538,10 +4564,17 @@ public final class StudioAiHub extends Activity {
                 collide == (style.canCollide == null ? style.beforeCanCollide : style.canCollide);
     }
 
+    /** Compare exact class; when MCP returns a stable non-empty ID, reject replacements. */
+    private static boolean styleIdentityMatches(JSONObject target, PartStyleProposal style) {
+        return style.targetClass.equals(target.optString("className", "")) &&
+                (style.targetId.isEmpty() ||
+                style.targetId.equals(target.optString("uniqueId", "")));
+    }
+
     /** Fixed app-owned source; enforces the exact Model/Part parent and old snapshot. */
     private static String fixedPartStyleLuau(PartStyleProposal style) {
-        if (!allowedStylePath(style.path))
-            throw new IllegalArgumentException("Caminho de Part fora do escopo permitido");
+        if (!allowedStylePath(style.path) || !allowedStyleClassName(style.targetClass))
+            throw new IllegalArgumentException("Classe ou caminho fora do escopo permitido");
         String relative = style.path.substring("Workspace.".length());
         String[] segments = relative.split("\\.");
         String name = segments[segments.length - 1];
@@ -4556,7 +4589,8 @@ public final class StudioAiHub extends Activity {
                             "parent.Parent ~= ws then return \"INVALID_MODEL\" end\n");
         }
         code.append("local p = parent:FindFirstChild(\"").append(name).append("\")\n")
-                .append("if not p or not p:IsA(\"Part\") or p.Parent ~= parent " +
+                .append("if not p or p.ClassName ~= \"").append(style.targetClass)
+                .append("\" or p.Parent ~= parent " +
                         "then return \"INVALID_PART\" end\n")
                 .append("if p.Material ~= Enum.Material.").append(style.beforeMaterial)
                 .append(" or math.abs(p.Transparency - ")
@@ -4586,8 +4620,9 @@ public final class StudioAiHub extends Activity {
             return;
         }
         new android.app.AlertDialog.Builder(this)
-                .setTitle("Alterar propriedades físicas/visuais desta Part?")
-                .setMessage("Objeto: " + style.path + "\nMotivo: " + style.reason +
+                .setTitle("Alterar propriedades físicas/visuais da peça?")
+                .setMessage("Objeto: " + style.path + " (" + style.targetClass + ")" +
+                        "\nMotivo: " + style.reason +
                         "\n\nMaterial: " + style.beforeMaterial + " → " +
                         (style.material == null ? "inalterado" : style.material) +
                         "\nTransparência: " + style.beforeTransparency + " → " +
@@ -4618,8 +4653,11 @@ public final class StudioAiHub extends Activity {
                 if (!"Workspace".equals(parentPath) &&
                         !verifiedEditorObject(paired, parentPath, "Model"))
                     throw new IOException("O Model pai não foi confirmado no Workspace");
-                JSONObject before = verifiedPartInspection(style.path, readOnlyMcp(paired,
+                JSONObject freshTarget = verifiedStyleTarget(style.path, readOnlyMcp(paired,
                         "inspect_instance", new JSONObject().put("path", style.path)));
+                if (!styleIdentityMatches(freshTarget, style))
+                    throw new IOException("Tipo ou identidade da peça mudou desde a proposta");
+                JSONObject before = freshTarget.getJSONObject("properties");
                 // Before checking and writing, compare against the original snapshot.
                 if (!inspectedPartMaterial(before).equals(style.beforeMaterial) ||
                         Math.abs(inspectedPartTransparency(before) -
@@ -4634,11 +4672,13 @@ public final class StudioAiHub extends Activity {
                         "UPDATED_STYLE:" + style.path.substring("Workspace.".length()));
                 boolean verified;
                 try {
+                    JSONObject afterTarget = verifiedStyleTarget(style.path,
+                            readOnlyMcp(paired, "inspect_instance",
+                                    new JSONObject().put("path", style.path)));
                     verified = ("Workspace".equals(parentPath) ||
                             verifiedEditorObject(paired, parentPath, "Model")) &&
-                            partStyleMatches(verifiedPartInspection(style.path,
-                            readOnlyMcp(paired, "inspect_instance",
-                                    new JSONObject().put("path", style.path))), style);
+                            styleIdentityMatches(afterTarget, style) &&
+                            partStyleMatches(afterTarget.getJSONObject("properties"), style);
                 } catch (Exception unreadable) {
                     verified = false;
                 }
@@ -4839,8 +4879,9 @@ public final class StudioAiHub extends Activity {
         if (pendingPartStyle != null) {
             PartStyleProposal style = pendingPartStyle;
             applyEdit.setText("Revisar e confirmar PROPRIEDADES DA PEÇA");
-            proposalPreview.setText("PRÉVIA • Part não modificada\n" +
-                    "Objeto: " + style.path + "\nMotivo: " + style.reason +
+            proposalPreview.setText("PRÉVIA • peça não modificada\n" +
+                    "Objeto: " + style.path + " (" + style.targetClass + ")" +
+                    "\nMotivo: " + style.reason +
                     "\n\nMaterial: " + style.beforeMaterial + " → " +
                     (style.material == null ? "inalterado" : style.material) +
                     "\nTransparência: " + style.beforeTransparency + " → " +
