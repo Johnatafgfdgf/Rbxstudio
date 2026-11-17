@@ -1708,6 +1708,7 @@ public final class StudioAiHub extends Activity {
             pendingBillboard = null;
             pendingScreen = null;
             pendingKit = null;
+            pendingLighting = null;
             pendingTaskPlan = null;
             planStepOutstanding = false;
             renderPendingEdit();
@@ -4827,7 +4828,8 @@ public final class StudioAiHub extends Activity {
                 ("GUI".equals(step.kind) &&
                     (proposeScreens.isChecked() || proposeLabels.isChecked())) ||
                 ("ITEM".equals(step.kind) &&
-                    includeCode.isChecked() && proposeKits.isChecked());
+                    includeCode.isChecked() && proposeKits.isChecked()) ||
+                ("LIGHTING".equals(step.kind) && proposeLighting.isChecked());
         if (!allowed) {
             status.setText("Ative as permissões específicas da etapa " +
                     (plan.completed + 1) + " antes de continuar.");
@@ -5025,6 +5027,8 @@ public final class StudioAiHub extends Activity {
         final boolean allowScreens = agent && includeProject.isChecked() &&
                 proposeScreens.isChecked();
         final boolean allowKits = agent && codeConsent && proposeKits.isChecked();
+        final boolean allowLighting = agent && includeProject.isChecked() &&
+                proposeLighting.isChecked();
         final ModelRoute route = new ModelRoute(model, selectedBackupModel(model));
         if (proposeEdits.isChecked() && !codeConsent) {
             status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
@@ -5079,11 +5083,13 @@ public final class StudioAiHub extends Activity {
                 final BillboardProposal proposedBillboard;
                 final ScreenGuiProposal proposedScreen;
                 final ReceiveToolProposal proposedKit;
+                final LightingProposal proposedLighting;
                 final TaskPlan proposedPlan;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, route, turns,
                             epoch, codeConsent, allowProposals, allowParts,
-                            allowLabels, allowScreens, allowKits, executingPlanStep, plannedKind);
+                            allowLabels, allowScreens, allowKits, allowLighting,
+                            executingPlanStep, plannedKind);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
@@ -5092,8 +5098,10 @@ public final class StudioAiHub extends Activity {
                     proposedBillboard = outcome.billboard;
                     proposedScreen = outcome.screen;
                     proposedKit = outcome.kit;
+                    proposedLighting = outcome.lighting;
                     proposedPlan = outcome.plan;
-                    usage = (proposedPlan != null ? " • prévia de plano" :
+                    usage = (proposedLighting != null ? " • prévia de Lighting" :
+                            proposedPlan != null ? " • prévia de plano" :
                             proposedKit != null ? " • prévia de sistema de item" :
                             proposedScreen != null ? " • prévia de ScreenGui" :
                             proposedBillboard != null ? " • prévia de etiqueta 3D" :
@@ -5110,6 +5118,7 @@ public final class StudioAiHub extends Activity {
                     proposedBillboard = null;
                     proposedScreen = null;
                     proposedKit = null;
+                    proposedLighting = null;
                     proposedPlan = null;
                     JSONObject result = requestModelWithFreeFallback(p, key, route,
                             turns, false, epoch, 2);
@@ -5145,12 +5154,14 @@ public final class StudioAiHub extends Activity {
                             proposeScreens.isChecked() ? proposedScreen : null;
                     pendingKit = includeProject.isChecked() && includeCode.isChecked() &&
                             autoInspect.isChecked() && proposeKits.isChecked() ? proposedKit : null;
+                    pendingLighting = includeProject.isChecked() && autoInspect.isChecked() &&
+                            proposeLighting.isChecked() ? proposedLighting : null;
                     pendingTaskPlan = includeProject.isChecked() && autoInspect.isChecked() &&
                             !executingPlanStep ? proposedPlan : null;
                     boolean hasProposal = pendingEdit != null || pendingPart != null ||
                             pendingPartChange != null || pendingComposite != null ||
                             pendingBillboard != null || pendingScreen != null ||
-                            pendingKit != null;
+                            pendingKit != null || pendingLighting != null;
                     if (executingPlanStep && !hasProposal) {
                         planStepOutstanding = false; // No write confirmed; allow later reinspection.
                     }
