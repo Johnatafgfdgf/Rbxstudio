@@ -1986,8 +1986,25 @@ public final class StudioAiHub extends Activity {
         StringBuilder escaped = new StringBuilder("\"");
         for (int i = 0; i < text.length(); i++) {
             char ch = text.charAt(i);
-            if (ch == '"' || ch == '\\') escaped.append('\\');
-            escaped.append(ch);
+            switch (ch) {
+                case '"': escaped.append("\\\""); break;
+                case '\\': escaped.append("\\\\"); break;
+                case '\n': escaped.append("\\n"); break;
+                case '\r': escaped.append("\\r"); break;
+                case '\t': escaped.append("\\t"); break;
+                case '\b': escaped.append("\\b"); break;
+                case '\f': escaped.append("\\f"); break;
+                default:
+                    if (ch < 0x20 || ch == 0x7f) {
+                        String hex = Integer.toHexString(ch);
+                        escaped.append("\\x");
+                        if (hex.length() < 2) escaped.append('0');
+                        escaped.append(hex);
+                    } else {
+                        escaped.append(ch);
+                    }
+                    break;
+            }
         }
         return escaped.append('"').toString();
     }
