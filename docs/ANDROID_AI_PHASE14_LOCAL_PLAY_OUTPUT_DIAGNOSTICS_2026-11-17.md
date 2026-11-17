@@ -28,7 +28,7 @@ A Activity Android `StudioAiHub.java` inclui uma área **Diagnóstico Play local
 
 `scripts/check_ai_hub.py` exige autorização, leitura somente das duas ferramentas permitidas e ausência de caminhos de gravação. O workflow `.github/workflows/ai-hub-android-java.yml` foi ampliado para executar os novos testes e compilar a Activity no Android SDK 35.
 
-**Pendente:** confirmação de CI para a revisão final, inspeção MCP/Output real no Android físico, testes do Play local Rook em aparelho, Play externo no app Roblox, interface e controles; nenhum APK é considerado entregue até a compilação e o artefato serem verificados.
+**CI confirmada:** os contratos estáticos, os testes Java reais (incluindo Play/Output) e a compilação da Activity Android SDK 35 passaram no commit `954948cd331d`, workflow https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44022773090 . **Pendente:** inspeção MCP/Output real no Android físico, testes do Play local Rook em aparelho, Play externo no app Roblox, interface e controles. A compilação Java não equivale a APK completo nem a Play funcional; nenhum APK desta fase é considerado entregue até confirmar o respectivo artefato.
 
 ## Continuação
 
