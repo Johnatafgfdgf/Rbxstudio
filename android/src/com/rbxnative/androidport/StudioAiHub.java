@@ -149,6 +149,21 @@ public final class StudioAiHub extends Activity {
         "Nunca proponha mudar outros objetos, scripts ou propriedades usando esta função. " +
         "A IA nunca envia Luau; o app mostra valores reais ANTES/DEPOIS e exige aprovação.";
 
+    private static final String PART_STYLE_PROTOCOL =
+        "\nPara alterar MATERIAL, TRANSPARÊNCIA, ANCORAGEM ou COLISÃO de uma Part " +
+        "existente diretamente em Workspace, primeiro consulte inspect_instance " +
+        "no caminho exato Workspace.NomeDaPeca. Depois proponha apenas " +
+        "{\"action\":\"propose_part_style_update\",\"path\":\"Workspace.Piso\"," +
+        "\"material\":\"Concrete\",\"transparency\":0.25," +
+        "\"anchored\":true,\"can_collide\":true,\"reason\":\"motivo\"}. " +
+        "Todos os campos de estilo são opcionais, mas inclua pelo menos um. " +
+        "Material permitido: Plastic, SmoothPlastic, Wood, WoodPlanks, Concrete, " +
+        "Brick, Metal, Glass, Neon, Grass, Sand, Slate, Marble, Granite ou Ice. " +
+        "transparency é número de 0 a 1; anchored e can_collide são booleanos. " +
+        "A IA não pode enviar Luau nem alterar outras propriedades por esta ação. " +
+        "O aplicativo valida os valores, inspeciona o objeto, apresenta prévia, " +
+        "pede confirmação individual e verifica o resultado pelo MCP.";
+
     private static final String LIGHTING_PROTOCOL =
         "\nPara ajustar o HORÁRIO DO DIA ou BRILHO global de Lighting, primeiro " +
         "use {\"action\":\"inspect_instance\",\"path\":\"Lighting\"}. " +
@@ -255,6 +270,7 @@ public final class StudioAiHub extends Activity {
     private EditProposal pendingEdit;
     private PartProposal pendingPart;
     private PartChangeProposal pendingPartChange;
+    private PartStyleProposal pendingPartStyle;
     private CompositeProposal pendingComposite;
     private BillboardProposal pendingBillboard;
     private ScreenGuiProposal pendingScreen;
@@ -320,6 +336,28 @@ public final class StudioAiHub extends Activity {
             this.size = size;
             this.color = color;
             this.rotation = rotation;
+        }
+    }
+
+    private static final class PartStyleProposal {
+        final String path, reason, beforeMaterial, material;
+        final double beforeTransparency;
+        final boolean beforeAnchored, beforeCanCollide;
+        final Double transparency;
+        final Boolean anchored, canCollide;
+        PartStyleProposal(String path, String reason, String beforeMaterial,
+                double beforeTransparency, boolean beforeAnchored, boolean beforeCanCollide,
+                String material, Double transparency, Boolean anchored, Boolean canCollide) {
+            this.path = path;
+            this.reason = reason;
+            this.beforeMaterial = beforeMaterial;
+            this.beforeTransparency = beforeTransparency;
+            this.beforeAnchored = beforeAnchored;
+            this.beforeCanCollide = beforeCanCollide;
+            this.material = material;
+            this.transparency = transparency;
+            this.anchored = anchored;
+            this.canCollide = canCollide;
         }
     }
 
@@ -470,7 +508,8 @@ public final class StudioAiHub extends Activity {
         switch (step) {
             case "SCRIPT": return "CREATE_SCRIPT".equals(kind) || "UPDATE_SCRIPT".equals(kind);
             case "PART": return "CREATE_PART".equals(kind) ||
-                    "UPDATE_PART".equals(kind) || "CREATE_MODEL".equals(kind);
+                    "UPDATE_PART".equals(kind) || "UPDATE_PART_STYLE".equals(kind) ||
+                    "CREATE_MODEL".equals(kind);
             case "GUI": return "CREATE_SCREEN_GUI".equals(kind) ||
                     "CREATE_BILLBOARD".equals(kind);
             case "ITEM": return "CREATE_TOOL_KIT".equals(kind);
@@ -490,6 +529,11 @@ public final class StudioAiHub extends Activity {
         final ReceiveToolProposal kit;
         final TaskPlan plan;
         final LightingProposal lighting;
+        final PartStyleProposal partStyle;
+        static AgentOutcome forPartStyle(String answer, PartStyleProposal partStyle) {
+            return new AgentOutcome(answer, null, null, null, null, null, null, null, null,
+                    null, partStyle);
+        }
         static AgentOutcome forLighting(String answer, LightingProposal lighting) {
             return new AgentOutcome(answer, null, null, null, null, null, null, null, null, lighting);
         }
@@ -531,14 +575,23 @@ public final class StudioAiHub extends Activity {
                 BillboardProposal billboard, ScreenGuiProposal screen,
                 ReceiveToolProposal kit, TaskPlan plan) {
             this(answer, proposal, part, partChange, composite, billboard,
-                    screen, kit, plan, null);
+                    screen, kit, plan, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange, CompositeProposal composite,
                 BillboardProposal billboard, ScreenGuiProposal screen,
                 ReceiveToolProposal kit, TaskPlan plan, LightingProposal lighting) {
+            this(answer, proposal, part, partChange, composite, billboard,
+                    screen, kit, plan, lighting, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange, CompositeProposal composite,
+                BillboardProposal billboard, ScreenGuiProposal screen,
+                ReceiveToolProposal kit, TaskPlan plan, LightingProposal lighting,
+                PartStyleProposal partStyle) {
             this.plan = plan;
             this.lighting = lighting;
+            this.partStyle = partStyle;
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
@@ -2541,6 +2594,7 @@ public final class StudioAiHub extends Activity {
                 "propose_script_create".equals(action);
         if ("PART".equals(kind)) return "propose_part_create".equals(action) ||
                 "propose_part_update".equals(action) ||
+                "propose_part_style_update".equals(action) ||
                 "propose_composite_create".equals(action);
         if ("GUI".equals(kind)) return "propose_billboard_create".equals(action) ||
                 "propose_screen_gui_create".equals(action);
@@ -2561,7 +2615,8 @@ public final class StudioAiHub extends Activity {
                 (codeConsent ? "\nLeitura de scripts e Output autorizada pelo usuário." :
                 "\nLeitura de scripts e Output NÃO autorizada. Use apenas ferramentas de árvore, instância, busca de nomes e estado.") +
                 (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.") +
-                (allowParts ? PART_PROTOCOL + PART_UPDATE_PROTOCOL + COMPOSITE_PROTOCOL :
+                (allowParts ? PART_PROTOCOL + PART_UPDATE_PROTOCOL +
+                        PART_STYLE_PROTOCOL + COMPOSITE_PROTOCOL :
                         "\nNão proponha criar ou modificar peças 3D.") +
                 (allowLighting ? LIGHTING_PROTOCOL :
                         "\nNão proponha alterações do ambiente Lighting.") +
@@ -2653,6 +2708,15 @@ public final class StudioAiHub extends Activity {
                 return AgentOutcome.forLighting(
                         "Alteração global de Lighting proposta para aprovação. " +
                         "Nenhum valor ainda foi modificado.", lighting);
+            }
+            if ("propose_part_style_update".equals(action)) {
+                if (!allowParts || lastInspectedPath.isEmpty())
+                    throw new IOException("Estilo 3D sem autorização ou inspeção MCP real");
+                PartStyleProposal style = validatePartStyleProposal(
+                        decision, lastInspectedPath, lastInspectedOutput);
+                return AgentOutcome.forPartStyle(
+                        "Estilo de Part proposto para revisão: " + style.path +
+                        ". Nada foi modificado.", style);
             }
             if ("propose_part_create".equals(action)) {
                 if (!allowParts || !"Workspace".equals(lastSearchedParent)) {
