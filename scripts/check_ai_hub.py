@@ -1078,6 +1078,19 @@ for required in [
     'private static String buildPlaySmokeSummary(',
     'private void confirmLocalPlaySmoke()',
     'private void runLocalPlaySmoke()',
+    'private static String boundedLocalActivateLuau(String playerName, String toolPath)',
+    'private boolean confirmProgrammaticActivated(String paired, String playerName,',
+    'found.Activated:Connect(function()',
+    'found:Activate()',
+    'found:Deactivate()',
+    'activatedListener:Disconnect()',
+    '"ACTIVATED_EVENT".equals(receipt == null ? "" : receipt.trim())',
+    'activateRequested = checkLocalToolActivate != null &&',
+    'activatedEvent = confirmProgrammaticActivated(paired, scene.playerName,',
+    '(!activateRequested || activatedEvent)',
+    'checkLocalToolActivate.isChecked()',
+    'NÃO equivale a um toque',
+    'Evento real Tool.Activated no Client:',
     'private static String boundedLocalEquipLuau(String playerName, String toolPath)',
     'private boolean confirmLiveEquippedTool(String paired, String playerName,',
     'private static boolean readBackEquippedTool(String raw, String playerName,',
@@ -1147,7 +1160,7 @@ for required in [
 assert smoke_section.count('callMcp(paired, "start_stop_play"') == 2
 assert smoke_section.count('callMcp(paired, "search_game_tree"') == 6
 assert smoke_section.count('callMcp(paired, "inspect_instance"') == 3
-assert smoke_section.count('callMcp(paired, "execute_luau"') == 1
+assert smoke_section.count('callMcp(paired, "execute_luau"') == 2
 assert 'new JSONObject()\n                .put("datamodel_type", "Client").put("code", luau)' in smoke_section
 assert '"EQUIPPED_EVENT".equals(receipt)' in smoke_section
 assert '"EQUIPPED_NO_EVENT".equals(receipt)' in smoke_section
@@ -1161,6 +1174,8 @@ assert 'allowLocalPlaySmoke.setChecked(false)' in java
 assert 'checkLocalGameplayScene.setChecked(false)' in java
 assert 'checkLocalToolGui.setChecked(false)' in java
 assert 'checkLocalToolEquip.setChecked(false)' in java
+assert 'checkLocalToolActivate.setChecked(false)' in java
+assert 'if (checkLocalToolActivate != null) checkLocalToolActivate.setEnabled(!waiting)' in java
 assert 'if (checkLocalToolEquip != null) checkLocalToolEquip.setEnabled(!waiting)' in java
 assert 'if (checkLocalToolGui != null) checkLocalToolGui.setEnabled(!waiting)' in java
 assert 'if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting)' in java
