@@ -79,15 +79,15 @@ public final class PlaySmokeHarness {
                 true, true, true, true, true, true);
         yes(ready.complete());
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, complete, true, ready).contains("PASSOU somente nas verificações"));
+                true, new LocalPlayerScenario(true, true, true, true), true, ready).contains("PASSOU somente nas verificações"));
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, complete, true, null).contains("INCONCLUSIVO"));
+                true, new LocalPlayerScenario(true, true, true, true), true, null).contains("INCONCLUSIVO"));
         LiveToolGuiAudit unready = new LiveToolGuiAudit(
                 "Players.Alex.Backpack.Sword", "Players.Alex.PlayerGui.Menu.Buy",
                 true, true, false, true, true, true);
         yes(!unready.complete() && !unready.toolReady());
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
-                true, complete, true, unready).contains("INCONCLUSIVO"));
+                true, new LocalPlayerScenario(true, true, true, true), true, unready).contains("INCONCLUSIVO"));
         yes(new LiveToolGuiAudit("Sword", "Gui", true, false, false,
                 true, true, true).complete());
         yes(!new LiveToolGuiAudit("Sword", "Gui", null, false, false,
