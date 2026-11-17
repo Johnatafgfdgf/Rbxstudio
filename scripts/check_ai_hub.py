@@ -754,6 +754,7 @@ for required in [
     '"PART".equals(step.kind) && allowParts',
     '"GUI".equals(step.kind) && (allowLabels || allowScreens)',
     '"ITEM".equals(step.kind) && allowItems',
+    '"LIGHTING".equals(step.kind) && allowLighting',
     'private static boolean actionMatchesPlannedKind(String action, String kind)',
     'if (executingPlanStep && action.startsWith("propose_")',
     'private static boolean planStepMatches(String step, String kind)',
@@ -813,7 +814,7 @@ for required in [
     if required == 'restoring':
         required = 'setPositiveButton("Restaurar pausado",'
     assert required in java, required
-assert java.count('pausePlanAfterFailedWrite();') == 7
+assert java.count('pausePlanAfterFailedWrite();') == 8
 assert java.index('activeTaskPlan.completed++;') < java.index(
     'saveCurrentPlanCheckpoint();', java.index('activeTaskPlan.completed++;'))
 restorer = java[java.index('private void restoreSavedPlan()'):java.index('private void eraseSavedPlan()')]
@@ -941,6 +942,42 @@ deps = java[java.index('private static final class ScriptDependencies'):
 for forbidden in ['callMcp(', 'readOnlyMcp(', 'requestModelWithFreeFallback(',
                   'StudioServices.credential(', 'executeApproved3dCode(']:
     assert forbidden not in deps, forbidden
+
+
+# Lighting is a narrowly bounded real editor write, not generic model Luau.
+# Only the Android-confirmed path invokes the pre-existing execute_luau writer,
+# with exact MCP before/after read-back and app-owned typed numbers.
+for required in [
+    'private static final String LIGHTING_PROTOCOL',
+    'private static final class LightingProposal',
+    'private static LightingProposal validateLightingProposal(',
+    'private static String fixedLightingLuau(LightingProposal change)',
+    'private static boolean lightingMatches(JSONObject props, LightingProposal change)',
+    'private void confirmPendingLighting()',
+    'private void applyApprovedLighting(LightingProposal change)',
+    'proposeLighting.setChecked(false)',
+    'proposeLighting.setOnCheckedChangeListener(',
+    'proposeLighting.isChecked()',
+    'LIGHTING".equals(kind)',
+    'case "LIGHTING": return "UPDATE_LIGHTING".equals(kind);',
+    '"propose_lighting_update".equals(action)',
+    'new JSONObject().put("path", "Lighting")',
+    'checkedEditReceipt(',
+    '"UPDATED_LIGHTING:Lighting"',
+    'return "STALE_LIGHTING" end',
+    'recordEditorOutcome("UPDATE_LIGHTING", "Lighting", result);',
+    'pendingLighting = includeProject.isChecked()',
+]:
+    assert required in java, required
+source = java[java.index('private static double inspectedLightingNumber('):
+              java.index('private static String fixedPartUpdateLuau(')]
+assert 'executeApproved3dCode(paired, fixedLightingLuau(change))' in source
+assert 'readOnlyMcp(paired,' in source
+assert 'return lightingMatches' not in source or 'lightingMatches(' in source
+assert 'model.opt(' in source
+assert 'if (!Double.isFinite(value)' in source
+assert 'applyApprovedLighting(change))' in source
+assert 'callMcp(paired, action' not in source
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
