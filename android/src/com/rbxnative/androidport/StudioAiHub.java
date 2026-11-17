@@ -3520,7 +3520,8 @@ public final class StudioAiHub extends Activity {
             throws IOException {
         if (expected == null || !expected.matches(
                 "(CREATED|UPDATED|CREATED_MODEL|CREATED_BILLBOARD|" +
-                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL):[A-Za-z][A-Za-z0-9_]{0,39}")) {
+                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|UPDATED_LIGHTING):" +
+                "[A-Za-z][A-Za-z0-9_]{0,39}")) {
             throw new IOException("Identificador de confirmação inválido");
         }
         if (raw == null || !expected.equals(raw.trim())) {
@@ -3532,6 +3533,9 @@ public final class StudioAiHub extends Activity {
             }
             if (status.startsWith("STALE_PART")) {
                 throw new IOException("A peça mudou; revise a proposta antes de reaplicar");
+            }
+            if (status.startsWith("STALE_LIGHTING")) {
+                throw new IOException("Lighting mudou; reinspecione antes de reaplicar");
             }
             if (status.startsWith("INVALID_PART") ||
                     status.startsWith("INVALID_MODEL")) {
@@ -4434,7 +4438,7 @@ public final class StudioAiHub extends Activity {
         boolean visible = pendingEdit != null || pendingPart != null ||
                 pendingPartChange != null || pendingComposite != null ||
                 pendingBillboard != null || pendingScreen != null || pendingKit != null ||
-                pendingTaskPlan != null;
+                pendingLighting != null || pendingTaskPlan != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -4452,6 +4456,21 @@ public final class StudioAiHub extends Activity {
             text.append("\n\nAprovar não cria objetos. Cada etapa requer " +
                     "inspeção, prévia, autorização individual e verificação.");
             proposalPreview.setText(text.toString());
+            return;
+        }
+        if (pendingLighting != null) {
+            LightingProposal lighting = pendingLighting;
+            applyEdit.setText("Revisar e confirmar LIGHTING");
+            proposalPreview.setText("PRÉVIA • ambiente ainda não modificado\n" +
+                    "Serviço: Lighting\nMotivo: " + lighting.reason +
+                    "\n\nANTES (MCP): horário = " + lighting.beforeClockTime +
+                    " • brilho = " + lighting.beforeBrightness +
+                    "\nDEPOIS: horário = " + (lighting.clockTime == null ?
+                            "inalterado" : lighting.clockTime) +
+                    " • brilho = " + (lighting.brightness == null ?
+                            "inalterado" : lighting.brightness) +
+                    "\n\nO app compara o estado anterior, pede confirmação e " +
+                    "faz a verificação MCP após aplicar. Nenhum Luau enviado pela IA.");
             return;
         }
         if (pendingKit != null) {
@@ -4871,6 +4890,7 @@ public final class StudioAiHub extends Activity {
                     pendingBillboard = null;
                     pendingScreen = null;
                     pendingKit = null;
+                    pendingLighting = null;
                     renderPendingEdit();
                     renderPlanState();
                     try {
@@ -5069,6 +5089,7 @@ public final class StudioAiHub extends Activity {
         pendingBillboard = null;
         pendingScreen = null;
         pendingKit = null;
+        pendingLighting = null;
         pendingTaskPlan = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
