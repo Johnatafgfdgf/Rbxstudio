@@ -1080,6 +1080,11 @@ public final class StudioAiHub extends Activity {
         int[] counts = new int[3];
         int[] risks = new int[6];
         int scriptTotal = 0, inspected = 0, unreadable = 0, partialSources = 0;
+        int resolvedModules = 0, unknownModules = 0, dynamicRequires = 0;
+        int dependencyOverflow = 0;
+        List<String> externalAssetIds = new ArrayList<>();
+        List<String> externalServiceNames = new ArrayList<>();
+        List<String> unresolvedModules = new ArrayList<>();
         List<String> samples = new ArrayList<>();
         for (Map.Entry<String, String> entry : nodes.entrySet()) {
             String kind = entry.getValue();
@@ -1126,6 +1131,28 @@ public final class StudioAiHub extends Activity {
             if (failed) unreadable++;
             else if (!allLines) partialSources++;
             int mask = sourceRiskMask(source.toString());
+            ScriptDependencies deps = scanScriptDependencies(source.toString());
+            dynamicRequires += deps.dynamicRequires;
+            if (deps.overflow) dependencyOverflow++;
+            for (String id : deps.externalAssets) {
+                if (!externalAssetIds.contains(id) && externalAssetIds.size() < 12)
+                    externalAssetIds.add(id);
+                else if (!externalAssetIds.contains(id)) dependencyOverflow++;
+            }
+            for (String service : deps.externalServices) {
+                if (!externalServiceNames.contains(service))
+                    externalServiceNames.add(service);
+            }
+            for (String expression : deps.relativeModules) {
+                String module = localModulePath(entry.getKey(), expression, target);
+                if (!module.isEmpty() && "ModuleScript".equals(nodes.get(module))) {
+                    resolvedModules++;
+                } else {
+                    unknownModules++;
+                    if (unresolvedModules.size() < 12)
+                        unresolvedModules.add(entry.getKey() + " → " + expression);
+                }
+            }
             for (int i = 0; i < risks.length; i++)
                 if ((mask & (1 << i)) != 0) risks[i]++;
             if ((mask != 0 || failed || !allLines) && samples.size() < 12) {
@@ -1136,6 +1163,9 @@ public final class StudioAiHub extends Activity {
         }
         boolean complete = !incomplete && unreadable == 0 &&
                 partialSources == 0 && inspected == scriptTotal;
+        boolean dependencyCoverageComplete = unknownModules == 0 &&
+                dynamicRequires == 0 && externalAssetIds.isEmpty() &&
+                externalServiceNames.isEmpty() && dependencyOverflow == 0;
         String[] labels = {"loadstring", "require(ID) externo", "HTTP/rede",
                 "ambiente dinâmico/ofuscação", "carregamento de assets",
                 "DataStore/Messaging/Teleport"};
@@ -1160,11 +1190,30 @@ public final class StudioAiHub extends Activity {
             }
         }
         for (String sample : samples) report.append("\n• ").append(sample);
+        report.append("\n\nDEPENDÊNCIAS (análise estática; sem executar require):")
+                .append("\nMódulos locais encontrados no Model: ").append(resolvedModules)
+                .append("\nReferências locais não resolvidas: ").append(unknownModules)
+                .append("\nChamadas require dinâmicas / não interpretadas: ")
+                .append(dynamicRequires)
+                .append("\nAssets externos referenciados: ").append(externalAssetIds.size())
+                .append("\nServiços referenciados: ").append(externalServiceNames.size());
+        if (dependencyOverflow > 0)
+            report.append("\n⚠ Inventário acima do limite: ")
+                    .append(dependencyOverflow).append(" sinal(is) excedente(s)");
+        for (String id : externalAssetIds)
+            report.append("\n• require(asset ID ").append(id).append(") • não verificado");
+        for (String service : externalServiceNames)
+            report.append("\n• ").append(service).append(" • fora da auditoria do Model");
+        for (String unresolved : unresolvedModules)
+            report.append("\n• require(").append(unresolved).append(") • não resolvido");
         report.append("\n\nRESULTADO: ");
         if (!complete) {
             report.append("INCOMPLETO. Não é possível aprovar a segurança do modelo.");
             if (!why.isEmpty()) report.append("\nMotivo: ").append(why);
             if (scriptTotal > inspected) report.append("\nOutros scripts não foram lidos.");
+        } else if (!dependencyCoverageComplete) {
+            report.append("FONTES LOCAIS LIDAS, MAS DEPENDÊNCIAS SEM VERIFICAÇÃO. " +
+                    "Não considere o modelo auditado por completo.");
         } else if (categories != 0) {
             report.append("Sinais detectados; revise os scripts antes de confiar no modelo.");
         } else {
