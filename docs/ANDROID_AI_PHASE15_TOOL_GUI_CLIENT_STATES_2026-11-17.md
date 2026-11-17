@@ -41,6 +41,14 @@ O app só considera a verificação adicional completa quando uma Tool e um bot�
 
 **Ainda não houve verificação em aparelho físico.** Um resultado positivo de CI prova apenas as verificações de código e compilação, não as interações reais num jogo Roblox no celular.
 
+## Verificação da revisão
+
+A revisão de código com nomes de Tool e GUI contendo espaços e hífens foi validada pela CI em **`b141846f730b`**: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44026900300 . Todos os testes de regressão Java da central de IA, incluindo os testes do cenário de Player e de Tool/GuiButton, e a compilação Java da Activity usando Android SDK 35 foram concluídos com sucesso.
+
+A exportação de código-fonte completa da mesma revisão de produção (código da Activity até `98820b181ab8`, antes da alteração isolada do teste adicional) está em https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44026878871 . A revisão final `b141846f730b` acrescenta apenas casos de teste para nomes com espaços.
+
+**Um build Java verde NÃO comprova que o APK ARM64, o motor MCP Play ou os eventos de input Android funcionam no aparelho.** Esses testes práticos continuam pendentes.
+
 ## Próximos incrementos da Fase 15
 
 Implementar testes interativos reais apenas após identificar e validar uma via de input compatível com Android, com ação do usuário e confirmação observável de evento/efeito. Não assumir que o backend de mouse/teclado desktop (XTest/SendInput) funciona no Android.
