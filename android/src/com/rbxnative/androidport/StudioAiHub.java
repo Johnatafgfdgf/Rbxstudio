@@ -855,7 +855,12 @@ public final class StudioAiHub extends Activity {
         cancel.setOnClickListener(v -> {
             requestEpoch++;
             abortInFlight();
-            setBusy(false, "Análise cancelada. Nenhum objeto do editor foi alterado.");
+            if (planStepOutstanding) {
+                planStepOutstanding = false;
+                planPaused = true;
+                renderPlanState();
+            }
+            setBusy(false, "Análise cancelada. Nenhum comando de escrita foi solicitado.");
         });
         add(root, cancel, 10);
         proposalPreview = text("", 12, false);
@@ -1125,6 +1130,25 @@ public final class StudioAiHub extends Activity {
             // Preserve alternating user/assistant turns required by Gemini/Claude.
             while (history.size() > MAX_HISTORY) history.remove(0);
         }
+        // A plan progresses only after a user-approved write has passed real
+        // MCP read-back and its operation type matches the current step.
+        if (planStepOutstanding && activeTaskPlan != null &&
+                activeTaskPlan.completed < activeTaskPlan.steps.size()) {
+            PlanStep step = activeTaskPlan.steps.get(activeTaskPlan.completed);
+            if (verified && planStepMatches(step.kind, kind)) {
+                activeTaskPlan.completed++;
+                planStepOutstanding = false;
+                renderPlanState();
+            } else {
+                // An ambiguous write may already exist; never auto-retry.
+                planStepOutstanding = false;
+                planPaused = true;
+                renderPlanState();
+                status.setText("Plano pausado: resultado não confirmado para a etapa " +
+                        (activeTaskPlan.completed + 1) +
+                        ". Inspecione o mapa antes de retomar.");
+            }
+        }
         if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;
         try {
             if (!kind.matches("[A-Z_]{3,32}") ||
@@ -1175,6 +1199,10 @@ public final class StudioAiHub extends Activity {
             abortInFlight();
             setBusy(false, "Permissão revogada. A API pode ter recebido a chamada anterior.");
         }
+        // Keep no current plan step dispatch after a context permission revoke.
+        planStepOutstanding = false;
+        planPaused = true;
+        renderPlanState();
         history.clear();
     }
 
@@ -3726,6 +3754,10 @@ public final class StudioAiHub extends Activity {
         if (busy || applyingEdit) return;
         if (!autoInspect.isChecked() || !includeProject.isChecked()) {
             status.setText("Ative o agente, MCP e consentimento do Explorer para continuar.");
+            return;
+        }
+        if (planStepOutstanding) {
+            status.setText("Revise ou descarte a proposta da etapa antes de continuar.");
             return;
         }
         if (history.isEmpty()) {
