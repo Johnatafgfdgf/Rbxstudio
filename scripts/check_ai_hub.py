@@ -1039,3 +1039,27 @@ assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
 print("RBX Studio AI contracts: approved fixed close button, ScreenGui, Parts and script tools passed (static Java; device tests pending).")
+
+
+# Phase 14: local Play status and Output evidence, never simulated or sent to an AI.
+for required in [
+    'private static String checkedLocalPlayMode(String state)',
+    'private static String buildLocalPlayReport(String state, String output)',
+    'private void inspectLocalPlayOutput()',
+    'allowLocalPlayProbe.setChecked(false)',
+    'if (allowLocalPlayProbe == null || !allowLocalPlayProbe.isChecked())',
+    'readOnlyMcp(paired, "get_studio_state", new JSONObject())',
+    'readOnlyMcp(paired, "get_console_output", new JSONObject())',
+    'playProbeResult.setText(result)',
+    'Nenhum dado enviado à API de IA.',
+    'probingLocalPlay = false',
+    'if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting)',
+]:
+    assert required in java, required
+play_section = java[java.index('private static String checkedLocalPlayMode('):
+                    java.index('private void selectToolboxFile()')]
+for forbidden in ['executeApproved3dCode(', 'requestModelWithFreeFallback(',
+                  'multi_edit', 'start_stop_play', 'publish_animation']:
+    assert forbidden not in play_section, forbidden
+assert play_section.count('readOnlyMcp(paired, "get_studio_state"') == 1
+assert play_section.count('readOnlyMcp(paired, "get_console_output"') == 1
