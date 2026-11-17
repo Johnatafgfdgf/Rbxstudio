@@ -3553,6 +3553,152 @@ public final class StudioAiHub extends Activity {
 
 
     /** A plan is an ordered guide, never a blanket authorization to mutate a map. */
+
+    /**
+     * Separate Keystore alias from the verified-action journal. The editor
+     * currently supplies only the project title; same-name projects can share
+     * a checkpoint, so restoring always requires explicit confirmation.
+     */
+    private String projectPlanService() throws Exception {
+        return projectMemoryService() + ".task-plan-checkpoint.v1";
+    }
+
+    private static JSONObject encodePlanCheckpoint(TaskPlan plan, String title)
+            throws Exception {
+        if (plan == null || title == null || title.isEmpty() ||
+                title.length() > MAX_PROJECT_NAME ||
+                plan.completed < 0 || plan.completed > plan.steps.size())
+            throw new IOException("Plano ou identificação do projeto inválidos");
+        JSONArray stages = new JSONArray();
+        for (PlanStep step : plan.steps) {
+            stages.put(new JSONObject()
+                    .put("kind", step.kind)
+                    .put("title", step.title)
+                    .put("instruction", step.instruction));
+        }
+        JSONObject checkpoint = new JSONObject()
+                .put("version", 1)
+                .put("project", title)
+                .put("goal", plan.goal)
+                .put("steps", stages)
+                .put("completed", plan.completed)
+                .put("saved_at", System.currentTimeMillis());
+        // Require the exact same bounded structure on the way into Keystore.
+        decodePlanCheckpoint(checkpoint, title);
+        return checkpoint;
+    }
+
+    /** Restored plans never inherit execution rights, pairing or consent. */
+    private static TaskPlan decodePlanCheckpoint(JSONObject data, String title)
+            throws Exception {
+        if (title == null || title.isEmpty() ||
+                title.length() > MAX_PROJECT_NAME ||
+                data.optInt("version", -1) != 1 ||
+                !title.equals(data.optString("project", ""))) {
+            throw new IOException("Checkpoint pertence a outro projeto ou outra versão");
+        }
+        TaskPlan plan = parseTaskPlanShape(data);
+        int completed = data.optInt("completed", -1);
+        if (completed < 0 || completed > plan.steps.size())
+            throw new IOException("Contador inválido no checkpoint");
+        plan.completed = completed;
+        return plan;
+    }
+
+    private TaskPlan readSavedPlan() throws Exception {
+        String packed = StudioServices.credential(
+                this, "read", projectPlanService(), "", "");
+        if (packed == null) return null;
+        int separator = packed.indexOf(':');
+        if (separator <= 0) throw new IOException("Checkpoint criptografado inválido");
+        byte[] plain = unhex(packed.substring(0, separator));
+        if (plain.length > MAX_PLAN_CHECKPOINT_BYTES)
+            throw new IOException("Checkpoint acima do limite seguro");
+        JSONObject data = new JSONObject(new String(plain, StandardCharsets.UTF_8));
+        return decodePlanCheckpoint(data, project);
+    }
+
+    private void saveCurrentPlanCheckpoint() {
+        if (persistPlanCheckpoints == null || !persistPlanCheckpoints.isChecked() ||
+                activeTaskPlan == null) return;
+        try {
+            String value = encodePlanCheckpoint(activeTaskPlan, project).toString();
+            if (value.getBytes(StandardCharsets.UTF_8).length > MAX_PLAN_CHECKPOINT_BYTES)
+                throw new IOException("Checkpoint acima do limite seguro");
+            StudioServices.credential(this, "write", projectPlanService(), value, "");
+        } catch (Exception error) {
+            status.setText("Plano na sessão, mas o checkpoint criptografado NÃO foi salvo.");
+        }
+    }
+
+    private void restoreSavedPlan() {
+        if (busy || applyingEdit || planStepOutstanding) return;
+        if (pendingEdit != null || pendingPart != null ||
+                pendingPartChange != null || pendingComposite != null ||
+                pendingBillboard != null || pendingScreen != null ||
+                pendingKit != null || pendingTaskPlan != null) {
+            status.setText("Revise ou descarte a proposta atual antes de restaurar.");
+            return;
+        }
+        final TaskPlan saved;
+        try {
+            saved = readSavedPlan();
+        } catch (Exception error) {
+            status.setText("Checkpoint inválido ou inacessível. Nada foi executado.");
+            return;
+        }
+        if (saved == null) {
+            status.setText("Nenhum checkpoint criptografado salvo para este projeto.");
+            return;
+        }
+        StringBuilder summary = new StringBuilder("Projeto: ").append(project)
+                .append("\nObjetivo: ").append(saved.goal)
+                .append("\nEtapas verificadas: ").append(saved.completed)
+                .append("/").append(saved.steps.size());
+        for (int i = 0; i < saved.steps.size(); i++) {
+            PlanStep step = saved.steps.get(i);
+            summary.append("\n").append(i + 1).append(". ")
+                    .append(step.title).append(" (").append(step.kind).append(")");
+        }
+        summary.append("\n\nO checkpoint usa o NOME do projeto e pode corresponder " +
+                "a outro mapa homônimo. Objetos podem ter mudado desde então. " +
+                "Restaurar NÃO altera o mapa, não envia dados à IA e " +
+                "não retoma automaticamente.");
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Restaurar plano como pausado?")
+                .setMessage(summary.toString())
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Restaurar pausado", (dialog, which) -> {
+                    activeTaskPlan = saved;
+                    planPaused = true;
+                    planStepOutstanding = false;
+                    history.clear();  // Do not merge another task or model context.
+                    conversation.setText("Checkpoint restaurado localmente. " +
+                            "Revise o estado atual no Explorer antes de retomar.");
+                    renderPlanState();
+                    status.setText("Plano recuperado e PAUSADO; confirme o mapa antes de retomar.");
+                }).show();
+    }
+
+    private void eraseSavedPlan() {
+        if (busy || applyingEdit) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Apagar o checkpoint salvo?")
+                .setMessage("Remove o plano guardado no Keystore. Não apaga o plano " +
+                        "aberto nesta sessão nem altera objetos do editor.")
+                .setNegativeButton("Voltar", null)
+                .setPositiveButton("Apagar checkpoint", (dialog, which) -> {
+                    try {
+                        StudioServices.credential(this, "delete",
+                                projectPlanService(), "", "");
+                        persistPlanCheckpoints.setChecked(false);
+                        status.setText("Checkpoint criptografado apagado do aparelho.");
+                    } catch (Exception error) {
+                        status.setText("Não foi possível apagar o checkpoint.");
+                    }
+                }).show();
+    }
+
     private void renderPlanState() {
         if (planProgress == null || nextPlanStep == null) return;
         TaskPlan plan = activeTaskPlan;
