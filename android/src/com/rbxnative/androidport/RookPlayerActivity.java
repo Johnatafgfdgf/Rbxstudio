@@ -27,7 +27,7 @@ public final class RookPlayerActivity extends NativeActivity {
     private PlayLoadingView loading;
     private volatile String stage = "Preparando o Play local…";
     private volatile boolean ready;
-    private String touchProbeId;
+    private volatile String touchProbeId;
     private int touchDownCount, touchUpCount, touchCancelCount;
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
@@ -50,8 +50,10 @@ public final class RookPlayerActivity extends NativeActivity {
             catch (android.system.ErrnoException error) { throw new IllegalStateException(error); }
         }
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
-        super.onCreate(state);
+        // NativeActivity can start its winit thread inside super.onCreate.
+        // Consume consent first so the native process sees the correct state.
         touchProbeId = StudioTouchDiagnostics.begin(this);
+        super.onCreate(state);
         StudioWindow.configure(this);
         // The loading card owns its surface until the first game frame.
         // During Play the CoreScript menu owns Leave and the game owns touch.
@@ -96,6 +98,15 @@ public final class RookPlayerActivity extends NativeActivity {
                     "https://apis.roblox.com/rbx-native", "", "");
                 return packed == null ? "" : new String(StudioServices.unhex(
                     packed.substring(packed.indexOf(':') + 1)), StandardCharsets.UTF_8);
+            }
+            case "touch-probe-enabled": return touchProbeId == null ? "0" : "1";
+            case "native-touch-counts": {
+                if (touchProbeId == null || !ready || value == null || value.length() > 96)
+                    return "";
+                JSONObject totals = new JSONObject(value);
+                StudioTouchDiagnostics.writeNativeCounts(this, touchProbeId,
+                        totals.getInt("down"), totals.getInt("up"), totals.getInt("cancel"));
+                return "";
             }
             case "loading-stage": stage = value; runOnUiThread(this::showControls); return "";
             case "ready":

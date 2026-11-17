@@ -65,7 +65,7 @@ new file mode 100644
 index 0000000..8de275a
 --- /dev/null
 +++ b/apps/rook-player/src/android.rs
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,153 @@
 +//! Android lifecycle host for the original player. The original Game, server
 +//! thread, SceneCache, Renderer, audio mixer and frame loop are reused directly.
 +use crate::*;
@@ -95,6 +95,11 @@ index 0000000..8de275a
 +    failed: Option<anyhow::Error>,
 +    presented: bool,
 +    on_presented: Box<dyn Fn() + Send>,
++    // Counts only winit events from the opt-in native session; no coordinates.
++    native_touch_down: u32,
++    native_touch_up: u32,
++    native_touch_cancel: u32,
++    on_native_touch: Option<Box<dyn Fn(u32, u32, u32) + Send>>,
 +}
 +
 +impl AndroidLaunch {
@@ -136,6 +141,33 @@ index 0000000..8de275a
 +        if let Some(launch) = &mut self.launch { launch.suspended(event_loop); }
 +    }
 +    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
++        // winit's Android NativeActivity backend receives AInputQueue touch
++        // events. Observe phases ONLY after the first frame and ONLY for a
++        // one-use, user-authorized session; never consume or synthesize input.
++        if self.presented && self.on_native_touch.is_some() {
++            if let WindowEvent::Touch(touch) = &event {
++                let changed = match touch.phase {
++                    winit::event::TouchPhase::Started => {
++                        self.native_touch_down = self.native_touch_down.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Ended => {
++                        self.native_touch_up = self.native_touch_up.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Cancelled => {
++                        self.native_touch_cancel = self.native_touch_cancel.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Moved => false,
++                };
++                if changed {
++                    if let Some(report) = &self.on_native_touch {
++                        report(self.native_touch_down, self.native_touch_up, self.native_touch_cancel);
++                    }
++                }
++            }
++        }
 +        if let Some(launch) = &mut self.launch { launch.window_event(event_loop, id, event); }
 +    }
 +    fn device_event(&mut self, event_loop: &ActiveEventLoop, id: DeviceId, event: DeviceEvent) {
@@ -164,6 +196,8 @@ index 0000000..8de275a
 +    place: PathBuf,
 +    prepare: impl FnOnce() -> anyhow::Result<Resources> + Send + 'static,
 +    on_presented: impl Fn() + Send + 'static,
++    observe_native_touch: bool,
++    on_native_touch: impl Fn(u32, u32, u32) + Send + 'static,
 +) -> anyhow::Result<()> {
 +    let (send, resources) = mpsc::channel();
 +    std::thread::Builder::new().name("rook-android-resources".into()).spawn(move || {
@@ -175,6 +209,9 @@ index 0000000..8de275a
 +    let mut host = AndroidLaunch {
 +        args: Some(args), resources, launch: None, active: false, failed: None,
 +        presented: false, on_presented: Box::new(on_presented),
++        native_touch_down: 0, native_touch_up: 0, native_touch_cancel: 0,
++        on_native_touch: observe_native_touch.then(|| Box::new(on_native_touch)
++            as Box<dyn Fn(u32, u32, u32) + Send>),
 +    };
 +    event_loop.run_app(&mut host)?;
 +    if let Some(error) = host.failed { return Err(error); }

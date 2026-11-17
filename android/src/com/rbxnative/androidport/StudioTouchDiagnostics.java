@@ -93,15 +93,49 @@ public final class StudioTouchDiagnostics {
             int down, int up, int cancel, boolean stopped) {
         if (id == null || !id.matches("[0-9a-f-]{36}")) return;
         try {
-            write(reportFile(context), new JSONObject().put("id", id)
+            JSONObject report = new JSONObject().put("id", id)
                     .put("ready", ready).put("down", Math.max(0, Math.min(down, 100000)))
                     .put("up", Math.max(0, Math.min(up, 100000)))
                     .put("cancel", Math.max(0, Math.min(cancel, 100000)))
                     .put("stopped", stopped)
                     .put("recordedAt", System.currentTimeMillis())
-                    .put("source", "NativeActivity.dispatchTouchEvent"));
+                    .put("source", "NativeActivity.dispatchTouchEvent");
+            // A Java MotionEvent can arrive after a native winit event.
+            // Preserve independent native evidence across both write routes.
+            JSONObject prior = read(reportFile(context));
+            if (prior != null && id.equals(prior.optString("id", "")) &&
+                    "Rook.winit.WindowEvent.Touch".equals(prior.optString("nativeSource", "")) &&
+                    consistentTouchTotals(prior.optInt("nativeDown", -1),
+                            prior.optInt("nativeUp", -1), prior.optInt("nativeCancel", -1))) {
+                report.put("nativeSource", "Rook.winit.WindowEvent.Touch")
+                        .put("nativeDown", prior.getInt("nativeDown"))
+                        .put("nativeUp", prior.getInt("nativeUp"))
+                        .put("nativeCancel", prior.getInt("nativeCancel"));
+            }
+            write(reportFile(context), report);
         } catch (Exception ignored) {
             // Never interfere with gameplay because a diagnostic file failed.
+        }
+    }
+
+    /** Only accepts bounded aggregate counts from the Rook winit event loop.
+     * Reuses the one-shot session token; cannot arm or attach to another Play. */
+    public static synchronized void writeNativeCounts(Context context, String id,
+            int down, int up, int cancel) {
+        if (id == null || !id.matches("[0-9a-f-]{36}") ||
+                !consistentTouchTotals(down, up, cancel)) return;
+        try {
+            JSONObject report = read(reportFile(context));
+            if (report == null || !id.equals(report.optString("id", "")) ||
+                    !report.optBoolean("ready", false) ||
+                    report.optBoolean("stopped", false)) return;
+            report.put("nativeSource", "Rook.winit.WindowEvent.Touch")
+                    .put("nativeDown", down).put("nativeUp", up)
+                    .put("nativeCancel", cancel)
+                    .put("recordedAt", System.currentTimeMillis());
+            write(reportFile(context), report);
+        } catch (Exception ignored) {
+            // Diagnostics must never interfere with the native event loop.
         }
     }
 
@@ -119,10 +153,16 @@ public final class StudioTouchDiagnostics {
                     report.optString("source", "")) ||
                     !report.optString("id", "").matches("[0-9a-f-]{36}"))
                 return "Relatório de toque com origem desconhecida: ignorado.";
+            boolean nativeReported = "Rook.winit.WindowEvent.Touch".equals(
+                    report.optString("nativeSource", ""));
+            if (report.has("nativeSource") && !nativeReported)
+                return "Relatório com origem nativa desconhecida: ignorado.";
             return formatTouchEvidence(report.optBoolean("ready", false),
                     report.optInt("down", -1), report.optInt("up", -1),
                     report.optInt("cancel", -1),
-                    report.optBoolean("stopped", false));
+                    report.optBoolean("stopped", false),
+                    nativeReported, report.optInt("nativeDown", -1),
+                    report.optInt("nativeUp", -1), report.optInt("nativeCancel", -1));
         } catch (Exception ignored) {
             return "Não foi possível ler o relatório local de toques. " +
                     "Nenhum resultado foi presumido.";
@@ -139,7 +179,16 @@ public final class StudioTouchDiagnostics {
 
     static String formatTouchEvidence(boolean ready, int downs, int ups,
             int canceled, boolean stopped) {
-        if (!consistentTouchTotals(downs, ups, canceled))
+        return formatTouchEvidence(ready, downs, ups, canceled, stopped,
+                false, -1, -1, -1);
+    }
+
+    static String formatTouchEvidence(boolean ready, int downs, int ups,
+            int canceled, boolean stopped, boolean nativeReported,
+            int nativeDown, int nativeUp, int nativeCancel) {
+        if (!consistentTouchTotals(downs, ups, canceled) ||
+                (nativeReported && !consistentTouchTotals(
+                        nativeDown, nativeUp, nativeCancel)))
             return "Relatório de toque inconsistente: não confirmado.";
         StringBuilder out = new StringBuilder("PLAY ROOK • ENTRADA ANDROID\n")
                 .append("Player informou pronto: ").append(ready ? "sim" : "não").append("\n")
@@ -156,8 +205,20 @@ public final class StudioTouchDiagnostics {
                     "na rota Java do player. O input nativo pode não passar " +
                     "por dispatchTouchEvent.\n");
         }
-        out.append("Não comprova entrada no motor nativo, GuiButton.Activated, " +
-                "MouseButton1Click, Tool.Activated, resposta de scripts ou " +
+        if (nativeReported) {
+            out.append("Rook/winit Touch Started: ").append(nativeDown).append("\n")
+                    .append("Rook/winit Touch Ended: ").append(nativeUp).append("\n")
+                    .append("Rook/winit Touch Cancelled: ").append(nativeCancel).append("\n");
+            if (ready && nativeDown > 0 && nativeUp > 0)
+                out.append("EVIDÊNCIA: eventos de toque chegaram ao loop winit do Rook.\n");
+            else
+                out.append("INCONCLUSIVO: o loop winit não confirmou um ciclo de toque.\n");
+        } else {
+            out.append("Rook/winit: sem evidência nativa nesta sessão. " +
+                    "Não comprova entrada no motor nativo.\n");
+        }
+        out.append("Mesmo com winit, não comprova GuiButton.Activated, " +
+                "MouseButton1Click, Tool.Activated, callback Luau ou " +
                 "efeito visual. Sem coordenadas, gravação de tela ou envio à IA.");
         return out.toString();
     }

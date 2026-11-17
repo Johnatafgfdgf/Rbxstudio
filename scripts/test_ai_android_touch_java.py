@@ -15,6 +15,9 @@ touch = (base / "StudioTouchDiagnostics.java").read_text()
 rook = (base / "RookPlayerActivity.java").read_text()
 hub = (base / "StudioAiHub.java").read_text()
 patch = (root / "patches/rbx-native--android-port.patch").read_text()
+rook_patch = (root / "patches/rook--android-port.patch").read_text()
+player = (root / "player/src/lib.rs").read_text()
+platform = (root / "player/src/platform.rs").read_text()
 
 production = touch[touch.index("    /** Pure Java format contract"):
                    touch.index("    /** Clear authorization")]
@@ -28,6 +31,22 @@ assert "StudioTouchDiagnostics.begin(this)" in rook
 assert "StudioTouchDiagnostics.writeReport(this, touchProbeId" in rook
 assert "InputDevice.SOURCE_TOUCHSCREEN" in rook
 assert "touchProbeId == null || !ready" in rook
+assert 'case "touch-probe-enabled"' in rook
+assert 'case "native-touch-counts"' in rook
+assert "writeNativeCounts(this, touchProbeId" in rook
+assert "StudioTouchDiagnostics.writeNativeCounts" in rook
+assert "Rook.winit.WindowEvent.Touch" in touch
+assert "nativeReported" in production
+assert "on_native_touch: observe_native_touch.then" in rook_patch
+assert "WindowEvent::Touch(touch)" in rook_patch
+assert "winit::event::TouchPhase::Started" in rook_patch
+assert "winit::event::TouchPhase::Ended" in rook_patch
+assert "winit::event::TouchPhase::Cancelled" in rook_patch
+assert "if let Some(launch) = &mut self.launch { launch.window_event(event_loop, id, event); }" in rook_patch
+assert "platform::report_native_touch_counts" in player
+assert "platform::touch_probe_active()" in player
+assert 'call("native-touch-counts"' in platform
+assert 'call("touch-probe-enabled"' in platform
 for forbidden in ("event.getX(", "event.getY(", "event.getRawX(",
                   "MotionEvent.obtain(", "injectInputEvent(", "HttpURLConnection",
                   "getPointerId(", "getXPrecision(", "dispatchGesture("):
@@ -69,6 +88,15 @@ public final class TouchContract {
         yes(evidence.contains("GuiButton.Activated"));
         yes(evidence.contains("Sem coordenadas"));
         yes(!evidence.contains("clique confirmado"));
+        String nativeEvidence = formatTouchEvidence(true, 0, 0, 0, true, true, 2, 2, 0);
+        yes(nativeEvidence.contains("EVIDÊNCIA: eventos de toque chegaram ao loop winit"));
+        yes(nativeEvidence.contains("Touch Started: 2"));
+        yes(nativeEvidence.contains("Touch Ended: 2"));
+        yes(nativeEvidence.contains("não comprova GuiButton.Activated"));
+        yes(!nativeEvidence.contains("clique confirmado"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 0, 0).contains("INCONCLUSIVO"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true, true, 0, 1, 0).contains("inconsistente"));
+        yes(formatTouchEvidence(false, 0, 0, 0, false, true, 2, 2, 0).contains("INCONCLUSIVO"));
         String noTouch = formatTouchEvidence(true, 0, 0, 0, false);
         yes(noTouch.contains("INCONCLUSIVO"));
         yes(noTouch.contains("Player encerrou: não confirmado"));

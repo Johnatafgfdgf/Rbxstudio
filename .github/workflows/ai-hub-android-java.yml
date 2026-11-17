@@ -10,6 +10,9 @@ on:
       - android/src/com/rbxnative/androidport/StudioServices.java
       - android/src/com/rbxnative/androidport/RookPlayerActivity.java
       - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
+      - player/src/lib.rs
+      - player/src/platform.rs
+      - patches/rook--android-port.patch
       - android/StudioManifest.xml
       - scripts/check_ai_hub.py
       - scripts/test_mcp_receipt.py

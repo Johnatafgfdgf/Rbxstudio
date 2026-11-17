@@ -61,3 +61,30 @@ Com consentimento explícito, uma solicitação de uso único, com validade máx
 ## Próximos incrementos
 
 Instrumentar `AInputQueue`/winit no Rook e adicionar um contrato explícito com Luau para **observar `GuiButton.Activated` de um botão autorizado pelo usuário após um toque físico**. Só então será possível afirmar que uma interface recebeu e processou um toque em Android real.
+
+
+## Continuação incremental — Instrumentação da fila nativa via winit
+
+No host Rook Android, a rota `NativeActivity → AInputQueue → winit.WindowEvent::Touch`
+é observada de maneira passiva, após a primeira apresentação de frame e somente
+na sessão com consentimento de uso único. Os contadores `Started`, `Ended`
+e `Cancelled` são enviados pelo bridge JNI local à Activity e armazenados
+separadamente dos contadores `dispatchTouchEvent` Java. O evento original
+continua encaminhado sem alteração ao `Launch.window_event` do Rook.
+
+O diagnóstico não captura coordenadas, identificadores de ponteiro, imagens,
+textos nem conteúdo do projeto. A gravação mantém evidências das duas rotas
+quando elas coexistem e rejeita totais inconsistentes e identificadores de
+sessões anteriores. A opção de diagnóstico continua desativada por padrão.
+
+**Status e limites:** é uma implementação de observabilidade por código.
+`winit.Touch` indica que o loop nativo recebeu o evento; não garante que
+o motor tenha executado um callback Luau ou que `GuiButton.Activated` tenha
+sido disparado. Não há reprodução/injeção de toques, nem confirmação de
+funcionamento em aparelho físico. A correlação com um botão e um evento
+Luau real permanece pendente.
+
+O teste `scripts/test_ai_android_touch_java.py` verifica o formatter Java de
+produção e os contratos de autorização e encaminhamento da rota Rust. A
+compilação ARM64, instalação e teste manual do Play devem ser validados no
+commit específico; CI Java verde isoladamente não é prova de runtime.

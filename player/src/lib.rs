@@ -45,6 +45,8 @@ fn android_main(app: android_activity::AndroidApp) {
                 }
             }
         })));
+        // This consent is consumed by the Activity for this single Play only.
+        let observe_native_touch = platform::touch_probe_active();
         let ready_state = state.clone();
         let brand_icon = std::fs::read(session.join("menu.png")).unwrap_or_default();
         let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -73,6 +75,8 @@ fn android_main(app: android_activity::AndroidApp) {
                 if std::fs::write(&temp, value.to_string()).is_ok() { let _ = std::fs::rename(temp, ready_state.as_ref()); }
                 let _ = platform::ready();
                 log::info!("ROOK_FIRST_FRAME_PRESENTED");
+            }, observe_native_touch, move |down, up, cancel| {
+                platform::report_native_touch_counts(down, up, cancel);
             })
         })).unwrap_or_else(|panic| Err(anyhow::anyhow!("Falha no player: {}",
             panic.downcast_ref::<String>().map(String::as_str)

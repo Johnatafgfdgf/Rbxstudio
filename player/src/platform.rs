@@ -41,6 +41,16 @@ pub fn session() -> anyhow::Result<PathBuf> { call("session", "").map(PathBuf::f
 pub fn asset_key() -> anyhow::Result<String> { call("asset-key", "") }
 pub fn loading_stage(stage: &str) { let _ = call("loading-stage", stage); }
 pub fn ready() -> anyhow::Result<()> { call("ready", "").map(|_| ()) }
+
+// Only the one-use Activity authorization enables passive native phase totals.
+// The host receives aggregate counters, never pointer IDs or coordinates.
+pub fn touch_probe_active() -> bool {
+    matches!(call("touch-probe-enabled", ""), Ok(value) if value == "1")
+}
+pub fn report_native_touch_counts(down: u32, up: u32, cancel: u32) {
+    let report = serde_json::json!({"down":down,"up":up,"cancel":cancel});
+    let _ = call("native-touch-counts", &report.to_string());
+}
 pub fn finish() -> anyhow::Result<()> { call("finish", "").map(|_| ()) }
 
 #[derive(Debug)]
