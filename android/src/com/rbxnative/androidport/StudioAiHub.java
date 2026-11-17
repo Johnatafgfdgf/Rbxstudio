@@ -3660,6 +3660,14 @@ public final class StudioAiHub extends Activity {
                     pendingTaskPlan = null;
                     planStepOutstanding = false;
                     planPaused = false;
+                    // Discard any queued plan-generated proposal. No editor write occurs.
+                    pendingEdit = null;
+                    pendingPart = null;
+                    pendingPartChange = null;
+                    pendingComposite = null;
+                    pendingBillboard = null;
+                    pendingScreen = null;
+                    pendingKit = null;
                     renderPendingEdit();
                     renderPlanState();
                     status.setText("Plano descartado; o mapa não foi modificado.");
