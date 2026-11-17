@@ -1078,6 +1078,19 @@ for required in [
     'private static String buildPlaySmokeSummary(',
     'private void confirmLocalPlaySmoke()',
     'private void runLocalPlaySmoke()',
+    'private static String boundedLocalEquipLuau(String playerName, String toolPath)',
+    'private boolean confirmLiveEquippedTool(String paired, String playerName,',
+    'private static boolean readBackEquippedTool(String raw, String playerName,',
+    'private boolean verifyLocalEquipParent(String paired, String playerName,',
+    'equipReceipt = confirmLiveEquippedTool(paired, scene.playerName,',
+    'equipReadBack = verifyLocalEquipParent(paired, scene.playerName,',
+    'allowLocalPlaySmoke.isChecked()',
+    'checkLocalToolEquip.isChecked()',
+    '"Workspace." + playerName',
+    'found.Parent == char and "EQUIPPED"',
+    '"Client").put("path", root)',
+    '"EquipTool, se solicitado, altera apenas a sessão Play local',
+    '(!equipRequested || (equipReceipt && equipReadBack))',
     'private LiveToolGuiAudit inspectLiveToolGui(String paired, String playerName)',
     'private static Boolean strictMcpFlag(JSONObject node, String property)',
     'private static JSONObject checkedLiveInstance(String raw, String path, String className)',
@@ -1126,17 +1139,22 @@ for required in [
 ]:
     assert required in smoke_section, required
 assert smoke_section.count('callMcp(paired, "start_stop_play"') == 2
-assert smoke_section.count('callMcp(paired, "search_game_tree"') == 5
+assert smoke_section.count('callMcp(paired, "search_game_tree"') == 6
 assert smoke_section.count('callMcp(paired, "inspect_instance"') == 3
+assert smoke_section.count('callMcp(paired, "execute_luau"') == 1
+assert 'new JSONObject()\n                .put("datamodel_type", "Client").put("code", luau)' in smoke_section
+assert '"EQUIPPED".equals(response == null ? "" : response.trim())' in smoke_section
 assert 'new JSONObject().put("is_start", false)' in smoke_section
 assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
 assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
 for forbidden in ['requestModelWithFreeFallback(', 'executeApproved3dCode(',
-                  'execute_luau', 'multi_edit', 'save_place', 'publish']:
+                  'multi_edit', 'save_place', 'publish', 'user_mouse_input']:
     assert forbidden not in smoke_section, forbidden
 assert 'allowLocalPlaySmoke.setChecked(false)' in java
 assert 'checkLocalGameplayScene.setChecked(false)' in java
 assert 'checkLocalToolGui.setChecked(false)' in java
+assert 'checkLocalToolEquip.setChecked(false)' in java
+assert 'if (checkLocalToolEquip != null) checkLocalToolEquip.setEnabled(!waiting)' in java
 assert 'if (checkLocalToolGui != null) checkLocalToolGui.setEnabled(!waiting)' in java
 assert 'if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting)' in java
 assert 'runningLocalPlaySmoke = false' in java
