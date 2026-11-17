@@ -1935,6 +1935,60 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+
+    private static boolean closeComponents(double[] actual, double[] expected, double tolerance) {
+        if (actual == null || expected == null || actual.length != expected.length)
+            return false;
+        for (int i = 0; i < actual.length; i++) {
+            if (!Double.isFinite(actual[i]) || !Double.isFinite(expected[i]) ||
+                    Math.abs(actual[i] - expected[i]) > tolerance) return false;
+        }
+        return true;
+    }
+
+    /** CFrame.Angles(x,y,z) is the XYZ rotation product used by our fixed Luau edit. */
+    private static double[] expectedAnglesMatrix(double[] degrees) {
+        double x = Math.toRadians(degrees[0]), y = Math.toRadians(degrees[1]);
+        double z = Math.toRadians(degrees[2]);
+        double cx = Math.cos(x), sx = Math.sin(x);
+        double cy = Math.cos(y), sy = Math.sin(y);
+        double cz = Math.cos(z), sz = Math.sin(z);
+        return new double[]{
+            cy * cz, -cy * sz, sy,
+            cx * sz + sx * sy * cz, cx * cz - sx * sy * sz, -sx * cy,
+            sx * sz - cx * sy * cz, sx * cz + cx * sy * sz, cx * cy
+        };
+    }
+
+    /** Compare actual post-write properties, including unchanged ones, not just identity. */
+    private boolean verifiedPartUpdate(String paired, PartChangeProposal change) {
+        try {
+            JSONObject props = verifiedPartInspection(change.path,
+                    readOnlyMcp(paired, "inspect_instance",
+                            new JSONObject().put("path", change.path)));
+            double[] position = inspectedComponents(props, "CFrame.Position", -1000000, 1000000);
+            double[] size = inspectedComponents(props, "Size", 0, 1000000);
+            double[] color = inspectedComponents(props, "Color", 0, 1);
+            double[] rotation = inspectedRotation(props);
+            double[] wantedPosition = change.position != null ?
+                    change.position : change.beforePosition;
+            double[] wantedSize = change.size != null ? change.size : change.beforeSize;
+            double[] wantedColor = change.beforeColor;
+            if (change.color != null) {
+                wantedColor = new double[]{change.color[0] / 255.0,
+                        change.color[1] / 255.0, change.color[2] / 255.0};
+            }
+            double[] wantedRotation = change.rotation != null ?
+                    expectedAnglesMatrix(change.rotation) : change.beforeRotation;
+            return closeComponents(position, wantedPosition, 0.02) &&
+                    closeComponents(size, wantedSize, 0.02) &&
+                    closeComponents(color, wantedColor, 0.02) &&
+                    closeComponents(rotation, wantedRotation, 0.02);
+        } catch (Exception notConfirmed) {
+            return false;
+        }
+    }
+
     /** Only the verified Part may be changed; no model-supplied Luau is inserted. */
     private static String fixedPartUpdateLuau(PartChangeProposal part) {
         String name = part.path.substring("Workspace.".length());
@@ -2898,12 +2952,13 @@ public final class StudioAiHub extends Activity {
                 String outcome = checkedEditReceipt(
                         runApprovedPartCommand(paired, null, change),
                         "UPDATED:" + change.path.substring("Workspace.".length()));
+                boolean verified = verifiedPartUpdate(paired, change);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingPartChange = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta do MCP recebida; verifique o objeto no Workspace.");
+                    setBusy(false, readBackNotice(verified, change.path));
                     conversation.setText(conversation.getText() + "\nAlteração 3D MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nConfira o resultado e o histórico de Desfazer no editor.");
