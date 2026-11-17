@@ -5652,7 +5652,7 @@ index 0000000..0000000 100644
      let message = lua_error_message(e);
      let mut text = message;
      let stack = mlua_traceback(e)
-@@ -297,7 +299,17 @@
+@@ -297,19 +299,45 @@
              // Debris may outlive what it was given; destroyed is destroyed.
              let _ = crate::removal::destroy(lua, id);
          }
@@ -5671,7 +5671,6 @@ index 0000000..0000000 100644
      }
  }
  
-@@ -304,12 +316,28 @@
 -fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
 -    match handler {
 -        Handler::Call(f) => {
