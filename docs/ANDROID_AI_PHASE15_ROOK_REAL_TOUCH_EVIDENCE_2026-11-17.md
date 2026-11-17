@@ -153,3 +153,10 @@ Os contadores adicionais obedecem ao consentimento de GUI existente,
 ao limite de 200 sinais, às validações Java (contadores não negativos,
 soma de estados ≤ número de tentativas) e ao armazenamento privado
 local. Não há publicação automática nem injeção de eventos.
+
+## Ajuste de compatibilidade mlua
+
+A versão real de `mlua` usada pelo Rook define o estado terminal da corrotina
+como `ThreadStatus::Finished`, e não `Unresumable`. A instrumentação
+só contabiliza `Finished` **sem novo erro**; `Resumable` continua sem
+conclusão comprovada e `Error` não é contabilizado como sucesso.

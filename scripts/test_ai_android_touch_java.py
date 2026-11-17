@@ -53,7 +53,7 @@ assert "rook_lua::signal_probe::capture" in rook_patch
 assert "crate::signal_probe::queued(connection)" in rook_patch
 assert "crate::signal_probe::attempted(connection)" in rook_patch
 assert "crate::signal_probe::finished(outcome)" in rook_patch
-assert "thread.status() == ThreadStatus::Unresumable" in rook_patch
+assert "thread.status() == ThreadStatus::Finished" in rook_patch
 assert "errors_before" in rook_patch
 assert "completed < 0 || unresolved < 0 || failed < 0" in touch
 assert "pub struct DispatchStats" in rook_patch

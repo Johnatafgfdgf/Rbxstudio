@@ -5678,7 +5678,7 @@ index 0000000..0000000 100644
 +    let errors_before = with_world(lua, |w| w.errors);
 +    let outcome = match handler {
 +        Handler::Call(f) => match spawn(lua, f, MultiValue::from_vec(args)) {
-+            Ok(thread) => Some(thread.status() == ThreadStatus::Unresumable),
++            Ok(thread) => Some(thread.status() == ThreadStatus::Finished),
 +            Err(e) => {
 -fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
 -    match handler {
@@ -5694,7 +5694,7 @@ index 0000000..0000000 100644
 +            let runnable = thread.status() == ThreadStatus::Resumable
 +                && !stopped_thread(lua, &thread);
 +            resume(lua, &thread, MultiValue::from_vec(args));
-+            Some(runnable && thread.status() == ThreadStatus::Unresumable)
++            Some(runnable && thread.status() == ThreadStatus::Finished)
 +        },
 +    };
 +    #[cfg(target_os = "android")]
