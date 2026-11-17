@@ -1915,7 +1915,7 @@ public final class StudioAiHub extends Activity {
 
     /** Shared real MCP transport for approved, app-generated 3D operations only. */
     private String executeApproved3dCode(String paired, String code) throws Exception {
-        if (code.length() > 6500) throw new IOException("Modelo 3D acima do limite");
+        if (code.length() > 11000) throw new IOException("Comando de edição acima do limite");
         JSONObject args = new JSONObject().put("datamodel_type", "Edit")
                 .put("code", code);
         return callMcp(paired, "execute_luau", args);
@@ -2248,6 +2248,249 @@ public final class StudioAiHub extends Activity {
                 .append("screen.Parent = service\n")
                 .append("return \"CREATED_SCREEN_GUI:").append(gui.name).append("\"");
         return code.toString();
+    }
+
+
+    /** A real StarterGui read is required before an AI may propose the kit. */
+    private static ReceiveToolProposal validateReceiveToolProposal(JSONObject input,
+            String inspectedPath, String inspectedText) throws Exception {
+        if (!"StarterGui".equals(inspectedPath)) {
+            throw new IOException("Inspecione StarterGui antes de criar o sistema de item");
+        }
+        String system = safeField(input, "system_name", 25, true);
+        if (!system.matches("[A-Za-z][A-Za-z0-9_]{0,24}")) {
+            throw new IOException("Nome do sistema inválido");
+        }
+        String item = safeField(input, "item_label", 30, true);
+        String button = safeField(input, "button_label", 30, false);
+        if (button.isEmpty()) button = "Receber item";
+        String reason = safeField(input, "reason", 400, true);
+        int[] color = input.has("accent") ?
+                optionalUpdateColor(new JSONObject().put("color", input.opt("accent"))) :
+                new int[]{64, 157, 232};
+        // Service inspection must be unique, complete and from the edited place.
+        String guiName = system + "_Gui";
+        JSONObject root = checkedScreenGuiRoot(inspectedText, guiName);
+        return new ReceiveToolProposal(system, item, button, reason,
+                root.optString("uniqueId", ""), color);
+    }
+
+    /** Fail closed if any service is missing, returned partially or contains a collision. */
+    private static JSONObject checkedKitService(String text, String service,
+            String desiredName) throws Exception {
+        JSONObject root;
+        try { root = new JSONObject(text); }
+        catch (Exception ex) { throw new IOException("Inspeção inválida: " + service, ex); }
+        if (!service.equals(root.optString("className", "")) ||
+                !service.equals(root.optString("path", ""))) {
+            throw new IOException("Serviço não encontrado: " + service);
+        }
+        JSONObject children = root.optJSONObject("children");
+        JSONArray immediate = children == null ? null :
+                children.optJSONArray("immediateChildren");
+        if (immediate == null || children.optInt("childrenCount", -1) != immediate.length()) {
+            throw new IOException("Leitura incompleta de " + service);
+        }
+        for (int i = 0; i < immediate.length(); i++) {
+            JSONObject child = immediate.optJSONObject(i);
+            if (child == null || !child.has("path")) {
+                throw new IOException("Filho sem caminho em " + service);
+            }
+            if ((service + "." + desiredName).equalsIgnoreCase(
+                    child.optString("path", ""))) {
+                throw new IOException("Já existe " + service + "." + desiredName);
+            }
+        }
+        return root;
+    }
+
+    private void verifyKitDestinations(String paired, ReceiveToolProposal kit)
+            throws Exception {
+        final String[] services = {"StarterGui", "ReplicatedStorage",
+                "ServerScriptService", "ServerStorage"};
+        final String[] names = {kit.guiName(), kit.remoteName(),
+                kit.serverName(), kit.toolName()};
+        for (int i = 0; i < services.length; i++) {
+            String text = readOnlyMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", services[i]));
+            JSONObject service = checkedKitService(text, services[i], names[i]);
+            if (i == 0 && !kit.inspectedServiceId.equals(
+                    service.optString("uniqueId", ""))) {
+                throw new IOException("StarterGui foi substituído desde a proposta");
+            }
+        }
+    }
+
+    /** Fixed server code; the model only chooses a safe system ID, never Lua source. */
+    private static String fixedReceiveToolServerScript(ReceiveToolProposal kit) {
+        return "local rs=game:GetService('ReplicatedStorage'); " +
+                "local storage=game:GetService('ServerStorage'); " +
+                "local players=game:GetService('Players'); " +
+                "local remote=rs:WaitForChild('" + kit.remoteName() + "'); " +
+                "local template=storage:WaitForChild('" + kit.toolName() + "'); " +
+                "local last={}; " +
+                "remote.OnServerEvent:Connect(function(player) " +
+                "if not player or not player:IsA('Player') then return end; " +
+                "local id=player.UserId; local now=os.clock(); " +
+                "if last[id] and now-last[id]<1.5 then return end; " +
+                "last[id]=now; local bag=player:FindFirstChildOfClass('Backpack'); " +
+                "if not bag then return end; local char=player.Character; " +
+                "if bag:FindFirstChild('" + kit.toolName() + "') or " +
+                "(char and char:FindFirstChild('" + kit.toolName() + "')) then return end; " +
+                "local item=template:Clone(); item.Parent=bag end); " +
+                "players.PlayerRemoving:Connect(function(p) last[p.UserId]=nil end)";
+    }
+
+    /** Fixed, touch-friendly client code. No commands are generated by the AI. */
+    private static String fixedReceiveToolClientScript(ReceiveToolProposal kit) {
+        return "local button=script.Parent; " +
+                "local rs=game:GetService('ReplicatedStorage'); " +
+                "local remote=rs:WaitForChild('" + kit.remoteName() + "',10); " +
+                "if not remote then return end; local busy=false; " +
+                "button.Activated:Connect(function() " +
+                "if busy then return end; busy=true; remote:FireServer(); " +
+                "task.delay(1.5,function() busy=false end) end)";
+    }
+
+    /**
+     * One app-generated Luau transaction, building all four service objects
+     * off-tree first so a denied Script.Source write does not create a half-kit.
+     */
+    private static String fixedReceiveToolLuau(ReceiveToolProposal kit) {
+        StringBuilder code = new StringBuilder();
+        code.append("local rs=game:GetService('ReplicatedStorage')\n")
+                .append("local storage=game:GetService('ServerStorage')\n")
+                .append("local server=game:GetService('ServerScriptService')\n")
+                .append("local starter=game:GetService('StarterGui')\n")
+                .append("if rs:FindFirstChild('").append(kit.remoteName())
+                .append("') or storage:FindFirstChild('").append(kit.toolName())
+                .append("') or server:FindFirstChild('").append(kit.serverName())
+                .append("') or starter:FindFirstChild('").append(kit.guiName())
+                .append("') then return 'NAME_EXISTS' end\n")
+                .append("local remote=Instance.new('RemoteEvent')\n")
+                .append("remote.Name='").append(kit.remoteName()).append("'\n")
+                .append("local tool=Instance.new('Tool')\n")
+                .append("tool.Name='").append(kit.toolName()).append("'\n")
+                .append("tool.ToolTip=").append(luauTextLiteral(kit.itemLabel)).append("\n")
+                .append("tool.RequiresHandle=true\n")
+                .append("tool.CanBeDropped=false\n")
+                .append("local handle=Instance.new('Part')\n")
+                .append("handle.Name='Handle'\n")
+                .append("handle.Size=Vector3.new(0.6,0.6,1.5)\n")
+                .append("handle.Material=Enum.Material.Metal\n")
+                .append("handle.Color=Color3.fromRGB(80,89,103)\n")
+                .append("handle.CanCollide=false\n")
+                .append("handle.Massless=true\n")
+                .append("local light=Instance.new('PointLight')\n")
+                .append("light.Brightness=2\n")
+                .append("light.Range=14\n")
+                .append("light.Color=Color3.fromRGB(252,241,190)\n")
+                .append("light.Parent=handle\n")
+                .append("handle.Parent=tool\n")
+                .append("local serverScript=Instance.new('Script')\n")
+                .append("serverScript.Name='").append(kit.serverName()).append("'\n")
+                .append("local serverOk=pcall(function() serverScript.Source=")
+                .append(luauTextLiteral(fixedReceiveToolServerScript(kit)))
+                .append(" end)\n")
+                .append("if not serverOk then error('SERVER_SOURCE_DENIED') end\n")
+                .append("local screen=Instance.new('ScreenGui')\n")
+                .append("screen.Name='").append(kit.guiName()).append("'\n")
+                .append("screen.ResetOnSpawn=false\n")
+                .append("local button=Instance.new('TextButton')\n")
+                .append("button.Name='ReceiveItem'\n")
+                .append("button.AnchorPoint=Vector2.new(0.5,1)\n")
+                .append("button.Position=UDim2.new(0.5,0,0.91,0)\n")
+                .append("button.Size=UDim2.new(0.8,0,0,52)\n")
+                .append("button.BackgroundColor3=Color3.fromRGB(")
+                .append(kit.accent[0]).append(',').append(kit.accent[1])
+                .append(',').append(kit.accent[2]).append(")\n")
+                .append("button.Text=").append(luauTextLiteral(kit.buttonLabel)).append("\n")
+                .append("button.TextColor3=Color3.fromRGB(11,21,36)\n")
+                .append("button.TextScaled=true\n")
+                .append("button.Font=Enum.Font.GothamBold\n")
+                .append("local size=Instance.new('UISizeConstraint')\n")
+                .append("size.MinSize=Vector2.new(175,44)\n")
+                .append("size.MaxSize=Vector2.new(340,58)\n")
+                .append("size.Parent=button\n")
+                .append("local corner=Instance.new('UICorner')\n")
+                .append("corner.CornerRadius=UDim.new(0,13)\n")
+                .append("corner.Parent=button\n")
+                .append("local logic=Instance.new('LocalScript')\n")
+                .append("logic.Name='RequestClient'\n")
+                .append("local clientOk=pcall(function() logic.Source=")
+                .append(luauTextLiteral(fixedReceiveToolClientScript(kit)))
+                .append(" end)\n")
+                .append("if not clientOk then error('CLIENT_SOURCE_DENIED') end\n")
+                .append("logic.Parent=button\n")
+                .append("button.Parent=screen\n")
+                .append("remote.Parent=rs\n")
+                .append("tool.Parent=storage\n")
+                .append("serverScript.Parent=server\n")
+                .append("screen.Parent=starter\n")
+                .append("return 'CREATED_RECEIVE_TOOL:").append(kit.system).append("'");
+        return code.toString();
+    }
+
+    private void confirmPendingReceiveTool() {
+        final ReceiveToolProposal kit = pendingKit;
+        if (kit == null || busy) return;
+        if (!includeProject.isChecked() || !includeCode.isChecked() ||
+                !autoInspect.isChecked() || !proposeKits.isChecked()) {
+            status.setText("Reative as permissões de projeto, scripts e sistema de item.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar sistema funcional de recebimento de item?")
+                .setMessage("Sistema: " + kit.system +
+                        "\nTool: " + kit.toolName() + " (" + kit.itemLabel + ")" +
+                        "\nGUI: StarterGui." + kit.guiName() +
+                        "\nRemoteEvent: ReplicatedStorage." + kit.remoteName() +
+                        "\nScript: ServerScriptService." + kit.serverName() +
+                        "\n\nA operação cria quatro objetos nos serviços, " +
+                        "um Handle iluminado e dois scripts FIXOS para entregar " +
+                        "uma Tool ao Backpack com autorização do servidor. " +
+                        "O editor poderá exigir também aprovação MCP.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Sim, criar sistema",
+                        (dialog, which) -> applyApprovedReceiveTool(kit))
+                .show();
+    }
+
+    private void applyApprovedReceiveTool(ReceiveToolProposal kit) {
+        if (busy || pendingKit != kit || mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo quatro serviços antes de criar o sistema…");
+        requests.execute(() -> {
+            try {
+                verifyKitDestinations(paired, kit);
+                if (epoch != requestEpoch) throw new IOException("Sessão alterada");
+                String command = fixedReceiveToolLuau(kit);
+                if (command.length() > 11000) {
+                    throw new IOException("Sistema de item acima do limite de código");
+                }
+                String outcome = executeApproved3dCode(paired, command);
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingKit = null;
+                    renderPendingEdit();
+                    setBusy(false, "Resposta MCP recebida; teste o botão em Play.");
+                    conversation.setText(conversation.getText() + "\nSistema de item MCP:\n" +
+                            outcome.substring(0, Math.min(1300, outcome.length())) +
+                            "\nConfira Tool, RemoteEvent, scripts, GUI, Backpack e Desfazer.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    setBusy(false, "Criação de sistema não confirmada: " +
+                            (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
+                            ". Confira os quatro serviços antes de repetir.");
+                });
+            }
+        });
     }
 
     private void confirmPendingScreen() {
