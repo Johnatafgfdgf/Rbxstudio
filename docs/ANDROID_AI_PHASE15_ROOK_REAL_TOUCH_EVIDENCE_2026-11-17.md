@@ -1,0 +1,63 @@
+# Fase 15 — Segurança do Play MCP e evidência real de touchscreen no Rook Android
+
+**Escopo:** alterações incrementais na branch `work/ai-autonomous-read-v1`. A `main` não foi alterada.
+
+## Problema encontrado na auditoria da execução
+
+A integração Android atual do motor possui **dois caminhos distintos de Play**:
+
+- A rotina `Shell::play_start` direcionada para Android chama `play_start_external`: valida um destino Roblox privado, publica via Open Cloud mediante aprovação e abre o aplicativo oficial Roblox.
+- A rotina `play_start_android_local` é **separada** e invoca o host Android do Rook, que abre a `RookPlayerActivity` (NativeActivity) em processo separado.
+- O MCP nativo `start_stop_play` usa o primeiro caminho, via `mcp_play_start` → `Shell::play_start`. Não há evidência de que o MCP disponha de um DOM `Client/Server` do player Rook Android, separado, pois `Session.client`/`Session.server` são disponibilizados pela ligação interna da sessão de Play original, não pela `StudioPlayer.start` do Android.
+
+**Risco corrigido:** as rotinas antigas do diagnóstico automático da IA não podem mais enviar `start_stop_play` pelo caminho externo. `StudioAiHub.requireVerifiedAndroidMcpPlay()` bloqueia tanto a janela de confirmação como a execução sem uma ponte local comprovada. `StudioTouchDiagnostics.hasVerifiedLocalMcpPlayBridge()` retorna `false` nesta versão e só deve ser habilitada após implementação e validação de uma ponte Rook Client/Server real. O botão e as opções antigas foram preservados, mas **não executam publicação inadvertida**. O relatório explica essa limitação claramente.
+
+**Isso não desativa os fluxos existentes do editor** para Play local Rook ou Play externo oficialmente autorizado; protege apenas as tentativas automatizadas da IA de usar o endpoint MCP não comprovado.
+
+## Novo diagnóstico de toques Android do Rook
+
+Foi acrescentado o arquivo Java `StudioTouchDiagnostics.java` e uma instrumentação passiva em `RookPlayerActivity.java`, sem adicionar uma camada de UI sobre o jogo.
+
+No painel da IA, a seção **Play Rook local • diagnóstico de toques Android** possui:
+
+- uma autorização nova, desmarcada por padrão;
+- **Preparar diagnóstico real de toque • próximo Play local**;
+- **Ler resultado de toques do player Rook**;
+- **Apagar autorização e dados locais de toque**.
+
+Com consentimento explícito, uma solicitação de uso único, com validade máxima de **10 minutos**, é gravada no armazenamento privado do aplicativo. Quando o próximo player Rook abre, consome a solicitação e gera um relatório privado. Na `RookPlayerActivity`:
+
+- a contagem só inicia depois que o serviço nativo comunica `ready`;
+- o `dispatchTouchEvent` observa somente `MotionEvent.ACTION_DOWN`, `ACTION_UP` e `ACTION_CANCEL` cuja fonte seja `SOURCE_TOUCHSCREEN`;
+- **sempre chama `super.dispatchTouchEvent(event)` e devolve o resultado inalterado**: não captura, não redireciona e não simula toques;
+- grava apenas contagens agregadas limitadas e os estados `ready`/`stopped`. Não grava coordenadas, ponteiros, identidade do jogador, texto digitado, imagens, mapa, scripts, credenciais ou gravações de tela. Não envia os dados para a IA;
+- produz relatório legível localmente no painel da IA quando o usuário retorna ao editor.
+
+### O que pode e não pode ser concluído
+
+**Evidência possível:** se o player informou `ready` e o Java realmente recebeu `ACTION_DOWN` e `ACTION_UP`, o relatório pode confirmar que eventos de touchscreen passaram por **essa rota Java da Activity** durante a sessão Play.
+
+**Não comprovado:** que a fila nativa do Rook consumiu tais eventos, que o jogador se moveu, que um `GuiButton.Activated`/`MouseButton1Click` foi disparado, que `Tool.Activated` ocorreu, ou que um script/efeito visual funcionou.
+
+**Limite decisivo:** `NativeActivity` pode entregar entradas à `AInputQueue` sem passar por `Activity.dispatchTouchEvent`. Assim, zero eventos Java é **inconclusivo**, não reprovação do toque Android. A próxima fase deve instrumentar a fila nativa e associá-la ao evento Luau do mesmo botão para validar clicabilidade real.
+
+## Verificação de código
+
+- `scripts/test_ai_android_touch_java.py` compila os métodos reais e puros de verificação de contagens e de formatação do relatório. Testa evidência, ausência de eventos, sessão não pronta, dados inconsistentes e ausência de afirmações falsas de clique.
+- O teste também confere o código do Rook/Hub, autorização inicial desmarcada, repasse dos MotionEvents sem modificação, zero coleta de coordenadas e bloqueio do caminho externo MCP.
+- `.github/workflows/ai-hub-android-java.yml` executa a nova verificação e compila `StudioAiHub.java`, `RookPlayerActivity.java`, `StudioTouchDiagnostics.java` e dependências com o SDK Android 35.
+- O APK ARM64 é compilado em workflow distinto. Um teste Java verde **não prova** execução no aparelho ou compatibilidade do driver de toque.
+
+## Guia para verificação no celular
+
+1. Instalar uma versão experimental **apenas depois do build APK concluir com artifact confirmado**.
+2. Na central de IA, marcar o consentimento para entrada touchscreen e tocar em **Preparar diagnóstico**. A solicitação expira em 10 minutos.
+3. Voltar ao editor e abrir **Play Rook local**, não o Play externo por Open Cloud. Esperar carregar.
+4. Tocar naturalmente na tela do jogo; sair do Play e voltar à central de IA.
+5. Marcar novamente a permissão de leitura, se a interface for recriada, e abrir **Ler resultado**.
+6. Conferir se o relatório identifica `ready`, `ACTION_DOWN`/`ACTION_UP` e encerramento. Caso não identifique, o problema pode estar na entrega à fila nativa; não inventar um clique de GUI.
+7. Tocar em **Apagar autorização e dados locais de toque** ao terminar.
+
+## Próximos incrementos
+
+Instrumentar `AInputQueue`/winit no Rook e adicionar um contrato explícito com Luau para **observar `GuiButton.Activated` de um botão autorizado pelo usuário após um toque físico**. Só então será possível afirmar que uma interface recebeu e processou um toque em Android real.
