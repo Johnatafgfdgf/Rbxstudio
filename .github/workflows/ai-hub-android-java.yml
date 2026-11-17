@@ -14,6 +14,7 @@ on:
       - scripts/test_ai_part_matrix.py
       - scripts/test_ai_plan_guards.py
       - scripts/test_toolbox_source_scanner.py
+      - scripts/test_inserted_model_audit_java.py
 
 permissions:
   contents: read
@@ -43,6 +44,8 @@ jobs:
         run: python3 scripts/test_ai_plan_guards.py
       - name: Test real Java Toolbox static source scanner
         run: python3 scripts/test_toolbox_source_scanner.py
+      - name: Validate actual Java MCP Model audit parsing and scope
+        run: python3 scripts/test_inserted_model_audit_java.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
