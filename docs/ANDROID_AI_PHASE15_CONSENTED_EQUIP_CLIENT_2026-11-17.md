@@ -40,6 +40,16 @@ O aplicativo prepara um **template Luau imutável**, preenchido apenas por nomes
 
 A CI **não realiza Play real no Android físico**. Essa verificação precisa de um APK instalável e de um mapa de teste confiável. Não afirmar que `Equipped` foi observado em dispositivo até haver essa evidência.
 
+## CI e arquivos produzidos
+
+**Resultado verificado:** o workflow Java `44027944067` passou em `c4913493a687`, inclusive verificações estáticas de segurança, harness Java de `boundedLocalEquipLuau` e `readBackEquippedTool` (com caminhos incorretos, duplicados, resposta MCP falsa e sucesso de confirmação), suíte anterior e compilação Java Android SDK 35.
+
+- Testes de código aprovados: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44027944067
+- Exportação de fontes completa aprovada, artifact `rbxstudio-ai-0611-complete-source`: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44027944032
+- Compilação experimental ARM64 separada, independente do Java SDK: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44027944088
+
+O resultado verde da compilação Java **não valida** Play real do Rook no Android. A compilação ARM64 estava na etapa `Build Android ARM64 Studio and local player` na última verificação; só anunciar APK após sucesso e artifact confirmados.
+
 ## Próxima etapa
 
 Para **cliques reais**, será necessário um canal de injeção de eventos compatível com Android ou um teste manual instrumentado que observe o evento `Activated` e o resultado sem confundir chamadas programáticas com toques na tela. Até isso acontecer, deixar clique automático desativado, e não simular sucesso.
