@@ -848,8 +848,10 @@ for required in [
     'Não executa nada nem envia conteúdo à API de IA.',
 ]:
     assert required in java, required
+# Scope the pre-import scanner separately from the user-authorized Play
+# controller: they share an Activity, but not permissions or tool paths.
 scanner = java[java.index('private static int sourceRiskMask('):
-               java.index('private void buildUi()')]
+               java.index('    /** Accept only an exact shell receipt')]
 assert 'callMcp(' not in scanner
 assert 'requestModelWithFreeFallback(' not in scanner
 assert 'multi_edit' not in scanner
