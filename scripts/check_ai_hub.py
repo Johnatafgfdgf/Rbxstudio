@@ -905,7 +905,8 @@ assert 'auditingInsertedModel = true;' in auditor
 assert 'shareModelAudit.setChecked(false);' in auditor
 assert 'allowLocalModelAudit.isChecked()' in java
 assert 'includeProject.isChecked() &&\n                shareModelAudit != null' in java
-assert java.count('startInsertedModelAudit();') == 1
+assert 'auditInsertedModel.setOnClickListener(v -> startInsertedModelAudit());' in java
+assert java.count('auditInsertedModel.setOnClickListener(') == 1
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
