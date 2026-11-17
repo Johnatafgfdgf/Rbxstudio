@@ -1756,7 +1756,7 @@ public final class StudioAiHub extends Activity {
                 pendingEdit = null; pendingPart = null;
                 pendingPartChange = null; pendingComposite = null;
                 pendingBillboard = null; pendingScreen = null;
-                pendingKit = null;
+                pendingKit = null; pendingLighting = null;
                 pendingTaskPlan = null;
                 planStepOutstanding = false;
                 activeTaskPlan = null;
@@ -1803,6 +1803,7 @@ public final class StudioAiHub extends Activity {
                 pendingBillboard = null;
                 pendingScreen = null;
                 pendingKit = null;
+                pendingLighting = null;
                 pendingTaskPlan = null;
                 activeTaskPlan = null;
                 planStepOutstanding = false;
@@ -2132,6 +2133,7 @@ public final class StudioAiHub extends Activity {
             autoInspect.setChecked(false);
             proposeEdits.setChecked(false);
             proposeParts.setChecked(false);
+            if (proposeLighting != null) proposeLighting.setChecked(false);
             pendingEdit = null;
             pendingPart = null;
             pendingPartChange = null;
