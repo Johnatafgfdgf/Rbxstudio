@@ -49,6 +49,14 @@ assert "rook_engine::touch_probe::install(Some" in player
 assert "rook_engine::touch_probe::install(None)" in player
 assert "crate::touch_probe::activated(&path, stats.queued, stats.attempted," in rook_patch
 assert "stats.completed, stats.unresolved, stats.failed, stats.errors," in rook_patch
+assert "stats.handler_dom_changes" in rook_patch
+assert "stats.handlers_with_changes" in rook_patch
+assert "journal_before" in rook_patch
+assert "crate::signal_probe::finished(outcome, dom_changes)" in rook_patch
+assert "activation.getInt(\"handlerDomChanges\")" in rook
+assert "activation.getInt(\"handlersWithChanges\")" in rook
+assert "\"handlerDomChanges\":handler_dom_changes" in platform
+assert "handlersWithChanges > handlerDomChanges" in touch
 assert "journal_changes" in rook_patch
 assert "self.runtime.world().dom.journal().end()" in rook_patch
 assert "self.runtime.world().dom.journal().is_enabled()" in rook_patch
@@ -169,6 +177,17 @@ public final class TouchContract {
                 2, "Button", 2, 2, 0, 2, 0, 0, 0, 1).contains("inconsistente"));
         yes(formatTouchEvidence(true, 0, 0, 0, true, true, 2, 2, 0,
                 2, "Button", 2, 2, 0, 2, 0, 0, 1, 3).contains("inconsistente"));
+        String tracked = formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "PlayerGui.Shop.Buy", 2, 2, 0,
+                1, 1, 0, 4, 1, 3, 1);
+        yes(tracked.contains("Registros DOM durante handlers Luau observados: 3"));
+        yes(tracked.contains("Handlers com mutações DOM na primeira retomada: 1"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true, true, 2, 2, 0,
+                1, "Button", 2, 1, 0, 1, 0, 0, 1, 1, 2, 2)
+                .contains("inconsistente"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true, true, 2, 2, 0,
+                1, "Button", 2, 2, 0, 1, 1, 0, 1, 1, 0, 1)
+                .contains("inconsistente"));
         String noTouch = formatTouchEvidence(true, 0, 0, 0, false);
         yes(noTouch.contains("INCONCLUSIVO"));
         yes(noTouch.contains("Player encerrou: não confirmado"));

@@ -181,3 +181,25 @@ script específico**, não garante que a mudança persistiu e **não prova**
 resultado visual. Zero alterações também não prova ausência de efeitos
 (se o diário estava desativado, por exemplo). Para confirmar efeitos de
 jogo é necessário observar o estado esperado em testes reais no aparelho.
+
+## Continuação — mutações observadas dentro dos handlers Luau
+
+Para cada handler originado do sinal de toque que **efetivamente começa**
+durante o `GuiButton.Activated` (modo Immediate), o despachante agora
+mede a diferença de entradas do diário do DOM **antes e depois da sua
+primeira retomada**. O cálculo só é executado para conexões rastreadas
+na sessão opt-in e devolve duas contagens agregadas, locais:
+
+- `handlerDomChanges`: soma limitada de entradas do diário observadas
+  durante a execução síncrona dos handlers.
+- `handlersWithChanges`: quantidade de handlers observados com pelo
+  menos uma alteração no diário durante a primeira retomada.
+
+É uma evidência mais próxima do comportamento dos scripts do que o
+contador global da janela Activated, porém **não é prova absoluta de
+causalidade**: chamadas aninhadas podem duplicar contagens e efeitos
+posteriores a um `task.wait` não são acompanhados. A fonte não é
+inspecionada e não se guardam valores, objetos ou scripts. Se o diário
+estiver desabilitado, zero é inconclusivo. Eventos `Deferred` fora da
+janela de observação continuam sem confirmação. O Java rejeita dados
+fora dos limites ou contagens de handlers impossíveis.

@@ -51,10 +51,11 @@ fn android_main(app: android_activity::AndroidApp) {
         // counters. The default is disabled and all reports remain local.
         if observe_native_touch && platform::gui_probe_active() {
             let reports = Arc::new(AtomicU32::new(0));
-            rook_engine::touch_probe::install(Some(Arc::new(move |path, queued, attempted, completed, unresolved, failed, errors, journal_changes| {
+            rook_engine::touch_probe::install(Some(Arc::new(move |path, queued, attempted, completed, unresolved, failed, errors, journal_changes, handler_dom_changes, handlers_with_changes| {
                 if reports.fetch_add(1, Ordering::Relaxed) < 200 {
                     platform::report_touch_gui_activated(path, queued, attempted,
-                        completed, unresolved, failed, errors, journal_changes);
+                        completed, unresolved, failed, errors, journal_changes,
+                        handler_dom_changes, handlers_with_changes);
                 }
             })));
         }

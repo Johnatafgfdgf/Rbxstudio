@@ -52,10 +52,12 @@ pub fn gui_probe_active() -> bool {
 }
 pub fn report_touch_gui_activated(path: &str, queued: u32, attempted: u32,
         completed: u32, unresolved: u32, failed: u32, errors: u32,
-        journal_changes: u32) {
+        journal_changes: u32, handler_dom_changes: u32,
+        handlers_with_changes: u32) {
     let data = serde_json::json!({"path":path,"queued":queued,"attempted":attempted,
         "completed":completed,"unresolved":unresolved,"failed":failed,"errors":errors,
-        "journalChanges":journal_changes});
+        "journalChanges":journal_changes,"handlerDomChanges":handler_dom_changes,
+        "handlersWithChanges":handlers_with_changes});
     let _ = call("native-gui-activated", &data.to_string());
 }
 pub fn report_native_touch_counts(down: u32, up: u32, cancel: u32) {

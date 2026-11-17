@@ -139,7 +139,9 @@ public final class StudioTouchDiagnostics {
                           .put("handlersUnresolved", prior.optInt("handlersUnresolved", 0))
                           .put("handlersFailed", prior.optInt("handlersFailed", 0))
                           .put("journalChanges", prior.optInt("journalChanges", 0))
-                          .put("guiWithJournalChanges", prior.optInt("guiWithJournalChanges", 0));
+                          .put("guiWithJournalChanges", prior.optInt("guiWithJournalChanges", 0))
+                          .put("handlerDomChanges", prior.optInt("handlerDomChanges", 0))
+                          .put("handlersWithChanges", prior.optInt("handlersWithChanges", 0));
                 }
             }
             if (prior != null && id.equals(prior.optString("id", "")) &&
@@ -194,13 +196,18 @@ public final class StudioTouchDiagnostics {
      * Not called by APIs or mouse paths; never accepts remote AI inputs. */
     public static synchronized void noteGuiActivation(Context context, String id,
             String path, int queued, int attempted, int completed,
-            int unresolved, int failed, int errors, int journalChanges) {
+            int unresolved, int failed, int errors, int journalChanges,
+            int handlerDomChanges, int handlersWithChanges) {
         if (path == null || path.length() < 1 || path.length() > 240 ||
                 queued < 0 || queued > 1000 || attempted < 0 || attempted > queued ||
                 completed < 0 || unresolved < 0 || failed < 0 ||
                 (long) completed + unresolved + failed > attempted ||
                 errors < 0 || errors > 1000 || journalChanges < 0 ||
-                journalChanges > 1000 || !guiConsent(context, id)) return;
+                journalChanges > 1000 || handlerDomChanges < 0 ||
+                handlerDomChanges > 1000 || handlersWithChanges < 0 ||
+                handlersWithChanges > attempted ||
+                handlersWithChanges > handlerDomChanges ||
+                !guiConsent(context, id)) return;
         String safePath = path.replaceAll("[\\p{Cntrl}]", " ").trim();
         if (safePath.isEmpty()) return;
         try {
@@ -216,7 +223,13 @@ public final class StudioTouchDiagnostics {
             int priorFailed = report.optInt("handlersFailed", 0);
             int priorJournal = report.optInt("journalChanges", 0);
             int priorGuiChanges = report.optInt("guiWithJournalChanges", 0);
-            if (priorJournal < 0 || priorJournal > 200000 ||
+            int priorHandlerJournal = report.optInt("handlerDomChanges", 0);
+            int priorHandlersWithChanges = report.optInt("handlersWithChanges", 0);
+            if (priorHandlerJournal < 0 || priorHandlerJournal > 200000 ||
+                    priorHandlersWithChanges < 0 ||
+                    priorHandlersWithChanges > priorAttempted ||
+                    priorHandlersWithChanges > priorHandlerJournal ||
+                    priorJournal < 0 || priorJournal > 200000 ||
                     priorGuiChanges < 0 || priorGuiChanges > total ||
                     priorGuiChanges > priorJournal ||
                     priorQueued < 0 || priorQueued > 200000 ||
@@ -237,6 +250,10 @@ public final class StudioTouchDiagnostics {
                     .put("journalChanges", Math.min(200000, priorJournal + journalChanges))
                     .put("guiWithJournalChanges",
                             priorGuiChanges + (journalChanges > 0 ? 1 : 0))
+                    .put("handlerDomChanges",
+                            Math.min(200000, priorHandlerJournal + handlerDomChanges))
+                    .put("handlersWithChanges",
+                            Math.min(200000, priorHandlersWithChanges + handlersWithChanges))
                     .put("recordedAt", System.currentTimeMillis());
             write(reportFile(context), report);
         } catch (Exception ignored) {
@@ -284,7 +301,9 @@ public final class StudioTouchDiagnostics {
                     report.optInt("handlersUnresolved", 0),
                     report.optInt("handlersFailed", 0),
                     report.optInt("journalChanges", 0),
-                    report.optInt("guiWithJournalChanges", 0));
+                    report.optInt("guiWithJournalChanges", 0),
+                    report.optInt("handlerDomChanges", 0),
+                    report.optInt("handlersWithChanges", 0));
         } catch (Exception ignored) {
             return "Não foi possível ler o relatório local de toques. " +
                     "Nenhum resultado foi presumido.";
@@ -350,6 +369,21 @@ public final class StudioTouchDiagnostics {
             int handlersQueued, int handlersAttempted, int handlerErrors,
             int completed, int unresolved, int failed,
             int journalChanges, int guiWithJournalChanges) {
+        return formatTouchEvidence(ready, downs, ups, canceled, stopped,
+                nativeReported, nativeDown, nativeUp, nativeCancel,
+                guiActivated, buttonPath, handlersQueued, handlersAttempted,
+                handlerErrors, completed, unresolved, failed,
+                journalChanges, guiWithJournalChanges, 0, 0);
+    }
+
+    static String formatTouchEvidence(boolean ready, int downs, int ups,
+            int canceled, boolean stopped, boolean nativeReported,
+            int nativeDown, int nativeUp, int nativeCancel,
+            int guiActivated, String buttonPath,
+            int handlersQueued, int handlersAttempted, int handlerErrors,
+            int completed, int unresolved, int failed,
+            int journalChanges, int guiWithJournalChanges,
+            int handlerDomChanges, int handlersWithChanges) {
         if (!consistentTouchTotals(downs, ups, canceled) ||
                 (nativeReported && !consistentTouchTotals(
                         nativeDown, nativeUp, nativeCancel)) ||
@@ -362,6 +396,9 @@ public final class StudioTouchDiagnostics {
                 journalChanges < 0 || journalChanges > 200000 ||
                 guiWithJournalChanges < 0 || guiWithJournalChanges > guiActivated ||
                 guiWithJournalChanges > journalChanges ||
+                handlerDomChanges < 0 || handlerDomChanges > 200000 ||
+                handlersWithChanges < 0 || handlersWithChanges > handlersAttempted ||
+                handlersWithChanges > handlerDomChanges ||
                 (guiActivated > 0 && (buttonPath == null || buttonPath.isEmpty() ||
                         buttonPath.length() > 240)))
             return "Relatório de toque inconsistente: não confirmado.";
@@ -407,7 +444,11 @@ public final class StudioTouchDiagnostics {
                     .append("Registros de mudança no DOM durante Activated: ")
                     .append(journalChanges).append("\n")
                     .append("Sinais Activated com mudança DOM observada: ")
-                    .append(guiWithJournalChanges).append("\n");
+                    .append(guiWithJournalChanges).append("\n")
+                    .append("Registros DOM durante handlers Luau observados: ")
+                    .append(handlerDomChanges).append("\n")
+                    .append("Handlers com mutações DOM na primeira retomada: ")
+                    .append(handlersWithChanges).append("\n");
         } else {
             out.append("GuiButton.Activated por toque: não confirmado.\n");
         }
@@ -416,7 +457,8 @@ public final class StudioTouchDiagnostics {
                 "de execução não comprovam conclusão do callback Luau, " +
                 "mudanças no jogo ou efeito visual. " +
                 "O diário DOM registra alterações na mesma janela síncrona, " +
-                "mas não prova que determinado script as causou, nem " +
+                "inclusive durante handlers observados, mas não prova que " +
+                "determinado script as causou, nem " +
                 "que houve resultado visual ou persistência depois. " +
                 "Zero registros não prova ausência de efeitos, inclusive se " +
                 "o diário estiver desativado. " +

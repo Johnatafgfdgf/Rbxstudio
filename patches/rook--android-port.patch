@@ -1683,7 +1683,7 @@ index 7c5ba3f..fb05cbf 100644
                  "Press"
              } else if hovered {
                  "Hover"
-@@ -349,6 +378,156 @@ impl DataModel {
+@@ -349,6 +378,157 @@ impl DataModel {
          scrolled.is_some() || self.any_active(&hits)
      }
  
@@ -1823,7 +1823,8 @@ index 7c5ba3f..fb05cbf 100644
 +                    if let Some(path) = observed_button {
 +                        crate::touch_probe::activated(&path, stats.queued, stats.attempted,
 +                            stats.completed, stats.unresolved, stats.failed, stats.errors,
-+                            journal_changes);
++                            journal_changes, stats.handler_dom_changes,
++                            stats.handlers_with_changes);
 +                    }
 +                }
 +            }
@@ -2086,17 +2087,17 @@ new file mode 100644
 index 0000000..0000000
 --- /dev/null
 +++ b/crates/rook-engine/src/touch_probe.rs
-@@ -0,0 +0,29 @@
+@@ -0,0 +1,30 @@
 +//! Opt-in, touch-only evidence from the actual Rook GUI signal emission.
 +//! This is NOT a synthetic tap or a proof that a user's Luau callback ran.
 +use std::sync::{Arc, Mutex};
 +
-+type Listener = Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>;
++type Listener = Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>;
 +static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
 +
 +/// The isolated Android player process installs this listener only with
 +/// explicit one-shot consent. No other host starts diagnostics.
-+pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>>) {
++pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>>) {
 +    if let Ok(mut current) = LISTENER.lock() {
 +        *current = listener;
 +    }
@@ -2109,11 +2110,12 @@ index 0000000..0000000
 +/// Reports only *after* GUI touch handling fires the Activated event.
 +pub(crate) fn activated(path: &str, queued: u32, attempted: u32,
 +        completed: u32, unresolved: u32, failed: u32, errors: u32,
-+        journal_changes: u32) {
++        journal_changes: u32, handler_dom_changes: u32,
++        handlers_with_changes: u32) {
 +    let listener = LISTENER.lock().ok().and_then(|current| current.clone());
 +    if let Some(listener) = listener {
 +        listener(path, queued, attempted, completed, unresolved, failed,
-+            errors, journal_changes);
++            errors, journal_changes, handler_dom_changes, handlers_with_changes);
 +    }
 +}
 diff --git a/crates/rook-engine/src/bridges/input/world.rs b/crates/rook-engine/src/bridges/input/world.rs
@@ -5665,7 +5667,7 @@ index 0000000..0000000 100644
      let message = lua_error_message(e);
      let mut text = message;
      let stack = mlua_traceback(e)
-@@ -297,21 +299,47 @@
+@@ -297,21 +299,68 @@
              // Debris may outlive what it was given; destroyed is destroyed.
              let _ = crate::removal::destroy(lua, id);
          }
@@ -5674,11 +5676,13 @@ index 0000000..0000000 100644
 +            let tracked = crate::signal_probe::attempted(connection);
 +            #[cfg(not(target_os = "android"))]
 +            let _ = connection;
-+            let outcome = run_handler(lua, handler, args);
-+            #[cfg(target_os = "android")]
-+            if tracked { crate::signal_probe::finished(outcome); }
 +            #[cfg(not(target_os = "android"))]
-+            let _ = outcome;
++            let tracked = false;
++            let (outcome, dom_changes) = run_handler(lua, handler, args, tracked);
++            #[cfg(target_os = "android")]
++            if tracked { crate::signal_probe::finished(outcome, dom_changes); }
++            #[cfg(not(target_os = "android"))]
++            let _ = (outcome, dom_changes);
 +        },
 -        Job::Fire { handler, args, .. } => run_handler(lua, handler, args),
      }
@@ -5686,9 +5690,19 @@ index 0000000..0000000 100644
  
 +// Observe the first synchronous resumption only, never arbitrary future
 +// continuations or Deferred handlers.
-+fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) -> Option<bool> {
++fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>,
++        observe: bool) -> (Option<bool>, u32) {
 +    #[cfg(target_os = "android")]
 +    let errors_before = with_world(lua, |w| w.errors);
++    #[cfg(target_os = "android")]
++    let journal_before = if observe {
++        Some(with_world(lua, |w| {
++            let journal = w.dom.journal();
++            (journal.end(), journal.is_enabled())
++        }))
++    } else { None };
++    #[cfg(not(target_os = "android"))]
++    let _ = observe;
 +    let outcome = match handler {
 +        Handler::Call(f) => match spawn(lua, f, MultiValue::from_vec(args)) {
 +            Ok(thread) => Some(thread.status() == ThreadStatus::Finished),
@@ -5711,16 +5725,25 @@ index 0000000..0000000 100644
 +        },
 +    };
 +    #[cfg(target_os = "android")]
++    let dom_changes = journal_before
++        .map(|(start, enabled)| {
++            if !enabled { return 0; }
++            with_world(lua, |w| w.dom.journal().end().saturating_sub(start).min(1000) as u32)
++        })
++        .unwrap_or(0);
++    #[cfg(not(target_os = "android"))]
++    let dom_changes = 0;
++    #[cfg(target_os = "android")]
 +    if with_world(lua, |w| w.errors) > errors_before {
-+        return None;
++        return (None, dom_changes);
 -        }
 -        Handler::Resume(thread) => resume(lua, &thread, MultiValue::from_vec(args)),
      }
-+    outcome
++    (outcome, dom_changes)
  }
  
  /// Drain the deferred queue, including jobs deferred while draining.
-@@ -340,6 +368,10 @@
+@@ -340,6 +389,10 @@
              with_world(lua, |w| w.signals.disconnect(connection));
              continue;
          }
@@ -5731,17 +5754,19 @@ index 0000000..0000000 100644
          match behavior {
              SignalBehavior::Deferred => with_world(lua, |w| {
                  w.scheduler.defer(Job::Fire {
-@@ -354,7 +386,13 @@
+@@ -354,7 +407,15 @@
                      with_world(lua, |w| w.push_log(MessageType::Error, e.to_string()));
                      continue;
                  }
 +                #[cfg(target_os = "android")]
 +                let tracked = crate::signal_probe::attempted(connection);
-+                let outcome = run_handler(lua, handler, args.to_vec());
-+                #[cfg(target_os = "android")]
-+                if tracked { crate::signal_probe::finished(outcome); }
 +                #[cfg(not(target_os = "android"))]
-+                let _ = outcome;
++                let tracked = false;
++                let (outcome, dom_changes) = run_handler(lua, handler, args.to_vec(), tracked);
++                #[cfg(target_os = "android")]
++                if tracked { crate::signal_probe::finished(outcome, dom_changes); }
++                #[cfg(not(target_os = "android"))]
++                let _ = (outcome, dom_changes);
 -                run_handler(lua, handler, args.to_vec());
                  with_world(lua, |w| w.signals.leave());
              }
@@ -5776,7 +5801,7 @@ new file mode 100644
 index 0000000..0000000
 --- /dev/null
 +++ b/crates/rook-lua/src/signal_probe.rs
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,104 @@
 +//! Opt-in, single-touch GUI Luau handler dispatch diagnostics on Android.
 +//! No source collection, no hook injection, and no claim of script completion.
 +use std::{cell::RefCell, collections::HashSet};
@@ -5790,6 +5815,10 @@ index 0000000..0000000
 +    pub completed: u32,
 +    pub unresolved: u32,
 +    pub failed: u32,
++    /// DOM mutations observed while resuming tracked Luau handlers.
++    /// May include nested work; never treated as proof of causation.
++    pub handler_dom_changes: u32,
++    pub handlers_with_changes: u32,
 +}
 +
 +#[derive(Default)]
@@ -5851,7 +5880,7 @@ index 0000000..0000000
 +}
 +
 +/// First synchronous resumption: completed / unresolved / failed.
-+pub(crate) fn finished(outcome: Option<bool>) {
++pub(crate) fn finished(outcome: Option<bool>, dom_changes: u32) {
 +    ACTIVE.with(|a| {
 +        if let Some(c) = a.borrow_mut().as_mut() {
 +            let item = match outcome {
@@ -5860,6 +5889,12 @@ index 0000000..0000000
 +                None => &mut c.stats.failed,
 +            };
 +            *item = item.saturating_add(1);
++            c.stats.handler_dom_changes = c.stats.handler_dom_changes
++                .saturating_add(dom_changes).min(1000);
++            if dom_changes > 0 {
++                c.stats.handlers_with_changes =
++                    c.stats.handlers_with_changes.saturating_add(1);
++            }
 +        }
 +    });
 +}
