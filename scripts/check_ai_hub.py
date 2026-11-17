@@ -908,6 +908,40 @@ assert 'includeProject.isChecked() &&\n                shareModelAudit != null' 
 assert 'auditInsertedModel.setOnClickListener(v -> startInsertedModelAudit());' in java
 assert java.count('auditInsertedModel.setOnClickListener(') == 1
 
+# Dependencies are inspected locally from the bounded code already read by
+# the Model audit; external assets are identified, never fetched or executed.
+for required in [
+    'private static final class ScriptDependencies',
+    'private static ScriptDependencies scanScriptDependencies(String source)',
+    'private static String localModulePath(String scriptPath, String expression,',
+    'code = source.length() > 24000 ? source.substring(0, 24000) : source',
+    'if (++count > 40)',
+    'if (target.size() >= 12)',
+    'externalAssets.add',
+]:
+    # The add is performed through a bounded helper, not through direct add.
+    if required == 'externalAssets.add':
+        required = 'addBoundedDependency(result.externalAssets, expr, result);'
+    assert required in java, required
+for required in [
+    'ScriptDependencies deps = scanScriptDependencies(source.toString());',
+    'String module = localModulePath(entry.getKey(), expression, target);',
+    '"ModuleScript".equals(nodes.get(module))',
+    'resolvedModules++;',
+    'unknownModules++;',
+    'dynamicRequires += deps.dynamicRequires;',
+    'boolean dependencyCoverageComplete = unknownModules == 0',
+    'FONTES LOCAIS LIDAS, MAS DEPENDÊNCIAS SEM VERIFICAÇÃO',
+    'INCOMPLETO. Não é possível aprovar a segurança do modelo.',
+    'Nenhum asset importado, nenhum Luau executado e nenhum código enviado à IA.',
+]:
+    assert required in java, required
+deps = java[java.index('private static final class ScriptDependencies'):
+            java.index('private static final class ToolboxXmlItem')]
+for forbidden in ['callMcp(', 'readOnlyMcp(', 'requestModelWithFreeFallback(',
+                  'StudioServices.credential(', 'executeApproved3dCode(']:
+    assert forbidden not in deps, forbidden
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
