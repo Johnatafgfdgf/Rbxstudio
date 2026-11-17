@@ -230,9 +230,10 @@ public final class StudioAiHub extends Activity {
         "\"instruction\":\"Criar plataforma inicial em Workspace\"}," +
         "{\"kind\":\"GUI\",\"title\":\"Criar painel\"," +
         "\"instruction\":\"Criar painel informativo de início\"}]}. " +
-        "São de 2 a 5 etapas. kind só pode ser SCRIPT, PART, GUI ou ITEM. " +
+        "São de 2 a 5 etapas. kind só pode ser SCRIPT, PART, GUI, ITEM ou LIGHTING. " +
         "SCRIPT exige autorização de scripts; PART exige peças; GUI exige painéis " +
-        "ou etiquetas; ITEM exige autorização de kit. Não inclua publicação, " +
+        "ou etiquetas; ITEM exige autorização de kit; LIGHTING exige permissão de " +
+        "ambiente. Não inclua publicação, " +
         "Toolbox, exclusões, execução remota nem testes que o editor não pode confirmar. " +
         "O plano é uma PROPOSTA. Após aprovação, cada etapa é enviada ao modelo " +
         "individualmente e só avança depois de uma escrita real confirmada pelo MCP; " +
@@ -2530,6 +2531,7 @@ public final class StudioAiHub extends Activity {
         if ("GUI".equals(kind)) return "propose_billboard_create".equals(action) ||
                 "propose_screen_gui_create".equals(action);
         if ("ITEM".equals(kind)) return "propose_receive_tool_create".equals(action);
+        if ("LIGHTING".equals(kind)) return "propose_lighting_update".equals(action);
         return false;
     }
 
@@ -2537,7 +2539,7 @@ public final class StudioAiHub extends Activity {
     private AgentOutcome runReadOnlyAgent(int p, String key, ModelRoute route,
             List<String[]> turns, long epoch, boolean codeConsent,
             boolean allowProposals, boolean allowParts, boolean allowLabels,
-            boolean allowScreens, boolean allowKits,
+            boolean allowScreens, boolean allowKits, boolean allowLighting,
             boolean executingPlanStep, String plannedKind) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
@@ -2547,6 +2549,8 @@ public final class StudioAiHub extends Activity {
                 (allowProposals ? EDIT_PROTOCOL + CREATE_PROTOCOL : "\nNão proponha editar, criar ou substituir scripts.") +
                 (allowParts ? PART_PROTOCOL + PART_UPDATE_PROTOCOL + COMPOSITE_PROTOCOL :
                         "\nNão proponha criar ou modificar peças 3D.") +
+                (allowLighting ? LIGHTING_PROTOCOL :
+                        "\nNão proponha alterações do ambiente Lighting.") +
                 (allowLabels ? BILLBOARD_PROTOCOL :
                         "\nNão proponha etiquetas 3D.") +
                 (allowScreens ? SCREEN_GUI_PROTOCOL :
@@ -2598,7 +2602,7 @@ public final class StudioAiHub extends Activity {
                 if (executingPlanStep)
                     throw new IOException("A etapa atual não pode criar outro plano");
                 TaskPlan plan = validateTaskPlan(decision, reads, allowProposals,
-                        allowParts, allowLabels, allowScreens, allowKits);
+                        allowParts, allowLabels, allowScreens, allowKits, allowLighting);
                 return AgentOutcome.planned("Plano de " + plan.steps.size() +
                         " etapas baseado em " + reads + " leitura(s) MCP. " +
                         "Nenhum objeto foi alterado. Revise e aprove o plano.",
@@ -2626,6 +2630,15 @@ public final class StudioAiHub extends Activity {
                 return new AgentOutcome("Script novo proposto para revisão. " +
                         "Nenhum arquivo foi criado. Caminho: " + proposal.path +
                         " (" + proposal.className + ")\nMotivo: " + proposal.reason, proposal);
+            }
+            if ("propose_lighting_update".equals(action)) {
+                if (!allowLighting || !"Lighting".equals(lastInspectedPath))
+                    throw new IOException("Lighting sem autorização ou inspeção MCP real");
+                LightingProposal lighting = validateLightingProposal(
+                        decision, lastInspectedPath, lastInspectedOutput);
+                return AgentOutcome.forLighting(
+                        "Alteração global de Lighting proposta para aprovação. " +
+                        "Nenhum valor ainda foi modificado.", lighting);
             }
             if ("propose_part_create".equals(action)) {
                 if (!allowParts || !"Workspace".equals(lastSearchedParent)) {
