@@ -122,7 +122,7 @@ public final class TouchContract {
                 true, 2, 2, 0, 1, "Players.PlayerGui.Inventory.Open");
         yes(guiSignal.contains("SINAL REAL GuiButton.Activated"));
         yes(guiSignal.contains("Players.PlayerGui.Inventory.Open"));
-        yes(guiSignal.contains("não comprova que um callback Luau rodou"));
+        yes(guiSignal.contains("não comprovam conclusão do callback Luau"));
         yes(formatTouchEvidence(true, 0, 0, 0, false,
                 true, 2, 2, 0, 1, "").contains("inconsistente"));
         yes(formatTouchEvidence(true, 0, 0, 0, false,
