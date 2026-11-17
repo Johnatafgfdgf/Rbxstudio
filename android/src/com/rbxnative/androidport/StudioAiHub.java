@@ -1460,7 +1460,7 @@ public final class StudioAiHub extends Activity {
                 "EquipTool, se solicitado, altera apenas a sessão Play local e pode " +
                 "executar scripts existentes da Tool; ativação pela API pode disparar " +
                 "lógica do jogo, mas NÃO prova toque real nem clique em GUI. " +
-                "Não testa colisões, scripts individuais, câmera, "
+                "Não testa colisões, scripts individuais, câmera, " +
                 "renderização nem qualidade visual. Logs podem incluir mensagens " +
                 "anteriores. Nenhum código da IA, publicação ou envio à API de IA.");
         return report.toString();
