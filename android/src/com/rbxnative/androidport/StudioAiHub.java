@@ -815,6 +815,28 @@ public final class StudioAiHub extends Activity {
                 "o editor também pode exigir aprovação MCP.", 12, false);
         agentNotice.setTextColor(Color.rgb(222, 194, 142));
         add(root, agentNotice, 10);
+        add(root, text("Plano guiado por etapas", 14, true), 4);
+        planProgress = text("", 12, false);
+        planProgress.setPadding(dp(11), dp(10), dp(11), dp(10));
+        planProgress.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        planProgress.setVisibility(View.GONE);
+        add(root, planProgress, 5);
+        nextPlanStep = button("Executar próxima etapa • usa API");
+        nextPlanStep.setVisibility(View.GONE);
+        nextPlanStep.setOnClickListener(v -> executeNextPlanStep());
+        add(root, nextPlanStep, 4);
+        togglePlan = button("Pausar plano");
+        togglePlan.setVisibility(View.GONE);
+        togglePlan.setOnClickListener(v -> {
+            if (busy || planStepOutstanding) return;
+            planPaused = !planPaused;
+            renderPlanState();
+        });
+        add(root, togglePlan, 4);
+        cancelPlan = button("Cancelar plano");
+        cancelPlan.setVisibility(View.GONE);
+        cancelPlan.setOnClickListener(v -> clearActivePlan());
+        add(root, cancelPlan, 8);
 
         conversation = text("O histórico desta conversa permanece somente nesta sessão. O chat não altera scripts sem aprovação.", 13, false);
         conversation.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -844,7 +866,8 @@ public final class StudioAiHub extends Activity {
         applyEdit = button("Revisar e confirmar alteração Luau");
         applyEdit.setVisibility(View.GONE);
         applyEdit.setOnClickListener(v -> {
-            if (pendingKit != null) confirmPendingReceiveTool();
+            if (pendingTaskPlan != null) approvePendingTaskPlan();
+            else if (pendingKit != null) confirmPendingReceiveTool();
             else if (pendingScreen != null) confirmPendingScreen();
             else if (pendingBillboard != null) confirmPendingBillboard();
             else if (pendingComposite != null) confirmPendingComposite();
@@ -863,7 +886,10 @@ public final class StudioAiHub extends Activity {
             pendingBillboard = null;
             pendingScreen = null;
             pendingKit = null;
+            pendingTaskPlan = null;
+            planStepOutstanding = false;
             renderPendingEdit();
+            renderPlanState();
             status.setText("Proposta descartada. Nenhum script foi alterado.");
         });
         add(root, discardEdit, 12);
@@ -889,7 +915,12 @@ public final class StudioAiHub extends Activity {
                 pendingEdit = null; pendingPart = null;
                 pendingPartChange = null; pendingComposite = null;
                 pendingBillboard = null; pendingScreen = null;
-                pendingKit = null; renderPendingEdit();
+                pendingKit = null;
+                pendingTaskPlan = null;
+                planStepOutstanding = false;
+                activeTaskPlan = null;
+                renderPendingEdit();
+                renderPlanState();
             }
         });
         proposeParts.setOnCheckedChangeListener((v, checked) -> {
@@ -927,7 +958,11 @@ public final class StudioAiHub extends Activity {
                 pendingBillboard = null;
                 pendingScreen = null;
                 pendingKit = null;
+                pendingTaskPlan = null;
+                activeTaskPlan = null;
+                planStepOutstanding = false;
                 renderPendingEdit();
+                renderPlanState();
                 models.clear();
                 discoveredModels.clear();
                 visibleModels.clear();
@@ -966,6 +1001,7 @@ public final class StudioAiHub extends Activity {
         if (autoFallback != null) autoFallback.setEnabled(!waiting);
         if (backupPicker != null) backupPicker.setEnabled(!waiting);
         if (modelPicker != null) modelPicker.setEnabled(!waiting);
+        renderPlanState();
         if (rememberVerified != null) rememberVerified.setEnabled(!waiting &&
                 project != null && !project.trim().isEmpty() &&
                 project.length() <= MAX_PROJECT_NAME);
@@ -3308,11 +3344,27 @@ public final class StudioAiHub extends Activity {
         if (proposalPreview == null) return;
         boolean visible = pendingEdit != null || pendingPart != null ||
                 pendingPartChange != null || pendingComposite != null ||
-                pendingBillboard != null || pendingScreen != null || pendingKit != null;
+                pendingBillboard != null || pendingScreen != null || pendingKit != null ||
+                pendingTaskPlan != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
+        if (pendingTaskPlan != null) {
+            applyEdit.setText("Revisar e aprovar PLANO");
+            StringBuilder text = new StringBuilder("PLANO • nenhuma escrita executada\\n")
+                    .append(pendingTaskPlan.goal);
+            for (int i = 0; i < pendingTaskPlan.steps.size(); i++) {
+                PlanStep step = pendingTaskPlan.steps.get(i);
+                text.append("\\n\\n").append(i + 1).append(". ")
+                        .append(step.title).append(" (").append(step.kind).append(")")
+                        .append("\\n").append(step.instruction);
+            }
+            text.append("\\n\\nAprovar não cria objetos. Cada etapa requer " +
+                    "inspeção, prévia, autorização individual e verificação.");
+            proposalPreview.setText(text.toString());
+            return;
+        }
         if (pendingKit != null) {
             ReceiveToolProposal kit = pendingKit;
             applyEdit.setText("Revisar e confirmar RECEBER ITEM");
@@ -3429,6 +3481,139 @@ public final class StudioAiHub extends Activity {
                 "\n\nANTES:\n" + (edit.create ? "(arquivo ainda inexistente)" : edit.oldText) +
                 "\n\nDEPOIS:\n" + edit.newText +
                 "\n\nA criação e a substituição passam pelo MCP. O editor mantém o histórico de desfazer.");
+    }
+
+
+    /** A plan is an ordered guide, never a blanket authorization to mutate a map. */
+    private void renderPlanState() {
+        if (planProgress == null || nextPlanStep == null) return;
+        TaskPlan plan = activeTaskPlan;
+        boolean visible = plan != null;
+        planProgress.setVisibility(visible ? View.VISIBLE : View.GONE);
+        nextPlanStep.setVisibility(visible ? View.VISIBLE : View.GONE);
+        togglePlan.setVisibility(visible ? View.VISIBLE : View.GONE);
+        cancelPlan.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) return;
+        StringBuilder details = new StringBuilder("PLANO APROVADO • ")
+                .append(plan.completed).append("/").append(plan.steps.size())
+                .append(" etapa(s) confirmada(s) pelo MCP\\n").append(plan.goal);
+        for (int i = 0; i < plan.steps.size(); i++) {
+            PlanStep step = plan.steps.get(i);
+            details.append("\\n").append(i < plan.completed ? "✓ " :
+                    i == plan.completed ? "○ " : "· ")
+                    .append(i + 1).append(". ").append(step.title)
+                    .append(" (").append(step.kind).append(")");
+        }
+        if (plan.completed == plan.steps.size())
+            details.append("\\nTodas as gravações previstas foram confirmadas no Explorer. " +
+                    "Teste comportamento e Undo separadamente.");
+        else if (planStepOutstanding)
+            details.append("\\nEtapa solicitada. Aguarde a proposta e a confirmação de escrita; " +
+                    "nenhum avanço é automático.");
+        else if (planPaused) details.append("\\nPlano pausado nesta sessão.");
+        else details.append("\\nPróxima etapa sob demanda; nova leitura MCP obrigatória.");
+        planProgress.setText(details.toString());
+        nextPlanStep.setEnabled(!busy && !planPaused && !planStepOutstanding &&
+                plan.completed < plan.steps.size() &&
+                includeProject != null && includeProject.isChecked() &&
+                autoInspect != null && autoInspect.isChecked());
+        togglePlan.setEnabled(!busy && !planStepOutstanding);
+        togglePlan.setText(planPaused ? "Retomar plano" : "Pausar plano");
+        cancelPlan.setEnabled(!busy);
+    }
+
+    private void approvePendingTaskPlan() {
+        final TaskPlan proposed = pendingTaskPlan;
+        if (proposed == null || busy) return;
+        if (!autoInspect.isChecked() || !includeProject.isChecked()) {
+            status.setText("Ative agente e autorização do Explorer antes de aprovar um plano.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Aprovar plano de " + proposed.steps.size() + " etapas?")
+                .setMessage("A aprovação NÃO executa nenhuma etapa. Cada operação " +
+                        "requer uma nova inspeção do mapa e autorização individual. " +
+                        "Sem publicação nem acesso irrestrito ao editor.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Aprovar planejamento", (dialog, which) -> {
+                    activeTaskPlan = proposed;
+                    activeTaskPlan.completed = 0;
+                    pendingTaskPlan = null;
+                    planPaused = false;
+                    planStepOutstanding = false;
+                    renderPendingEdit();
+                    renderPlanState();
+                    status.setText("Plano aprovado. Use Próxima etapa quando desejar.");
+                }).show();
+    }
+
+    private void executeNextPlanStep() {
+        if (busy || planPaused || planStepOutstanding || applyingEdit) return;
+        TaskPlan plan = activeTaskPlan;
+        if (plan == null || plan.completed >= plan.steps.size()) return;
+        if (!autoInspect.isChecked() || !includeProject.isChecked() ||
+                mcpPairing.isEmpty()) {
+            status.setText("Ative o MCP, o agente e a autorização do Explorer.");
+            return;
+        }
+        if (!prompt.getText().toString().trim().isEmpty()) {
+            status.setText("Envie ou limpe a mensagem atual antes da próxima etapa.");
+            return;
+        }
+        String model = selectedModelId();
+        if (!models.contains(model)) {
+            status.setText("Escolha um modelo de API conectado primeiro.");
+            return;
+        }
+        try {
+            if (readKey(provider) == null) {
+                status.setText("Sem credencial de API salva.");
+                return;
+            }
+        } catch (Exception error) {
+            status.setText("Não foi possível validar a chave da API.");
+            return;
+        }
+        PlanStep step = plan.steps.get(plan.completed);
+        boolean allowed = ("SCRIPT".equals(step.kind) &&
+                    includeCode.isChecked() && proposeEdits.isChecked()) ||
+                ("PART".equals(step.kind) && proposeParts.isChecked()) ||
+                ("GUI".equals(step.kind) &&
+                    (proposeScreens.isChecked() || proposeLabels.isChecked())) ||
+                ("ITEM".equals(step.kind) &&
+                    includeCode.isChecked() && proposeKits.isChecked());
+        if (!allowed) {
+            status.setText("Ative as permissões específicas da etapa " +
+                    (plan.completed + 1) + " antes de continuar.");
+            return;
+        }
+        planStepOutstanding = true;
+        renderPlanState();
+        prompt.setText("PLANO AUTORIZADO: " + plan.goal +
+                "\\nETAPA " + (plan.completed + 1) + "/" + plan.steps.size() +
+                " (" + step.kind + "): " + step.title + ". " + step.instruction +
+                "\\nFaça uma leitura MCP real ATUAL e gere somente UMA proposta do tipo " +
+                step.kind + ". Não execute escrita, não crie outro plano, não " +
+                "ignore permissões. Se não for possível, explique e pare.");
+        sendMessage();
+    }
+
+    private void clearActivePlan() {
+        if (busy || applyingEdit) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Cancelar o plano?")
+                .setMessage("Descarta etapas futuras nesta sessão. Não desfaz objetos " +
+                        "já criados ou alterados. Use Desfazer no editor se necessário.")
+                .setNegativeButton("Voltar", null)
+                .setPositiveButton("Descartar plano", (dialog, which) -> {
+                    activeTaskPlan = null;
+                    pendingTaskPlan = null;
+                    planStepOutstanding = false;
+                    planPaused = false;
+                    renderPendingEdit();
+                    renderPlanState();
+                    status.setText("Plano descartado; o mapa não foi modificado.");
+                }).show();
     }
 
     private void confirmPendingEdit() {
