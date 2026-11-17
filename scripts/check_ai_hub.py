@@ -11,6 +11,7 @@ java = (ROOT / "android/src/com/rbxnative/androidport/StudioAiHub.java").read_te
 manifest = (ROOT / "android/StudioManifest.xml").read_text()
 native_patch = (ROOT / "patches/rbx-native--android-port.patch").read_text()
 gpui_patch = (ROOT / "patches/gpui-mobile--android-port.patch").read_text()
+engine_kit = (ROOT / "core/tests/ai_receive_tool.rs").read_text()
 
 assert 'android:name="com.rbxnative.androidport.StudioAiHub" android:exported="false"' in manifest
 for provider, endpoint in [
@@ -597,6 +598,25 @@ for required in [
     assert required in java, required
 assert java.index('if not clientOk then error(') < java.index('remote.Parent=rs')
 assert java.index('remote.Parent=rs') < java.index('serverScript.Parent=server')
+
+
+# The engine regression must cover real source persistence, client/server
+# RemoteEvents, Backpack duplicate checks and actual Android-style touch.
+for required in [
+    'ai_receive_tool_edit_luau_creates_source_and_tool_instances',
+    'ai_receive_tool_play_delivers_once_to_backpack',
+    'ai_receive_tool_mobile_tap_activated_invokes_local_script_and_server',
+    'use rook_engine::{InputEvent, TouchPhase};',
+    'TouchPhase::Begin',
+    'TouchPhase::End',
+    'play.viewport(960, 480)',
+    'r:FireServer()',
+    "script.Parent.Activated:Connect(function()",
+    "RemoteEvent",
+    "Tool",
+    'GrantCount',
+]:
+    assert required in engine_kit, required
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
