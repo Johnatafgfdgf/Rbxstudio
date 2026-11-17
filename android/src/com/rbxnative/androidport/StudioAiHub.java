@@ -2053,9 +2053,16 @@ public final class StudioAiHub extends Activity {
                 closeButton, buttonLabel);
     }
 
-    /** App-owned, fixed, responsive informational GUI; no scripts or buttons. */
+    /** Fixed close-panel behavior owned by this app, never authored by an AI. */
+    private static final String CLOSE_PANEL_SCRIPT =
+            "local button = script.Parent; " +
+            "button.Activated:Connect(function() " +
+            "local panel = button:FindFirstAncestorOfClass('ScreenGui'); " +
+            "if panel then panel.Enabled = false end end)";
+
+    /** Fixed responsive GUI, with optional reviewed close-only interaction. */
     private static String fixedScreenGuiLuau(ScreenGuiProposal gui) {
-        int panelHeight = 92 + gui.lines.size() * 46;
+        int panelHeight = 92 + gui.lines.size() * 46 + (gui.closeButton ? 54 : 0);
         String anchor = "center".equals(gui.position) ? "0.5, 0.5" :
                 "top".equals(gui.position) ? "0.5, 0" : "0.5, 1";
         String panelPosition = "center".equals(gui.position) ? "0.5, 0, 0.5, 0" :
@@ -2138,6 +2145,37 @@ public final class StudioAiHub extends Activity {
                     .append("limit.MinTextSize = 10\nlimit.MaxTextSize = 18\n")
                     .append("limit.Parent = line\nline.Parent = panel\nend\n");
         }
+        if (gui.closeButton) {
+            code.append("local close = Instance.new(\"TextButton\")\n")
+                    .append("close.Name = \"ClosePanel\"\n")
+                    .append("close.LayoutOrder = ").append(gui.lines.size() + 2).append("\n")
+                    .append("close.Size = UDim2.new(1, 0, 0, 42)\n")
+                    .append("close.BackgroundColor3 = Color3.fromRGB(")
+                    .append(gui.accent[0]).append(", ").append(gui.accent[1])
+                    .append(", ").append(gui.accent[2]).append(")\n")
+                    .append("close.BorderSizePixel = 0\n")
+                    .append("close.AutoButtonColor = true\n")
+                    .append("close.Active = true\n")
+                    .append("close.TextColor3 = Color3.fromRGB(14, 23, 38)\n")
+                    .append("close.TextScaled = true\n")
+                    .append("close.RichText = false\n")
+                    .append("close.Font = Enum.Font.GothamBold\n")
+                    .append("close.Text = ").append(luauTextLiteral(gui.buttonLabel)).append("\n")
+                    .append("local closeCorner = Instance.new(\"UICorner\")\n")
+                    .append("closeCorner.CornerRadius = UDim.new(0, 10)\n")
+                    .append("closeCorner.Parent = close\n")
+                    .append("local buttonTextLimit = Instance.new(\"UITextSizeConstraint\")\n")
+                    .append("buttonTextLimit.MinTextSize = 11\n")
+                    .append("buttonTextLimit.MaxTextSize = 20\n")
+                    .append("buttonTextLimit.Parent = close\n")
+                    .append("local closeLogic = Instance.new(\"LocalScript\")\n")
+                    .append("closeLogic.Name = \"ClosePanelClient\"\n")
+                    .append("local sourceOk = pcall(function() closeLogic.Source = ")
+                    .append(luauTextLiteral(CLOSE_PANEL_SCRIPT)).append(" end)\n")
+                    .append("if not sourceOk then error(\"CLOSE_SCRIPT_SOURCE_DENIED\") end\n")
+                    .append("closeLogic.Parent = close\n")
+                    .append("close.Parent = panel\n");
+        }
         code.append("panel.Parent = screen\n")
                 .append("screen.Parent = service\n")
                 .append("return \"CREATED_SCREEN_GUI:").append(gui.name).append("\"");
@@ -2156,9 +2194,12 @@ public final class StudioAiHub extends Activity {
                 .setTitle("Criar este painel ScreenGui?")
                 .setMessage("StarterGui." + gui.name + "\nTítulo: " + gui.title +
                         "\nLinhas: " + gui.lines.size() +
-                        "\n\nO painel informativo adapta sua largura à tela. " +
-                        "Não cria scripts, botões ou eventos. " +
-                        "O editor poderá exigir aprovação MCP adicional.")
+                        "\nBotão: " + (gui.closeButton
+                                ? gui.buttonLabel + " (fecha o painel com LocalScript fixo)"
+                                : "nenhum") +
+                        "\n\nO painel adapta sua largura à tela. Se houver botão, " +
+                        "será instalado apenas o script de fechamento do aplicativo, " +
+                        "nunca código da IA. O editor poderá exigir autorização MCP.")
                 .setNegativeButton("Revisar", null)
                 .setPositiveButton("Sim, criar painel",
                         (dialog, which) -> applyApprovedScreen(gui))
@@ -2396,11 +2437,17 @@ public final class StudioAiHub extends Activity {
                     .append("Destino: StarterGui.").append(gui.name)
                     .append("\nTítulo: ").append(gui.title)
                     .append("\nPosição: ").append(gui.position)
-                    .append("\nCor de destaque RGB: ").append(Arrays.toString(gui.accent));
+                    .append("\nCor de destaque RGB: ").append(Arrays.toString(gui.accent))
+                    .append("\nBotão: ").append(gui.closeButton
+                            ? gui.buttonLabel + " (fechar painel)" : "nenhum");
             for (String line : gui.lines) preview.append("\n• ").append(line);
             preview.append("\nMotivo: ").append(gui.reason)
-                    .append("\n\nInterface apenas informativa, adaptada à largura do celular. " +
-                            "Sem scripts, botões ou eventos. Exige confirmação.");
+                    .append("\n\nPainel adaptado ao celular. " +
+                            (gui.closeButton
+                                    ? "Apenas o botão Fechar possui um LocalScript fixo " +
+                                      "para ocultar o painel; nenhum outro código é executado."
+                                    : "Sem botões, scripts ou eventos.") +
+                            " Exige sua confirmação.");
             proposalPreview.setText(preview.toString());
             return;
         }
