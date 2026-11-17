@@ -783,21 +783,21 @@ public final class StudioAiHub extends Activity {
         includeCode.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
                 pendingEdit = null;
-                history.clear(); // Revoking code consent also drops cached provider context.
+                revokeSharedContext(); // Also cancels active model reads.
                 conversation.setText("Permissão de código revogada; histórico da sessão limpo.");
                 renderPendingEdit();
             }
         });
         includeMemory.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
-                history.clear(); // Do not resend previously approved memory via old turns.
+                revokeSharedContext(); // Do not resend approved memory from old turns.
                 conversation.setText("Memória não será enviada à IA nesta sessão.");
             }
         });
         includeProject.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
                 includeMemory.setChecked(false);
-                history.clear(); // Project contents must not remain in stale provider turns.
+                revokeSharedContext(); // Project data must not remain in stale turns.
                 conversation.setText("Contexto do projeto revogado; histórico da sessão limpo.");
                 pendingEdit = null; pendingPart = null;
                 pendingPartChange = null; pendingComposite = null;
@@ -988,16 +988,20 @@ public final class StudioAiHub extends Activity {
                 ? "Leitura MCP confirmou " + kind + " em " + path
                 : "Gravação MCP inconclusiva para " + kind + " em " + path +
                     "; NÃO repetir sem inspecionar o Explorer.";
-        String toolReceipt = "[Resultado real do editor] " + evidence;
-        if (!history.isEmpty() &&
-                "assistant".equals(history.get(history.size() - 1)[0])) {
-            String[] previous = history.get(history.size() - 1);
-            previous[1] = previous[1] + "\n\n" + toolReceipt;
-        } else {
-            history.add(new String[]{"assistant", toolReceipt});
+        // Consent may have been withdrawn while a previously approved edit ran.
+        // Do not repopulate context after the user has revoked Explorer sharing.
+        if (includeProject != null && includeProject.isChecked()) {
+            String toolReceipt = "[Resultado real do editor] " + evidence;
+            if (!history.isEmpty() &&
+                    "assistant".equals(history.get(history.size() - 1)[0])) {
+                String[] previous = history.get(history.size() - 1);
+                previous[1] = previous[1] + "\n\n" + toolReceipt;
+            } else {
+                history.add(new String[]{"assistant", toolReceipt});
+            }
+            // Preserve alternating user/assistant turns required by Gemini/Claude.
+            while (history.size() > MAX_HISTORY) history.remove(0);
         }
-        // Preserve alternating user/assistant turns required by Gemini/Claude.
-        while (history.size() > MAX_HISTORY) history.remove(0);
         if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;
         try {
             if (!kind.matches("[A-Z_]{3,32}") ||
@@ -1039,6 +1043,16 @@ public final class StudioAiHub extends Activity {
                         status.setText("Não foi possível apagar a memória local.");
                     }
                 }).show();
+    }
+
+    /** A consent withdrawal cancels future agent steps and drops old turns. */
+    private void revokeSharedContext() {
+        if (busy && !applyingEdit) {
+            requestEpoch++;
+            abortInFlight();
+            setBusy(false, "Permissão revogada. A API pode ter recebido a chamada anterior.");
+        }
+        history.clear();
     }
 
     private void readStatus() {
