@@ -103,8 +103,12 @@ public final class RookPlayerActivity extends NativeActivity {
             case "touch-gui-enabled":
                 return StudioTouchDiagnostics.guiConsent(this, touchProbeId) ? "1" : "0";
             case "native-gui-activated":
-                if (ready && touchProbeId != null)
-                    StudioTouchDiagnostics.noteGuiActivation(this, touchProbeId, value);
+                if (ready && touchProbeId != null && value != null && value.length() <= 768) {
+                    JSONObject activation = new JSONObject(value);
+                    StudioTouchDiagnostics.noteGuiActivation(this, touchProbeId,
+                            activation.getString("path"), activation.getInt("queued"),
+                            activation.getInt("attempted"), activation.getInt("errors"));
+                }
                 return "";
             case "native-touch-counts": {
                 if (touchProbeId == null || !ready || value == null || value.length() > 96)

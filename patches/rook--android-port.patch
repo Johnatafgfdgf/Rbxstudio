@@ -1683,7 +1683,7 @@ index 7c5ba3f..fb05cbf 100644
                  "Press"
              } else if hovered {
                  "Hover"
-@@ -349,6 +378,134 @@ impl DataModel {
+@@ -349,6 +378,144 @@ impl DataModel {
          scrolled.is_some() || self.any_active(&hits)
      }
  
@@ -1798,10 +1798,20 @@ index 7c5ba3f..fb05cbf 100644
 +                        format!("{}", self.runtime.world().dom.full_name(button))
 +                            .chars().take(240).collect::<String>()
 +                    });
++                    #[cfg(target_os = "android")]
++                    let stats = if observed_button.is_some() {
++                        rook_lua::signal_probe::capture(|| {
++                            self.fire(button, "Activated", (object, count));
++                        }).1
++                    } else {
++                        self.fire(button, "Activated", (object, count));
++                        Default::default()
++                    };
++                    #[cfg(not(target_os = "android"))]
 +                    self.fire(button, "Activated", (object, count));
 +                    #[cfg(target_os = "android")]
 +                    if let Some(path) = observed_button {
-+                        crate::touch_probe::activated(&path);
++                        crate::touch_probe::activated(&path, stats.queued, stats.attempted, stats.errors);
 +                    }
 +                }
 +            }
@@ -2069,12 +2079,12 @@ index 0000000..0000000
 +//! This is NOT a synthetic tap or a proof that a user's Luau callback ran.
 +use std::sync::{Arc, Mutex};
 +
-+type Listener = Arc<dyn Fn(&str) + Send + Sync + 'static>;
++type Listener = Arc<dyn Fn(&str, u32, u32, u32) + Send + Sync + 'static>;
 +static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
 +
 +/// The isolated Android player process installs this listener only with
 +/// explicit one-shot consent. No other host starts diagnostics.
-+pub fn install(listener: Option<Arc<dyn Fn(&str) + Send + Sync + 'static>>) {
++pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32) + Send + Sync + 'static>>) {
 +    if let Ok(mut current) = LISTENER.lock() {
 +        *current = listener;
 +    }
@@ -2085,10 +2095,10 @@ index 0000000..0000000
 +}
 +
 +/// Reports only *after* GUI touch handling fires the Activated event.
-+pub(crate) fn activated(path: &str) {
++pub(crate) fn activated(path: &str, queued: u32, attempted: u32, errors: u32) {
 +    let listener = LISTENER.lock().ok().and_then(|current| current.clone());
 +    if let Some(listener) = listener {
-+        listener(path);
++        listener(path, queued, attempted, errors);
 +    }
 +}
 diff --git a/crates/rook-engine/src/bridges/input/world.rs b/crates/rook-engine/src/bridges/input/world.rs
@@ -5394,7 +5404,9 @@ diff --git a/crates/rook-lua/src/lib.rs b/crates/rook-lua/src/lib.rs
 index ab5fa2b..d3be8a2 100644
 --- a/crates/rook-lua/src/lib.rs
 +++ b/crates/rook-lua/src/lib.rs
-@@ -22,7 +22,8 @@ mod world;
+@@ -22,7 +22,10 @@ mod world;
++#[cfg(target_os = "android")]
++pub mod signal_probe;
  use threads::watchdog;
  
  pub use api::methods::assets::AssetFill;
@@ -5404,7 +5416,7 @@ index ab5fa2b..d3be8a2 100644
  pub use api::methods::characters::movement::drives as humanoid_drives;
  pub use api::methods::characters::ownership::authority;
  pub use api::methods::characters::{
-@@ -48,6 +49,11 @@ use mlua::{IntoLuaMulti, Lua};
+@@ -48,6 +51,11 @@ use mlua::{IntoLuaMulti, Lua};
  use rook_dom::{Dom, InstanceId};
  use rook_types::{UserInputState, UserInputType};
  
@@ -5416,7 +5428,7 @@ index ab5fa2b..d3be8a2 100644
  /// Create an `InputObject` describing one input (an `Enum.KeyCode` value;
  /// position and delta in pixels). Used by the engine when firing input events and by
  /// UserInputService queries.
-@@ -456,12 +462,120 @@ impl Runtime {
+@@ -456,12 +464,120 @@ impl Runtime {
          std::mem::take(&mut self.world_mut().tool_moves)
      }
  
@@ -5625,6 +5637,54 @@ index 5c87ba0..e8f398b 100644
                      _ => {}
                  }
              }
+diff --git a/crates/rook-lua/src/threads.rs b/crates/rook-lua/src/threads.rs
+index 0000000..0000000 100644
+--- a/crates/rook-lua/src/threads.rs
++++ b/crates/rook-lua/src/threads.rs
+@@ -91,6 +91,8 @@
+ /// Stack End
+ /// ```
+ pub(crate) fn report_error(lua: &Lua, thread: &Thread, e: &mlua::Error) {
++    #[cfg(target_os = "android")]
++    crate::signal_probe::error();
+     let message = lua_error_message(e);
+     let mut text = message;
+     let stack = mlua_traceback(e)
+@@ -297,7 +299,13 @@
+             // Debris may outlive what it was given; destroyed is destroyed.
+             let _ = crate::removal::destroy(lua, id);
+         }
++        Job::Fire { connection, handler, args } => {
++            #[cfg(target_os = "android")]
++            crate::signal_probe::attempted(connection);
++            #[cfg(not(target_os = "android"))]
++            let _ = connection;
++            run_handler(lua, handler, args);
++        },
+-        Job::Fire { handler, args, .. } => run_handler(lua, handler, args),
+     }
+ }
+ 
+@@ -340,6 +348,10 @@
+             with_world(lua, |w| w.signals.disconnect(connection));
+             continue;
+         }
++        #[cfg(target_os = "android")]
++        if crate::signal_probe::observes(key) {
++            crate::signal_probe::queued(connection);
++        }
+         match behavior {
+             SignalBehavior::Deferred => with_world(lua, |w| {
+                 w.scheduler.defer(Job::Fire {
+@@ -354,6 +366,8 @@
+                     with_world(lua, |w| w.push_log(MessageType::Error, e.to_string()));
+                     continue;
+                 }
++                #[cfg(target_os = "android")]
++                crate::signal_probe::attempted(connection);
+                 run_handler(lua, handler, args.to_vec());
+                 with_world(lua, |w| w.signals.leave());
+             }
 diff --git a/crates/rook-lua/src/user_settings.rs b/crates/rook-lua/src/user_settings.rs
 index 7a5aadf..5dd0890 100644
 --- a/crates/rook-lua/src/user_settings.rs
@@ -5650,6 +5710,86 @@ index 7a5aadf..5dd0890 100644
          ),
          (
              "TouchCameraMovementMode",
+diff --git a/crates/rook-lua/src/signal_probe.rs b/crates/rook-lua/src/signal_probe.rs
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/crates/rook-lua/src/signal_probe.rs
+@@ -0,0 +1,74 @@
++//! Opt-in, single-touch GUI Luau handler dispatch diagnostics on Android.
++//! No source collection, no hook injection, and no claim of script completion.
++use std::{cell::RefCell, collections::HashSet};
++use crate::signal::{ConnectionId, SignalKey, SignalKind};
++
++#[derive(Clone, Copy, Debug, Default)]
++pub struct DispatchStats {
++    pub queued: u32,
++    pub attempted: u32,
++    pub errors: u32,
++}
++
++#[derive(Default)]
++struct Capture {
++    stats: DispatchStats,
++    pending: HashSet<ConnectionId>,
++}
++
++thread_local! {
++    static ACTIVE: RefCell<Option<Capture>> = const { RefCell::new(None) };
++}
++
++/// The caller surrounds only its real touch-originated Activated firing.
++pub fn capture<T>(execute: impl FnOnce() -> T) -> (T, DispatchStats) {
++    struct Restore(Option<Capture>);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            ACTIVE.with(|active| {
++                *active.borrow_mut() = self.0.take();
++            });
++        }
++    }
++    let previous = ACTIVE.with(|a| a.borrow_mut().replace(Capture::default()));
++    let restore = Restore(previous);
++    let result = execute();
++    let stats = ACTIVE.with(|a| {
++        a.borrow().as_ref().map(|c| c.stats).unwrap_or_default()
++    });
++    drop(restore);
++    (result, stats)
++}
++
++pub(crate) fn observes(key: &SignalKey) -> bool {
++    matches!(key.kind, SignalKind::Event("Activated"))
++        && ACTIVE.with(|a| a.borrow().is_some())
++}
++
++pub(crate) fn queued(connection: ConnectionId) {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            if c.pending.insert(connection) {
++                c.stats.queued = c.stats.queued.saturating_add(1);
++            }
++        }
++    });
++}
++
++pub(crate) fn attempted(connection: ConnectionId) {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            if c.pending.remove(&connection) {
++                c.stats.attempted = c.stats.attempted.saturating_add(1);
++            }
++        }
++    });
++}
++
++pub(crate) fn error() {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            c.stats.errors = c.stats.errors.saturating_add(1);
++        }
++    });
++}
 diff --git a/crates/rook-lua/src/world.rs b/crates/rook-lua/src/world.rs
 index 4fbd731..ccf0145 100644
 --- a/crates/rook-lua/src/world.rs

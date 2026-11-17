@@ -47,7 +47,13 @@ assert "allowRookGuiProbe.setChecked(false)" in hub
 assert "StudioTouchDiagnostics.arm(this, guiPermission" in hub
 assert "rook_engine::touch_probe::install(Some" in player
 assert "rook_engine::touch_probe::install(None)" in player
-assert "crate::touch_probe::activated(&path)" in rook_patch
+assert "crate::touch_probe::activated(&path, stats.queued, stats.attempted, stats.errors)" in rook_patch
+assert "rook_lua::signal_probe::capture" in rook_patch
+assert "crate::signal_probe::queued(connection)" in rook_patch
+assert "crate::signal_probe::attempted(connection)" in rook_patch
+assert "pub struct DispatchStats" in rook_patch
+assert 'call("native-gui-activated", &data.to_string())' in platform
+assert "activation.getInt(\"attempted\")" in rook
 assert 'self.fire(button, "Activated", (object, count));' in rook_patch
 assert "Rook.winit.WindowEvent.Touch" in touch
 assert "on_native_touch: observe_native_touch.then" in rook_patch
@@ -121,6 +127,13 @@ public final class TouchContract {
                 true, 2, 2, 0, 1, "").contains("inconsistente"));
         yes(formatTouchEvidence(true, 0, 0, 0, false,
                 true, 2, 2, 0, 201, "Button").contains("inconsistente"));
+        String withHandler = formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "PlayerGui.Inventory.Open", 1, 1, 0);
+        yes(withHandler.contains("Handlers Luau encaminhados: 1"));
+        yes(withHandler.contains("Tentativas de iniciar handlers: 1"));
+        yes(withHandler.contains("não comprovam conclusão do callback Luau"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "Button", 1, 2, 0).contains("inconsistente"));
         String noTouch = formatTouchEvidence(true, 0, 0, 0, false);
         yes(noTouch.contains("INCONCLUSIVO"));
         yes(noTouch.contains("Player encerrou: não confirmado"));

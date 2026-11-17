@@ -114,3 +114,24 @@ real existente; testes estáticos/Java não garantem compatibilidade física.
 A regressão estende `scripts/test_ai_android_touch_java.py` e
 `ai-hub-android-java.yml`. O build ARM64 e o teste em aparelho físico
 devem ser checados separadamente para o commit exato.
+
+## Continuação: encaminhamento de callbacks do evento no Luau
+
+Em `rook-lua`, foi acrescentada captura opcional **apenas ao redor**
+da emissão real `GuiButton.Activated` por toque. Registra quantidade de
+handlers conectados encaminhados pelo despachante, tentativas de chamar ou
+retomar handlers durante o despacho, e erros de execução reportados nessa
+janela. A captura funciona com `SignalBehavior` Immediate e Deferred;
+identifica conexões por ID **somente em memória no fio executor** e não
+persiste IDs, corpos de scripts, coordenadas nem outras entradas.
+
+O relatório Android distingue agora: toque → sinal no Rook → handlers
+encaminhados → tentativas de execução. **Tentativa não é conclusão de
+callback**; um handler pode falhar, suspender ou não produzir efeito no
+jogo. Sem observação de efeito/estado final, o diagnóstico não marca
+o sistema como funcional. A regra de consentimento separado e o limite
+de 200 ativações da sessão permanecem.
+
+O teste de contrato Java usa os métodos de produção; o build Android
+nativo precisa validar a nova ligação de `rook-lua`, e testes físicos
+continuam obrigatórios.
