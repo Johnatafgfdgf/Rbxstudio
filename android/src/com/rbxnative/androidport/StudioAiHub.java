@@ -622,7 +622,7 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
-    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene;
     private TextView playProbeResult, playSmokeResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
@@ -1342,10 +1342,24 @@ public final class StudioAiHub extends Activity {
         return expected;
     }
 
+    /** Structural snapshot, not an assertion that the player or GUI works. */
+    private static final class LocalPlayerScenario {
+        final boolean player, backpack, playerGui, humanoid;
+        LocalPlayerScenario(boolean player, boolean backpack,
+                boolean playerGui, boolean humanoid) {
+            this.player = player;
+            this.backpack = backpack;
+            this.playerGui = playerGui;
+            this.humanoid = humanoid;
+        }
+        boolean complete() { return player && backpack && playerGui && humanoid; }
+    }
+
     /** Distinguish an actual Play MCP session from a functional game test. */
     private static String buildPlaySmokeSummary(boolean startConfirmed, String playState,
             boolean serverWorkspace, boolean clientPlayers, String output,
-            boolean stopConfirmed, String problem) {
+            boolean stopConfirmed, String problem,
+            boolean sceneRequested, LocalPlayerScenario scene) {
         boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
                 checkedLocalPlayMode(playState));
         boolean logsAvailable = output != null;
@@ -1362,6 +1376,17 @@ public final class StudioAiHub extends Activity {
                 .append(logsAvailable ? "lido" : "indisponível").append("\n")
                 .append("Retorno ao Edit: ")
                 .append(stopConfirmed ? "confirmado" : "NÃO CONFIRMADO").append("\n");
+        if (sceneRequested) {
+            report.append("CENÁRIO OPCIONAL • presença estrutural do jogador\n")
+                    .append("Player no Client: ")
+                    .append(scene != null && scene.player ? "identificado" : "não confirmado").append("\n")
+                    .append("Backpack desse Player: ")
+                    .append(scene != null && scene.backpack ? "identificado" : "não confirmado").append("\n")
+                    .append("PlayerGui desse Player: ")
+                    .append(scene != null && scene.playerGui ? "identificado" : "não confirmado").append("\n")
+                    .append("Humanoid do personagem correspondente: ")
+                    .append(scene != null && scene.humanoid ? "identificado" : "não confirmado").append("\n");
+        }
         if (logsAvailable) {
             report.append("Trecho observado do Output:\n")
                     .append(output.substring(0, Math.min(output.length(), MAX_PLAY_LOG_CHARS)))
@@ -1372,11 +1397,13 @@ public final class StudioAiHub extends Activity {
         if (problem != null && !problem.isEmpty())
             report.append("Limitação registrada: ").append(problem).append("\n");
         report.append(startConfirmed && playConfirmed && serverWorkspace && clientPlayers &&
-                logsAvailable && stopConfirmed
+                logsAvailable && stopConfirmed && (!sceneRequested ||
+                (scene != null && scene.complete()))
                 ? "PASSOU somente nas verificações de inicialização, leitura e encerramento.\n"
                 : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
-        report.append("Não verifica controles, GUIs, colisão, scripts individuais ou " +
-                "qualidade visual. Logs podem incluir mensagens de sessões anteriores. " +
+        report.append("A presença de PlayerGui/Backpack/Humanoid não prova sua operação. " +
+                "Não verifica controles, colisão, scripts individuais ou qualidade visual. " +
+                "Logs podem incluir mensagens de sessões anteriores. " +
                 "Nenhum comando Luau, publicação ou pedido à API de IA.");
         return report.toString();
     }
@@ -1397,7 +1424,8 @@ public final class StudioAiHub extends Activity {
                 .setTitle("Executar teste rápido de Play local?")
                 .setMessage("O app só iniciará Play se o MCP mostrar Edit. " +
                         "Depois consultará o estado Client/Server e Output, " +
-                        "e solicitará parar o Play aberto por este teste.\n\n" +
+                        "e solicitará parar o Play aberto por este teste. " +
+                        "A verificação opcional do Player só lê instâncias.\n\n" +
                         "Isso NÃO publica um jogo, não abre o Roblox externo, " +
                         "não controla o personagem nem escreve scripts. " +
                         "Se a comunicação falhar durante a inicialização, " +
@@ -1434,10 +1462,82 @@ public final class StudioAiHub extends Activity {
         return false;
     }
 
+    /** Parse bounded live Client tree rows without trusting model-generated text.
+     * All four checks must refer to the same Player, never different players. */
+    private static LocalPlayerScenario evaluateLocalPlayerScenario(
+            JSONArray players, JSONArray humanoids) {
+        LocalPlayerScenario best = new LocalPlayerScenario(false, false, false, false);
+        if (players == null || humanoids == null) return best;
+        int maxScore = -1;
+        for (int i = 0; i < players.length(); i++) {
+            JSONObject candidate = players.optJSONObject(i);
+            if (candidate == null || !"Player".equals(candidate.optString("className", "")) ||
+                    !"Players".equals(candidate.optString("parentName", ""))) continue;
+            String name = candidate.optString("name", "");
+            String path = candidate.optString("fullPath", "");
+            if (name.isEmpty() || name.length() > 80 ||
+                    !path.equals("Players." + name)) continue;
+            boolean backpack = false, playerGui = false, humanoid = false;
+            for (int k = 0; k < players.length(); k++) {
+                JSONObject node = players.optJSONObject(k);
+                if (node == null || !name.equals(node.optString("parentName", ""))) continue;
+                if ("Backpack".equals(node.optString("className", "")) &&
+                        (path + ".Backpack").equals(node.optString("fullPath", "")) &&
+                        "Backpack".equals(node.optString("name", ""))) backpack = true;
+                if ("PlayerGui".equals(node.optString("className", "")) &&
+                        (path + ".PlayerGui").equals(node.optString("fullPath", "")) &&
+                        "PlayerGui".equals(node.optString("name", ""))) playerGui = true;
+            }
+            for (int k = 0; k < humanoids.length(); k++) {
+                JSONObject node = humanoids.optJSONObject(k);
+                if (node != null && "Humanoid".equals(node.optString("className", "")) &&
+                        "Humanoid".equals(node.optString("name", "")) &&
+                        name.equals(node.optString("parentName", "")) &&
+                        ("Workspace." + name + ".Humanoid").equals(
+                                node.optString("fullPath", ""))) {
+                    humanoid = true;
+                    break;
+                }
+            }
+            int score = 1 + (backpack ? 1 : 0) + (playerGui ? 1 : 0) +
+                    (humanoid ? 1 : 0);
+            if (score > maxScore) {
+                maxScore = score;
+                best = new LocalPlayerScenario(true, backpack, playerGui, humanoid);
+            }
+            if (best.complete()) return best;
+        }
+        return best;
+    }
+
+    /** Fixed Client-side gameplay probes; never AI-chosen tools or paths. */
+    private LocalPlayerScenario inspectLocalPlayerGameplay(String paired) throws Exception {
+        String playersRaw = callMcp(paired, "search_game_tree", new JSONObject()
+                .put("datamodel_type", "Client").put("path", "Players")
+                .put("max_depth", 2).put("head_limit", 48));
+        String humanoidsRaw = callMcp(paired, "search_game_tree", new JSONObject()
+                .put("datamodel_type", "Client").put("path", "Workspace")
+                .put("instance_type", "Humanoid")
+                .put("max_depth", 3).put("head_limit", 24));
+        JSONArray players, humanoids;
+        try {
+            players = new JSONArray(playersRaw);
+            humanoids = new JSONArray(humanoidsRaw);
+        } catch (Exception invalid) {
+            throw new IOException("Cenário Player/Humanoid sem árvores MCP completas", invalid);
+        }
+        if (players.length() < 1 || players.length() > 48 ||
+                humanoids.length() < 1 || humanoids.length() > 24)
+            throw new IOException("Resultado do cenário acima do limite ou vazio");
+        return evaluateLocalPlayerScenario(players, humanoids);
+    }
+
     private void runLocalPlaySmoke() {
         if (busy || applyingEdit || mcpPairing.isEmpty() ||
                 allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
         final String paired = mcpPairing;
+        final boolean sceneRequested = checkLocalGameplayScene != null &&
+                checkLocalGameplayScene.isChecked();
         final long epoch = ++requestEpoch;
         runningLocalPlaySmoke = true;
         playSmokeResult.setVisibility(View.VISIBLE);
@@ -1446,6 +1546,8 @@ public final class StudioAiHub extends Activity {
         requests.execute(() -> {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
             boolean serverWorkspace = false, clientPlayers = false;
+            LocalPlayerScenario scene = null;
+            String sceneProblem = "";
             String playState = "", output = null, problem = "";
             try {
                 String before = readOnlyMcp(paired, "get_studio_state", new JSONObject());
@@ -1468,6 +1570,14 @@ public final class StudioAiHub extends Activity {
                     throw new IOException("Serviços fundamentais do Play não confirmados");
                 // Brief bounded observation, not a comprehensive gameplay scenario.
                 Thread.sleep(750);
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                if (sceneRequested) {
+                    try {
+                        scene = inspectLocalPlayerGameplay(paired);
+                    } catch (Exception unavailable) {
+                        sceneProblem = "Cenário Player/GUI incompleto ou indisponível no MCP.";
+                    }
+                }
                 if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
                 output = readOnlyMcp(paired, "get_console_output", new JSONObject());
             } catch (Exception ex) {
@@ -1494,7 +1604,9 @@ public final class StudioAiHub extends Activity {
                 }
             }
             final String report = buildPlaySmokeSummary(startConfirmed, playState,
-                    serverWorkspace, clientPlayers, output, stopConfirmed, problem);
+                    serverWorkspace, clientPlayers, output, stopConfirmed,
+                    sceneProblem.isEmpty() ? problem : problem + " " + sceneProblem,
+                    sceneRequested, scene);
             final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
@@ -1926,6 +2038,11 @@ public final class StudioAiHub extends Activity {
         allowLocalPlaySmoke.setTextColor(Color.rgb(228, 236, 250));
         allowLocalPlaySmoke.setChecked(false);
         add(root, allowLocalPlaySmoke, 4);
+        checkLocalGameplayScene = new CheckBox(this);
+        checkLocalGameplayScene.setText("Cenário opcional: Player, Backpack, PlayerGui e Humanoid");
+        checkLocalGameplayScene.setTextColor(Color.rgb(228, 236, 250));
+        checkLocalGameplayScene.setChecked(false);
+        add(root, checkLocalGameplayScene, 4);
         runLocalPlaySmoke = button("Teste rápido Play local • iniciar → ler Output → parar");
         runLocalPlaySmoke.setOnClickListener(v -> confirmLocalPlaySmoke());
         add(root, runLocalPlaySmoke, 6);
@@ -2151,6 +2268,7 @@ public final class StudioAiHub extends Activity {
         });
         allowLocalPlaySmoke.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
+                if (checkLocalGameplayScene != null) checkLocalGameplayScene.setChecked(false);
                 if (runningLocalPlaySmoke) {
                     requestEpoch++;
                     abortInFlight();
@@ -2276,6 +2394,7 @@ public final class StudioAiHub extends Activity {
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
+        if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting);
         if (modelAuditPath != null) modelAuditPath.setEnabled(!waiting);
         if (shareModelAudit != null) shareModelAudit.setEnabled(!waiting &&
                 !localModelAuditSummary.isEmpty());
