@@ -10,6 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
@@ -25,6 +27,8 @@ public final class RookPlayerActivity extends NativeActivity {
     private PlayLoadingView loading;
     private volatile String stage = "Preparando o Play local…";
     private volatile boolean ready;
+    private String touchProbeId;
+    private int touchDownCount, touchUpCount, touchCancelCount;
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
         if (focused) {
@@ -47,6 +51,7 @@ public final class RookPlayerActivity extends NativeActivity {
         }
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         super.onCreate(state);
+        touchProbeId = StudioTouchDiagnostics.begin(this);
         StudioWindow.configure(this);
         // The loading card owns its surface until the first game frame.
         // During Play the CoreScript menu owns Leave and the game owns touch.
@@ -93,7 +98,14 @@ public final class RookPlayerActivity extends NativeActivity {
                     packed.substring(packed.indexOf(':') + 1)), StandardCharsets.UTF_8);
             }
             case "loading-stage": stage = value; runOnUiThread(this::showControls); return "";
-            case "ready": ready = true; runOnUiThread(this::showControls); return "";
+            case "ready":
+                ready = true;
+                runOnUiThread(() -> {
+                    StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
+                            touchDownCount, touchUpCount, touchCancelCount, false);
+                    showControls();
+                });
+                return "";
             case "finish": runOnUiThread(this::finish); return "";
             case "clipboard-read": {
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -126,8 +138,39 @@ public final class RookPlayerActivity extends NativeActivity {
         for (int i = 0; i < bytes.length; i++) bytes[i] = (byte) Integer.parseInt(value.substring(i * 2, i * 2 + 2), 16);
         return bytes;
     }
+    /**
+     * Real touchscreen MotionEvents received by the Java Activity. Never
+     * consume, inject, replay or transform native input. NativeActivity may
+     * deliver some/all game input through AInputQueue instead; zero events
+     * is inconclusive and this is NOT a GuiButton.Activated verification.
+     */
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        boolean consumed = super.dispatchTouchEvent(event);
+        if (touchProbeId == null || !ready || event == null ||
+                (event.getSource() & InputDevice.SOURCE_TOUCHSCREEN) !=
+                        InputDevice.SOURCE_TOUCHSCREEN) return consumed;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                if (touchDownCount < 100000) touchDownCount++;
+                break;
+            case MotionEvent.ACTION_UP:
+                if (touchUpCount < 100000) touchUpCount++;
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                if (touchCancelCount < 100000) touchCancelCount++;
+                break;
+            default:
+                return consumed;
+        }
+        StudioTouchDiagnostics.writeReport(this, touchProbeId, true,
+                touchDownCount, touchUpCount, touchCancelCount, false);
+        return consumed;
+    }
+
     @Override public void onBackPressed() { finish(); }
     @Override protected void onDestroy() {
+        StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
+                touchDownCount, touchUpCount, touchCancelCount, true);
         if (progressPopup != null) progressPopup.dismiss();
         try {
             File session = new File(getIntent().getStringExtra("session"));
