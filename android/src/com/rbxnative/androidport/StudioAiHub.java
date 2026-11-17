@@ -231,7 +231,7 @@ public final class StudioAiHub extends Activity {
     private ScreenGuiProposal pendingScreen;
     private ReceiveToolProposal pendingKit;
     private TaskPlan pendingTaskPlan, activeTaskPlan;
-    private boolean planPaused, planStepOutstanding;
+    private boolean planPaused, planStepOutstanding, submittingPlanStep;
     private TextView planProgress, proposalPreview;
     private Button nextPlanStep, togglePlan, cancelPlan, applyEdit, discardEdit;
 
@@ -3583,7 +3583,9 @@ public final class StudioAiHub extends Activity {
                 .setTitle("Aprovar plano de " + proposed.steps.size() + " etapas?")
                 .setMessage("A aprovação NÃO executa nenhuma etapa. Cada operação " +
                         "requer uma nova inspeção do mapa e autorização individual. " +
-                        "Sem publicação nem acesso irrestrito ao editor.")
+                        "Sem publicação nem acesso irrestrito ao editor." +
+                        (activeTaskPlan != null ? "\nEste plano substitui o plano atual; " +
+                                "nenhum objeto será desfeito automaticamente." : ""))
                 .setNegativeButton("Revisar", null)
                 .setPositiveButton("Aprovar planejamento", (dialog, which) -> {
                     activeTaskPlan = proposed;
@@ -3645,7 +3647,12 @@ public final class StudioAiHub extends Activity {
                 "\nFaça uma leitura MCP real ATUAL e gere somente UMA proposta do tipo " +
                 step.kind + ". Não execute escrita, não crie outro plano, não " +
                 "ignore permissões. Se não for possível, explique e pare.");
-        sendMessage();
+        submittingPlanStep = true;
+        try {
+            sendMessage();
+        } finally {
+            submittingPlanStep = false;
+        }
     }
 
     private void clearActivePlan() {
@@ -3784,6 +3791,12 @@ public final class StudioAiHub extends Activity {
     }
 
     private void sendMessage() {
+        // While a proposed step is awaiting approval, unrelated chat requests
+        // cannot be mistaken for a plan step and advance its checkpoint.
+        if (planStepOutstanding && !submittingPlanStep) {
+            status.setText("Revise ou descarte a etapa atual antes de enviar outra mensagem.");
+            return;
+        }
         final int p = provider;
         final String model = selectedModelId();
         final String question = prompt.getText().toString().trim();
