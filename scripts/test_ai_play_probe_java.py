@@ -64,7 +64,7 @@ public final class PlayProbeHarness {
                 "0 erro(s), 0 aviso(s)"));
         yes(buildLocalPlayReport(playing, null).contains("Inspeção incompleta"));
         StringBuilder many = new StringBuilder();
-        for (int i = 0; i < 60; i++) many.append("Error: item").append(i).append("\n");
+        for (int i = 0; i < 300; i++) many.append("Error: item").append(i).append("\n");
         String clipped = buildLocalPlayReport(playing, many.toString());
         yes(clipped.contains("[Exibição limitada]"));
         yes(clipped.length() < 5000);
