@@ -22,6 +22,7 @@ on:
       - scripts/test_ai_play_smoke_java.py
       - scripts/test_ai_play_scene_java.py
       - scripts/test_ai_tool_gui_java.py
+      - scripts/test_ai_play_equip_java.py
 
 permissions:
   contents: read
@@ -67,6 +68,8 @@ jobs:
         run: python3 scripts/test_ai_play_scene_java.py
       - name: Validate actual Java Client Tool and GuiButton readiness
         run: python3 scripts/test_ai_tool_gui_java.py
+      - name: Verify actual Java Client EquipTool and independent MCP read-back
+        run: python3 scripts/test_ai_play_equip_java.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
