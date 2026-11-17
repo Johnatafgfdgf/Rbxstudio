@@ -173,8 +173,10 @@ fn ai_receive_tool_mobile_tap_activated_invokes_local_script_and_server() {
         local b=gui.ReceiveItem
         assert(gui.IgnoreGuiInset == false, 'regression requires default GUI inset')
         local p,s=b.AbsolutePosition,b.AbsoluteSize
+        -- AbsolutePosition is expressed in GUI coordinates (below the
+        -- 58 px top bar), while InputEvent.Touch uses window coordinates.
         assert(p.X <= 480 and 480 <= p.X+s.X and
-               p.Y <= 269 and 269 <= p.Y+s.Y,
+               p.Y <= 211 and 211 <= p.Y+s.Y,
                ('touch coordinate misses button: pos=%s size=%s')
                     :format(tostring(p),tostring(s)))
     "#).expect("ScreenGui must render its button below the top-bar inset");
