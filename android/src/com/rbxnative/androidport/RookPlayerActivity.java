@@ -107,7 +107,9 @@ public final class RookPlayerActivity extends NativeActivity {
                     JSONObject activation = new JSONObject(value);
                     StudioTouchDiagnostics.noteGuiActivation(this, touchProbeId,
                             activation.getString("path"), activation.getInt("queued"),
-                            activation.getInt("attempted"), activation.getInt("errors"));
+                            activation.getInt("attempted"), activation.getInt("completed"),
+                            activation.getInt("unresolved"), activation.getInt("failed"),
+                            activation.getInt("errors"));
                 }
                 return "";
             case "native-touch-counts": {

@@ -134,7 +134,10 @@ public final class StudioTouchDiagnostics {
                           .put("lastGuiButton", prior.optString("lastGuiButton", ""))
                           .put("handlersQueued", prior.optInt("handlersQueued", 0))
                           .put("handlersAttempted", prior.optInt("handlersAttempted", 0))
-                          .put("handlerErrors", prior.optInt("handlerErrors", 0));
+                          .put("handlerErrors", prior.optInt("handlerErrors", 0))
+                          .put("handlersCompleted", prior.optInt("handlersCompleted", 0))
+                          .put("handlersUnresolved", prior.optInt("handlersUnresolved", 0))
+                          .put("handlersFailed", prior.optInt("handlersFailed", 0));
                 }
             }
             if (prior != null && id.equals(prior.optString("id", "")) &&
@@ -188,9 +191,12 @@ public final class StudioTouchDiagnostics {
     /** Bounded, local-only signal evidence from the actual Rook touch path.
      * Not called by APIs or mouse paths; never accepts remote AI inputs. */
     public static synchronized void noteGuiActivation(Context context, String id,
-            String path, int queued, int attempted, int errors) {
+            String path, int queued, int attempted, int completed,
+            int unresolved, int failed, int errors) {
         if (path == null || path.length() < 1 || path.length() > 240 ||
                 queued < 0 || queued > 1000 || attempted < 0 || attempted > queued ||
+                completed < 0 || unresolved < 0 || failed < 0 ||
+                (long) completed + unresolved + failed > attempted ||
                 errors < 0 || errors > 1000 || !guiConsent(context, id)) return;
         String safePath = path.replaceAll("[\\p{Cntrl}]", " ").trim();
         if (safePath.isEmpty()) return;
@@ -202,15 +208,24 @@ public final class StudioTouchDiagnostics {
             int priorQueued = report.optInt("handlersQueued", 0);
             int priorAttempted = report.optInt("handlersAttempted", 0);
             int priorErrors = report.optInt("handlerErrors", 0);
+            int priorCompleted = report.optInt("handlersCompleted", 0);
+            int priorUnresolved = report.optInt("handlersUnresolved", 0);
+            int priorFailed = report.optInt("handlersFailed", 0);
             if (priorQueued < 0 || priorQueued > 200000 ||
                     priorAttempted < 0 || priorAttempted > priorQueued ||
-                    priorErrors < 0 || priorErrors > 200000) return;
+                    priorErrors < 0 || priorErrors > 200000 ||
+                    priorCompleted < 0 || priorUnresolved < 0 || priorFailed < 0 ||
+                    (long) priorCompleted + priorUnresolved + priorFailed >
+                            priorAttempted) return;
             report.put("guiSource", "Rook.touch.GuiButton.Activated")
                     .put("guiActivated", total + 1)
                     .put("lastGuiButton", safePath)
                     .put("handlersQueued", Math.min(200000, priorQueued + queued))
                     .put("handlersAttempted", Math.min(200000, priorAttempted + attempted))
                     .put("handlerErrors", Math.min(200000, priorErrors + errors))
+                    .put("handlersCompleted", Math.min(200000, priorCompleted + completed))
+                    .put("handlersUnresolved", Math.min(200000, priorUnresolved + unresolved))
+                    .put("handlersFailed", Math.min(200000, priorFailed + failed))
                     .put("recordedAt", System.currentTimeMillis());
             write(reportFile(context), report);
         } catch (Exception ignored) {
@@ -253,7 +268,10 @@ public final class StudioTouchDiagnostics {
                     count, path,
                     report.optInt("handlersQueued", 0),
                     report.optInt("handlersAttempted", 0),
-                    report.optInt("handlerErrors", 0));
+                    report.optInt("handlerErrors", 0),
+                    report.optInt("handlersCompleted", 0),
+                    report.optInt("handlersUnresolved", 0),
+                    report.optInt("handlersFailed", 0));
         } catch (Exception ignored) {
             return "Não foi possível ler o relatório local de toques. " +
                     "Nenhum resultado foi presumido.";
@@ -287,7 +305,7 @@ public final class StudioTouchDiagnostics {
             int guiActivated, String buttonPath) {
         return formatTouchEvidence(ready, downs, ups, canceled, stopped,
                 nativeReported, nativeDown, nativeUp, nativeCancel,
-                guiActivated, buttonPath, 0, 0, 0);
+                guiActivated, buttonPath, 0, 0, 0, 0, 0, 0);
     }
 
     static String formatTouchEvidence(boolean ready, int downs, int ups,
@@ -295,6 +313,17 @@ public final class StudioTouchDiagnostics {
             int nativeDown, int nativeUp, int nativeCancel,
             int guiActivated, String buttonPath,
             int handlersQueued, int handlersAttempted, int handlerErrors) {
+        return formatTouchEvidence(ready, downs, ups, canceled, stopped, nativeReported,
+                nativeDown, nativeUp, nativeCancel, guiActivated, buttonPath,
+                handlersQueued, handlersAttempted, handlerErrors, 0, 0, 0);
+    }
+
+    static String formatTouchEvidence(boolean ready, int downs, int ups,
+            int canceled, boolean stopped, boolean nativeReported,
+            int nativeDown, int nativeUp, int nativeCancel,
+            int guiActivated, String buttonPath,
+            int handlersQueued, int handlersAttempted, int handlerErrors,
+            int completed, int unresolved, int failed) {
         if (!consistentTouchTotals(downs, ups, canceled) ||
                 (nativeReported && !consistentTouchTotals(
                         nativeDown, nativeUp, nativeCancel)) ||
@@ -302,6 +331,8 @@ public final class StudioTouchDiagnostics {
                 handlersQueued < 0 || handlersQueued > 200000 ||
                 handlersAttempted < 0 || handlersAttempted > handlersQueued ||
                 handlerErrors < 0 || handlerErrors > 200000 ||
+                completed < 0 || unresolved < 0 || failed < 0 ||
+                (long) completed + unresolved + failed > handlersAttempted ||
                 (guiActivated > 0 && (buttonPath == null || buttonPath.isEmpty() ||
                         buttonPath.length() > 240)))
             return "Relatório de toque inconsistente: não confirmado.";
@@ -338,12 +369,19 @@ public final class StudioTouchDiagnostics {
                     .append("Último botão (caminho local): ").append(buttonPath).append("\n")
                     .append("Handlers Luau encaminhados: ").append(handlersQueued).append("\n")
                     .append("Tentativas de iniciar handlers: ").append(handlersAttempted).append("\n")
-                    .append("Erros registrados durante o despacho: ").append(handlerErrors).append("\n");
+                    .append("Erros registrados durante o despacho: ").append(handlerErrors).append("\n")
+                    .append("Handlers concluídos na primeira retomada sem erro: ").append(completed).append("\n")
+                    .append("Handlers sem conclusão observada na primeira retomada: ").append(unresolved).append("\n")
+                    .append("Handlers com erro durante a tentativa: ").append(failed).append("\n")
+                    .append("Handlers não acompanhados fora do sinal (ex.: Deferred): ")
+                    .append(handlersQueued - handlersAttempted).append("\n");
         } else {
             out.append("GuiButton.Activated por toque: não confirmado.\n");
         }
-        out.append("Encaminhamento e tentativa de execução não comprovam " +
-                "conclusão do callback Luau, mudanças no jogo ou efeito visual. " +
+        out.append("Conclusão síncrona indica fim da primeira retomada sem erro, " +
+                "não confirma efeitos finais no jogo. Encaminhamento e tentativa " +
+                "de execução não comprovam conclusão do callback Luau, " +
+                "mudanças no jogo ou efeito visual. " +
                 "Sem coordenadas, gravação de tela ou envio à IA.");
         return out.toString();
     }
