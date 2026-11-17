@@ -13,6 +13,8 @@ receipts = src[src.index("    /** Accept only an exact shell receipt"):
                src.index("    /** Only this user-confirmed code path")]
 mode = src[src.index("    /** Only the exact native MCP status fields"):
            src.index("    /** Report only observed MCP data.")]
+live = src[src.index("    /** Real MCP Client properties"):
+           src.index("    /** Only actual native JSON booleans")]
 
 for name in ("checkedLocalPlayReceipt", "buildPlaySmokeSummary"):
     assert name in receipts
@@ -27,6 +29,7 @@ import java.util.regex.Pattern;
 
 public final class PlaySmokeHarness {
     private static final int MAX_PLAY_LOG_CHARS = 1800;
+%s
 %s
 %s
     private static void yes(boolean check) {
@@ -60,47 +63,67 @@ public final class PlaySmokeHarness {
         yes(checkedLocalPlayMode(edit).equals("EDIT"));
         yes(checkedLocalPlayMode(starting).equals("INICIANDO"));
 
-        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "", false, null);
+        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "", false, null, false, null);
         yes(all.contains("Início autorizado com recibo: confirmado"));
         yes(all.contains("Client/Server durante Play: confirmados"));
         yes(all.contains("Retorno ao Edit: confirmado"));
         yes(all.contains("Árvore Server.Workspace: confirmada"));
         yes(all.contains("Árvore Client.Players: confirmada"));
-        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "", false, null)
+        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "", false, null, false, null)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "", false, null)
+        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "", false, null, false, null)
                 .contains("INCONCLUSIVO"));
         yes(all.contains("PASSOU somente nas verificações"));
+        LiveToolGuiAudit ready = new LiveToolGuiAudit(
+                "Players.Alex.Backpack.Sword", "Players.Alex.PlayerGui.Menu.Buy",
+                true, true, true, true, true, true);
+        yes(ready.complete());
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
+                true, complete, true, ready).contains("PASSOU somente nas verificações"));
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
+                true, complete, true, null).contains("INCONCLUSIVO"));
+        LiveToolGuiAudit unready = new LiveToolGuiAudit(
+                "Players.Alex.Backpack.Sword", "Players.Alex.PlayerGui.Menu.Buy",
+                true, true, false, true, true, true);
+        yes(!unready.complete() && !unready.toolReady());
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "",
+                true, complete, true, unready).contains("INCONCLUSIVO"));
+        yes(new LiveToolGuiAudit("Sword", "Gui", true, false, false,
+                true, true, true).complete());
+        yes(!new LiveToolGuiAudit("Sword", "Gui", null, false, false,
+                true, true, true).complete());
+        yes(!new LiveToolGuiAudit("Sword", "Gui", true, false, false,
+                false, true, true).complete());
         LocalPlayerScenario complete = new LocalPlayerScenario(true, true, true, true);
         LocalPlayerScenario missingHumanoid = new LocalPlayerScenario(true, true, true, false);
-        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, complete)
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, complete, false, null)
                 .contains("PASSOU somente nas verificações"));
         String missing = buildPlaySmokeSummary(true, play, true, true,
-                "log", true, "", true, missingHumanoid);
+                "log", true, "", true, missingHumanoid, false, null);
         yes(missing.contains("Humanoid do personagem correspondente: não confirmado"));
         yes(missing.contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null)
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null, false, null)
                 .contains("INCONCLUSIVO"));
         yes(all.contains("não verifica") || all.contains("Não verifica"));
         String partial = buildPlaySmokeSummary(true, edit, true, true, "log", true,
-                "Client/Server ausentes", false, null);
+                "Client/Server ausentes", false, null, false, null);
         yes(partial.contains("INCONCLUSIVO"));
         yes(!partial.contains("PASSOU somente"));
-        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "", false, null);
+        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "", false, null, false, null);
         yes(failedStop.contains("Retorno ao Edit: NÃO CONFIRMADO"));
         yes(failedStop.contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "", false, null)
+        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "", false, null, false, null)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "", false, null)
+        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "", false, null, false, null)
                 .contains("Output durante o teste: indisponível"));
         String longText = "E".repeat(3000);
-        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "", false, null);
+        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "", false, null, false, null);
         yes(trimmed.contains("[Output limitado]"));
         yes(trimmed.length() < 2600);
         System.out.println("Local Play smoke production Java helpers: passed");
     }
 }
-""" % (mode, receipts)
+""" % (mode, receipts, live)
 
 with tempfile.TemporaryDirectory(prefix="rbx-play-smoke-") as tmp:
     file = Path(tmp) / "PlaySmokeHarness.java"
