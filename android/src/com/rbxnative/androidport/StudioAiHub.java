@@ -1574,6 +1574,11 @@ public final class StudioAiHub extends Activity {
         proposeParts.setTextColor(Color.rgb(228, 236, 250));
         proposeParts.setChecked(false);
         add(root, proposeParts, 6);
+        proposeLighting = new CheckBox(this);
+        proposeLighting.setText("Permitir propostas para alterar horário e brilho de Lighting");
+        proposeLighting.setTextColor(Color.rgb(228, 236, 250));
+        proposeLighting.setChecked(false);
+        add(root, proposeLighting, 6);
         proposeLabels = new CheckBox(this);
         proposeLabels.setText("Permitir propostas de etiquetas de texto 3D (BillboardGui)");
         proposeLabels.setTextColor(Color.rgb(228, 236, 250));
@@ -1683,6 +1688,7 @@ public final class StudioAiHub extends Activity {
         applyEdit.setVisibility(View.GONE);
         applyEdit.setOnClickListener(v -> {
             if (pendingTaskPlan != null) approvePendingTaskPlan();
+            else if (pendingLighting != null) confirmPendingLighting();
             else if (pendingKit != null) confirmPendingReceiveTool();
             else if (pendingScreen != null) confirmPendingScreen();
             else if (pendingBillboard != null) confirmPendingBillboard();
@@ -1761,6 +1767,9 @@ public final class StudioAiHub extends Activity {
             if (!checked) { pendingPart = null; pendingPartChange = null;
                 pendingComposite = null; renderPendingEdit(); }
         });
+        proposeLighting.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) { pendingLighting = null; renderPendingEdit(); }
+        });
         proposeLabels.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingBillboard = null; renderPendingEdit(); }
         });
@@ -1782,6 +1791,7 @@ public final class StudioAiHub extends Activity {
                 autoInspect.setChecked(false);
                 proposeEdits.setChecked(false);
                 proposeParts.setChecked(false);
+                proposeLighting.setChecked(false);
                 proposeLabels.setChecked(false);
                 proposeScreens.setChecked(false);
                 proposeKits.setChecked(false);
@@ -1840,6 +1850,7 @@ public final class StudioAiHub extends Activity {
         if (autoFallback != null) autoFallback.setEnabled(!waiting);
         if (backupPicker != null) backupPicker.setEnabled(!waiting);
         if (modelPicker != null) modelPicker.setEnabled(!waiting);
+        if (proposeLighting != null) proposeLighting.setEnabled(!waiting);
         boolean canCheckpoint = !waiting && !applyingEdit &&
                 project != null && !project.trim().isEmpty() &&
                 project.length() <= MAX_PROJECT_NAME;
