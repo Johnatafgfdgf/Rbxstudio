@@ -535,7 +535,7 @@ for required in [
     'private static String fixedReceiveToolServerScript(',
     'remote.OnServerEvent:Connect(function(player)',
     "player:IsA('Player')",
-    'player:FindFirstChildOfClass(\\'Backpack\\')',
+    "player:FindFirstChildOfClass('Backpack')",
     'template:Clone()',
     'item.Parent=bag',
     'players.PlayerRemoving:Connect(',
