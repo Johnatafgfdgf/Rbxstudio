@@ -10,7 +10,7 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 src = (root / "android/src/com/rbxnative/androidport/StudioAiHub.java").read_text()
 receipts = src[src.index("    /** Accept only an exact shell receipt"):
-               src.index("    /** Only this user-confirmed code path")]
+               src.index("    /** Until Android Rook exports its live Client/Server DOM")]
 mode = src[src.index("    /** Only the exact native MCP status fields"):
            src.index("    /** Report only observed MCP data.")]
 live = src[src.index("    /** Real MCP Client properties"):
