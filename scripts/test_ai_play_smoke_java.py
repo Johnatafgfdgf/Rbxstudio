@@ -104,7 +104,7 @@ public final class PlaySmokeHarness {
         yes(missing.contains("INCONCLUSIVO"));
         yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null, false, null)
                 .contains("INCONCLUSIVO"));
-        yes(all.contains("não verifica") || all.contains("Não verifica"));
+        yes(all.contains("NÃO comprovam") && all.contains("Não testa colisões"));
         String partial = buildPlaySmokeSummary(true, edit, true, true, "log", true,
                 "Client/Server ausentes", false, null, false, null);
         yes(partial.contains("INCONCLUSIVO"));
