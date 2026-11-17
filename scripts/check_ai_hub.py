@@ -636,7 +636,7 @@ for required in [
     '"CREATED:" + part.name',
 ]:
     assert required in java, required
-assert java.count('checkedEditReceipt(') == 7
+assert java.count('checkedEditReceipt(') == 8
 for required in [
     'Testar conexão com editor (MCP local)',
     'private void diagnoseLocalEditor()',
