@@ -1730,12 +1730,14 @@ public final class StudioAiHub extends Activity {
                 String outcome = checkedEditReceipt(
                         runApprovedPartCommand(paired, part, null),
                         "CREATED:" + part.name);
+                String objectPath = "Workspace." + part.name;
+                boolean verified = verifiedEditorObject(paired, objectPath, "Part");
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingPart = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta do MCP recebida; confira a peça no Explorer.");
+                    setBusy(false, readBackNotice(verified, objectPath));
                     conversation.setText(conversation.getText() + "\nCriação 3D MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nConfira a peça no mapa e teste o Desfazer.");
@@ -1752,6 +1754,49 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+
+
+    /**
+     * A success receipt alone does not prove the object is present in the Edit
+     * datamodel. Query the real local MCP for the exact class and path.
+     * A failed read is inconclusive and must never trigger an automatic retry.
+     */
+    private boolean verifiedEditorObject(String paired, String path, String expectedClass) {
+        if (path == null || !path.matches(
+                "(Workspace|StarterGui|ReplicatedStorage|ServerScriptService|ServerStorage)" +
+                "(\\.[A-Za-z][A-Za-z0-9_]{0,39}){1,3}")) return false;
+        try {
+            String raw = readOnlyMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", path));
+            JSONObject found = new JSONObject(raw);
+            String name = path.substring(path.lastIndexOf('.') + 1);
+            return path.equals(found.optString("path", "")) &&
+                    name.equals(found.optString("name", "")) &&
+                    expectedClass.equals(found.optString("className", "")) &&
+                    found.optJSONArray("matches") == null;
+        } catch (Exception notConfirmed) {
+            return false;
+        }
+    }
+
+    /** For a Luau replacement, use a second real read and compare to pre-edit text. */
+    private boolean verifiedScriptEdit(String paired, EditProposal edit, String before) {
+        try {
+            String after = readOnlyMcp(paired, "script_read",
+                    new JSONObject().put("target_file", edit.path)
+                            .put("start_line", edit.startLine));
+            return !after.equals(before) && after.contains(edit.newText);
+        } catch (Exception notConfirmed) {
+            return false;
+        }
+    }
+
+    private static String readBackNotice(boolean verified, String path) {
+        if (verified) return "Segunda leitura MCP confirmou " + path + ".";
+        return "O editor respondeu à gravação, mas uma segunda leitura MCP NÃO confirmou " +
+                path + ". Confira o Explorer antes de tentar novamente; " +
+                "a operação pode já ter sido aplicada.";
+    }
 
     /** Inspect returns a real JSON object, not a model-produced description. */
     private static JSONObject verifiedPartInspection(String path, String text) throws Exception {
@@ -2587,12 +2632,18 @@ public final class StudioAiHub extends Activity {
                 String outcome = checkedEditReceipt(
                         executeApproved3dCode(paired, command),
                         "CREATED_RECEIVE_TOOL:" + kit.system);
+                boolean verified =
+                        verifiedEditorObject(paired, "StarterGui." + kit.guiName(), "ScreenGui") &&
+                        verifiedEditorObject(paired, "ReplicatedStorage." + kit.remoteName(), "RemoteEvent") &&
+                        verifiedEditorObject(paired, "ServerScriptService." + kit.serverName(), "Script") &&
+                        verifiedEditorObject(paired, "ServerStorage." + kit.toolName(), "Tool");
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingKit = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta MCP recebida; teste o botão em Play.");
+                    setBusy(false, readBackNotice(verified, kit.system + " (4 serviços)") +
+                            " Teste o botão em Play.");
                     conversation.setText(conversation.getText() + "\nSistema de item MCP:\n" +
                             outcome.substring(0, Math.min(1300, outcome.length())) +
                             "\nConfira Tool, RemoteEvent, scripts, GUI, Backpack e Desfazer.");
@@ -2651,12 +2702,15 @@ public final class StudioAiHub extends Activity {
                 String outcome = checkedEditReceipt(
                         executeApproved3dCode(paired, fixedScreenGuiLuau(gui)),
                         "CREATED_SCREEN_GUI:" + gui.name);
+                String objectPath = "StarterGui." + gui.name;
+                boolean verified = verifiedEditorObject(paired, objectPath, "ScreenGui");
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingScreen = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta MCP recebida; confira StarterGui e Play.");
+                    setBusy(false, readBackNotice(verified, objectPath) +
+                            " Teste o funcionamento em Play.");
                     conversation.setText(conversation.getText() + "\nScreenGui MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nO painel é visível durante o Play. Confira a GUI e o Desfazer.");
@@ -2712,12 +2766,14 @@ public final class StudioAiHub extends Activity {
                 String response = checkedEditReceipt(
                         executeApproved3dCode(paired, fixedBillboardLuau(label)),
                         "CREATED_BILLBOARD:" + label.name);
+                String objectPath = label.targetPath + "." + label.name;
+                boolean verified = verifiedEditorObject(paired, objectPath, "BillboardGui");
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingBillboard = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta MCP recebida; confira a etiqueta no mapa.");
+                    setBusy(false, readBackNotice(verified, objectPath));
                     conversation.setText(conversation.getText() + "\nBillboardGui MCP:\n" +
                             response.substring(0, Math.min(1000, response.length())) +
                             "\nRevise a etiqueta no Explorer e a opção Desfazer.");
@@ -2767,12 +2823,20 @@ public final class StudioAiHub extends Activity {
                 String response = checkedEditReceipt(
                         executeApproved3dCode(paired, fixedCompositeLuau(model)),
                         "CREATED_MODEL:" + model.name);
+                String objectPath = "Workspace." + model.name;
+                boolean verified = verifiedEditorObject(paired, objectPath, "Model");
+                for (PartProposal part : model.parts) {
+                    if (!verified) break;
+                    verified = verifiedEditorObject(paired,
+                            objectPath + "." + part.name, "Part");
+                }
+                final boolean allPartsVerified = verified;
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingComposite = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta do MCP recebida; confira o modelo no Explorer.");
+                    setBusy(false, readBackNotice(allPartsVerified, objectPath));
                     conversation.setText(conversation.getText() + "\nModelo 3D MCP:\n" +
                             response.substring(0, Math.min(1200, response.length())) +
                             "\nConfira a criação e o Desfazer no editor.");
@@ -3012,12 +3076,14 @@ public final class StudioAiHub extends Activity {
         setBusy(true, "Conferindo script antes de enviar a edição ao editor…");
         requests.execute(() -> {
             try {
+                String beforeScript = "";
                 if (edit.create) {
                     ensureCreateDestinationFree(paired, edit);
                 } else {
                     JSONObject read = new JSONObject()
                             .put("target_file", edit.path).put("start_line", edit.startLine);
                     String latest = readOnlyMcp(paired, "script_read", read);
+                    beforeScript = latest;
                     if (!latest.contains(edit.oldText)) {
                         throw new IOException("O script mudou desde a proposta. Gere uma nova análise.");
                     }
@@ -3033,12 +3099,15 @@ public final class StudioAiHub extends Activity {
                 if (edit.create) args.put("className", edit.className);
                 // Only here, after user approval, is a write tool reachable.
                 String outcome = callMcp(paired, "multi_edit", args);
+                boolean verified = edit.create
+                        ? verifiedEditorObject(paired, edit.path, edit.className)
+                        : verifiedScriptEdit(paired, edit, beforeScript);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingEdit = null;
                     renderPendingEdit();
-                    setBusy(false, "Resposta MCP recebida; confira criação/edição no Explorer.");
+                    setBusy(false, readBackNotice(verified, edit.path));
                     conversation.setText(conversation.getText() + "\nMCP multi_edit:\n" +
                             outcome.substring(0, Math.min(1800, outcome.length())) +
                             "\nVerifique o script no Explorer antes de publicar.");
