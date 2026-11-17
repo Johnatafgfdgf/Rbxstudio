@@ -636,7 +636,7 @@ for required in [
     '"CREATED:" + part.name',
 ]:
     assert required in java, required
-assert java.count('checkedEditReceipt(') == 8
+assert java.count('checkedEditReceipt(') == 9
 for required in [
     'Testar conexão com editor (MCP local)',
     'private void diagnoseLocalEditor()',
@@ -673,7 +673,7 @@ for required in [
     'a operação pode já ter sido aplicada.',
 ]:
     assert required in java, required
-assert java.count('readBackNotice(') == 8  # method + seven approved write types
+assert java.count('readBackNotice(') == 10  # method + approved write and status paths
 assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
     'verifiedEditorObject(paired, objectPath, "Part")')
 assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < java.index(
@@ -708,7 +708,7 @@ for required in [
     'recordEditorOutcome(edit.create ? "CREATE_SCRIPT" : "UPDATE_SCRIPT",',
 ]:
     assert required in java, required
-assert java.count('recordEditorOutcome(') == 8  # helper plus 7 verified editor writes
+assert java.count('recordEditorOutcome(') == 10  # helper plus all verified editor writes
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
@@ -814,7 +814,7 @@ for required in [
     if required == 'restoring':
         required = 'setPositiveButton("Restaurar pausado",'
     assert required in java, required
-assert java.count('pausePlanAfterFailedWrite();') == 8
+assert java.count('pausePlanAfterFailedWrite();') == 9
 assert java.index('activeTaskPlan.completed++;') < java.index(
     'saveCurrentPlanCheckpoint();', java.index('activeTaskPlan.completed++;'))
 restorer = java[java.index('private void restoreSavedPlan()'):java.index('private void eraseSavedPlan()')]
@@ -978,6 +978,45 @@ assert 'model.opt(' in source
 assert 'if (!Double.isFinite(value)' in source
 assert 'applyApprovedLighting(change))' in source
 assert 'callMcp(paired, action' not in source
+
+
+# Native MCP Part style change is typed and individually approved: the model
+# never provides executable Luau or arbitrary property names to the editor.
+for required in [
+    'private static final String PART_STYLE_PROTOCOL',
+    'private static final class PartStyleProposal',
+    'private static PartStyleProposal validatePartStyleProposal(',
+    'private static boolean allowedPartMaterial(String value)',
+    'private static String inspectedPartMaterial(JSONObject props)',
+    'private static double inspectedPartTransparency(JSONObject props)',
+    'private static boolean inspectedPartBoolean(JSONObject props, String key)',
+    'private static Boolean optionalPartBoolean(JSONObject input, String key)',
+    'private static boolean partStyleMatches(JSONObject props, PartStyleProposal style)',
+    'private static String fixedPartStyleLuau(PartStyleProposal style)',
+    'private void confirmPendingPartStyle()',
+    'private void applyApprovedPartStyle(PartStyleProposal style)',
+    'propose_part_style_update',
+    'proposeParts.isChecked()',
+    'pendingPartStyle = includeProject.isChecked()',
+    'case "PART": return "CREATE_PART".equals(kind)',
+    '"UPDATE_PART_STYLE".equals(kind)',
+    'UPDATED_STYLE:',
+    'STALE_PART_STYLE',
+    'recordEditorOutcome("UPDATE_PART_STYLE", style.path, confirmed);',
+    'pendingPartStyle = null',
+]:
+    assert required in java, required
+style_section = java[java.index('private static boolean allowedPartMaterial('):
+                     java.index('private void confirmPendingPartChange()')]
+assert 'executeApproved3dCode(paired, fixedPartStyleLuau(style))' in style_section
+assert 'readOnlyMcp(paired,' in style_section
+assert 'checkedEditReceipt(' in style_section
+assert 'inspectedPartBoolean(before, "Anchored")' in style_section
+assert 'inspectedPartBoolean(before, "CanCollide")' in style_section
+assert 'fixedPartStyleLuau(style)' in style_section
+assert 'return "STALE_PART_STYLE"' in style_section or 'STALE_PART_STYLE' in style_section
+assert 'callMcp(paired, action' not in style_section
+assert 'modelSuppliedLuau' not in style_section
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
