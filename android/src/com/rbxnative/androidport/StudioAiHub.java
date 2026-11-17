@@ -5174,6 +5174,7 @@ public final class StudioAiHub extends Activity {
                     pendingEdit = null;
                     pendingPart = null;
                     pendingPartChange = null;
+                    pendingPartStyle = null;
                     pendingComposite = null;
                     pendingBillboard = null;
                     pendingScreen = null;
