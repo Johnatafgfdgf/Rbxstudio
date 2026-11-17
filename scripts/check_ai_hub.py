@@ -860,6 +860,53 @@ assert 'sourceChars > MAX_TOOLBOX_XML_BYTES' in scanner
 assert 'lowered.contains("<!doctype")' in scanner
 assert 'lowered.contains("<!entity")' in scanner
 
+
+# Auditing already-inserted Models never creates or modifies objects. Unlike
+# the general AI agent, it needs no API Key; a separate consent grants only
+# local MCP reads, and report sharing is an independent, off-by-default opt-in.
+for required in [
+    'MAX_MODEL_AUDIT_TREES = 12',
+    'MAX_MODEL_AUDIT_SCRIPTS = 16',
+    'MAX_MODEL_AUDIT_PAGES = 2',
+    'private static String checkedModelAuditPath(String path)',
+    'private static AuditScriptPage parseMcpScriptPage(String raw, int startLine)',
+    'private static JSONArray parseMcpModelTree(String raw, String expected)',
+    'private String auditModelInEditor(String paired, String target, long epoch)',
+    'private void startInsertedModelAudit()',
+    'private void ensureModelAuditCurrent(long epoch)',
+    'readOnlyMcp(paired, "inspect_instance"',
+    'readOnlyMcp(paired, "search_game_tree"',
+    'readOnlyMcp(paired, "script_read"',
+    '!target.equals(root.optString("path", ""))',
+    'children.optInt("totalDescendants", -1)',
+    'if (nodes.size() != totalDescendants + 1)',
+    'raw.startsWith("Note: Output limited")',
+    'if (incomplete) break;',
+    'Set<String> sameBatch = new HashSet<>();',
+    'if (source.length() + parsed.source.length() > 24000)',
+    'boolean complete = !incomplete && unreadable == 0',
+    'Não é possível aprovar a segurança do modelo.',
+    'checkedModelAuditPath(modelAuditPath.getText().toString())',
+    'allowLocalModelAudit.setChecked(false)',
+    'shareModelAudit.setChecked(false)',
+    'localModelAuditSummary = ""',
+    'shareModelAudit != null && shareModelAudit.isChecked()',
+    'if (text.isEmpty() && "script_read".equals(tool)) return "";',
+]:
+    assert required in java, required
+auditor = java[java.index('private String auditModelInEditor('):
+               java.index('private void selectToolboxFile()')]
+for forbidden in ['executeApproved3dCode(', 'callMcp(', 'multi_edit',
+                  'insert_asset', 'requestModelWithFreeFallback(',
+                  'StudioServices.credential(', 'save_place',
+                  'getSharedPreferences(']:
+    assert forbidden not in auditor, forbidden
+assert 'auditingInsertedModel = true;' in auditor
+assert 'shareModelAudit.setChecked(false);' in auditor
+assert 'allowLocalModelAudit.isChecked()' in java
+assert 'includeProject.isChecked() &&\n                shareModelAudit != null' in java
+assert java.count('startInsertedModelAudit();') == 1
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
