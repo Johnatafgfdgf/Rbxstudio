@@ -1063,3 +1063,36 @@ for forbidden in ['executeApproved3dCode(', 'requestModelWithFreeFallback(',
     assert forbidden not in play_section, forbidden
 assert play_section.count('readOnlyMcp(paired, "get_studio_state"') == 1
 assert play_section.count('readOnlyMcp(paired, "get_console_output"') == 1
+
+
+# Phase 15: a single opt-in *local* Rook smoke test; no AI-controlled Play.
+smoke_section = java[java.index('private static String checkedLocalPlayReceipt('):
+                     java.index('private void startInsertedModelAudit()')]
+for required in [
+    'private static String buildPlaySmokeSummary(',
+    'private void confirmLocalPlaySmoke()',
+    'private void runLocalPlaySmoke()',
+    'allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()',
+    'new android.app.AlertDialog.Builder(this)',
+    '.setPositiveButton("Autorizar iniciar e parar Play"',
+    '"EDIT".equals(checkedLocalPlayMode(before))',
+    'checkedLocalPlayReceipt(callMcp(paired, "start_stop_play"',
+    'new JSONObject().put("is_start", true)',
+    'new JSONObject().put("is_start", false)',
+    '"PLAY_LOCAL_CONFIRMADO".equals(checkedLocalPlayMode(playState))',
+    '"get_console_output"',
+    'finally {',
+    '"EDIT".equals(checkedLocalPlayMode(finalState))',
+    'NÃO CONFIRMADO',
+]:
+    assert required in smoke_section, required
+assert smoke_section.count('callMcp(paired, "start_stop_play"') == 2
+assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
+assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
+for forbidden in ['requestModelWithFreeFallback(', 'executeApproved3dCode(',
+                  'execute_luau', 'multi_edit', 'save_place', 'publish']:
+    assert forbidden not in smoke_section, forbidden
+assert 'allowLocalPlaySmoke.setChecked(false)' in java
+assert 'runningLocalPlaySmoke = false' in java
+assert 'if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting)' in java
+assert 'args.optBoolean("is_start", false) ? 210000' in java
