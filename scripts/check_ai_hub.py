@@ -712,6 +712,10 @@ assert java.count('recordEditorOutcome(') == 8  # helper plus 7 verified editor 
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
+request_method = java[java.index('private JSONObject requestModelWithFreeFallback('):
+                      java.index('private static String messageUrl(')]
+assert 'if (epoch != requestEpoch) throw new IOException("Cancelado");' in request_method
+assert request_method.index('if (epoch != requestEpoch)') < request_method.index('route.requests++;')
 # A consent withdrawal also invalidates any ongoing model read and prevents
 # a late editor response from repopulating revoked context.
 for required in [
