@@ -9,7 +9,7 @@
 3. A interface inclui dois consentimentos independentes, inicialmente **desligados**: registrar modificações verificadas e enviar o diário à IA. Há ações para consultar e apagar o registro do projeto. Sem título de projeto apropriado, o controle é desabilitado.
 4. `Continuar tarefa anterior • usa a API` aproveita o histórico da sessão, pede nova inspeção MCP antes de qualquer proposta e continua exigindo aprovação manual. Não executa `multi_edit`, `execute_luau` nem ações de publicação automaticamente.
 5. Resultados de operações aprovadas são anexados à **última resposta do assistente** na sessão, preservando a alternância de papéis necessária em APIs como Gemini/Claude.
-6. Revogar consentimento de código, projeto ou memória limpa os turnos anteriores para que os dados não sejam reenviados inadvertidamente como histórico. **Uma chamada já transmitida à API não pode ser recuperada.**
+6. Revogar consentimento de código, projeto ou memória invalida leituras de IA em andamento, interrompe conexões locais/HTTP quando possível e limpa os turnos anteriores para que dados revogados não sejam reenviados. **Uma chamada já transmitida à API não pode ser recuperada.** Uma gravação MCP já aprovada não é cancelada à força, e seu resultado não volta ao histórico compartilhado se o consentimento do Explorer foi retirado.
 
 ## Limites honestos
 
