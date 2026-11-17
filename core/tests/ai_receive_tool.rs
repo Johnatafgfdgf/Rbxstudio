@@ -105,7 +105,7 @@ fn ai_receive_tool_edit_luau_creates_source_and_tool_instances() {
     for name in ["AI_Grant_Server", "RequestClient"] {
         let instance = editor.dom.get(find(&editor.dom, name).unwrap()).unwrap();
         assert!(
-            matches!(instance.properties().get("Source"), Some(Variant::String(s)) if s.contains("RemoteEvent") || s.contains("FireServer")),
+            matches!(instance.properties().get("Source"), Some(Variant::String(s)) if s.contains("OnServerEvent") || s.contains("FireServer")),
             "the runtime must persist Source on {name}"
         );
     }
