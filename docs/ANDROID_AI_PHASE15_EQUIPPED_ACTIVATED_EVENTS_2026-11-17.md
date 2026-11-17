@@ -55,6 +55,14 @@ O cenário de ativação opcional é considerado positivo apenas quando os recib
 
 O APK ARM64 continua sendo um build separado; verifique o artifact antes de qualquer afirmação de versão instalável. **A Fase 15 ainda não concluiu os testes de toques reais em GUI.**
 
+## Resultado verificado do incremento
+
+- **CI Java aprovada** para o código das opções `Equipped` e `Activated` no commit `a0824e02b0be`: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44029549232 . A suíte validou os recibos, rejeições, limites, leitura independente e compilou `StudioAiHub.java` junto com `StudioServices.java` com Android SDK 35.
+- **ZIP completo de fontes** exportado com sucesso para esse mesmo commit, artifact `rbxstudio-ai-0611-complete-source`: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44029549210 .
+- **Build APK ARM64 experimental** em workflow separado: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44029549176 . Na última checagem estava em andamento, sem artifact APK verificado.
+
+Os testes Java executam os métodos reais de geração/validação, mas os recibos MCP são fornecidos por fixtures. Eles **não** demonstram que `Tool.Equipped` ou `Tool.Activated` já foram observados em uma sessão Play no Android. Sem executar o APK no aparelho e registrar a evidência do Client não se pode marcar a compatibilidade física como aprovada.
+
 ## Próximo obstáculo concreto
 
 Uma verificação de **GuiButton.Activated por toque físico no Android** exige um canal de input Android associado à janela do Play e uma observação confiável do evento. O driver `user_mouse_input` nativo verificado utiliza backends desktop, portanto não será utilizado para alegar toques no celular. Essa integração precisa ser implementada/testada separadamente, com consentimento explícito e execução em Android real.
