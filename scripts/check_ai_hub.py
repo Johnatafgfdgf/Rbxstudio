@@ -778,6 +778,12 @@ assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert 'callMcp(paired, action' not in java
 assert 'MAX_AGENT_READS = 3' in java
 assert 'MAX_AGENT_CALLS = MAX_AGENT_READS + 1' in java
+assert 'private boolean planPaused, planStepOutstanding, submittingPlanStep;' in java
+assert 'if (planStepOutstanding && !submittingPlanStep)' in java
+assert 'submittingPlanStep = true;' in java
+assert 'submittingPlanStep = false;' in java
+assert 'if (executingPlanStep)\n                    throw new IOException("A etapa atual não pode criar outro plano")' in java
+assert 'nenhum objeto será desfeito automaticamente.' in java
 
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
