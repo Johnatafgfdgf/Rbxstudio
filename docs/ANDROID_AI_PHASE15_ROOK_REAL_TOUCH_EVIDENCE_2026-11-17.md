@@ -135,3 +135,21 @@ de 200 ativações da sessão permanecem.
 O teste de contrato Java usa os métodos de produção; o build Android
 nativo precisa validar a nova ligação de `rook-lua`, e testes físicos
 continuam obrigatórios.
+
+## Continuação — término síncrono real de handlers
+
+O Rook agora verifica a `mlua::Thread` **após a primeira retomada
+síncrona** em `threads.rs`. Só considera "concluído sem erro" o handler
+que termina com `ThreadStatus::Unresumable` sem novo erro registrado
+naquele intervalo. Erros e resultados ainda não concluídos são
+separados; interrupções e `task.wait` **não** contam como sucesso.
+
+Handlers `SignalBehavior::Deferred` que rodam após sair da função
+`GuiButton.Activated` ficam como **não acompanhados**, pois o relatório
+é uma fotografia do instante do toque. Não se afirma que uma corrotina
+suspensa terminou posteriormente ou que o efeito visual ocorreu.
+
+Os contadores adicionais obedecem ao consentimento de GUI existente,
+ao limite de 200 sinais, às validações Java (contadores não negativos,
+soma de estados ≤ número de tentativas) e ao armazenamento privado
+local. Não há publicação automática nem injeção de eventos.

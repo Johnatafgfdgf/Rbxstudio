@@ -47,10 +47,15 @@ assert "allowRookGuiProbe.setChecked(false)" in hub
 assert "StudioTouchDiagnostics.arm(this, guiPermission" in hub
 assert "rook_engine::touch_probe::install(Some" in player
 assert "rook_engine::touch_probe::install(None)" in player
-assert "crate::touch_probe::activated(&path, stats.queued, stats.attempted, stats.errors)" in rook_patch
+assert "crate::touch_probe::activated(&path, stats.queued, stats.attempted," in rook_patch
+assert "stats.completed, stats.unresolved, stats.failed, stats.errors)" in rook_patch
 assert "rook_lua::signal_probe::capture" in rook_patch
 assert "crate::signal_probe::queued(connection)" in rook_patch
 assert "crate::signal_probe::attempted(connection)" in rook_patch
+assert "crate::signal_probe::finished(outcome)" in rook_patch
+assert "thread.status() == ThreadStatus::Unresumable" in rook_patch
+assert "errors_before" in rook_patch
+assert "completed < 0 || unresolved < 0 || failed < 0" in touch
 assert "pub struct DispatchStats" in rook_patch
 assert 'call("native-gui-activated", &data.to_string())' in platform
 assert "activation.getInt(\"attempted\")" in rook
@@ -134,6 +139,19 @@ public final class TouchContract {
         yes(withHandler.contains("não comprovam conclusão do callback Luau"));
         yes(formatTouchEvidence(true, 0, 0, 0, true,
                 true, 2, 2, 0, 1, "Button", 1, 2, 0).contains("inconsistente"));
+        String complete = formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "PlayerGui.Inventory.Open", 2, 2, 0,
+                1, 1, 0);
+        yes(complete.contains("Handlers concluídos na primeira retomada sem erro: 1"));
+        yes(complete.contains("Handlers sem conclusão observada na primeira retomada: 1"));
+        yes(complete.contains("Handlers não acompanhados fora do sinal (ex.: Deferred): 0"));
+        String deferred = formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "PlayerGui.Inventory.Open", 2, 0, 0,
+                0, 0, 0);
+        yes(deferred.contains("Handlers não acompanhados fora do sinal (ex.: Deferred): 2"));
+        yes(formatTouchEvidence(true, 0, 0, 0, true,
+                true, 2, 2, 0, 1, "PlayerGui.Inventory.Open", 2, 1, 0,
+                2, 0, 0).contains("inconsistente"));
         String noTouch = formatTouchEvidence(true, 0, 0, 0, false);
         yes(noTouch.contains("INCONCLUSIVO"));
         yes(noTouch.contains("Player encerrou: não confirmado"));
