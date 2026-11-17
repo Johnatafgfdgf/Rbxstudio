@@ -1092,7 +1092,7 @@ for required in [
     'NÃO equivale a um toque',
     'Evento real Tool.Activated no Client:',
     'private static String boundedLocalEquipLuau(String playerName, String toolPath)',
-    'private boolean confirmLiveEquippedTool(String paired, String playerName,',
+    'private String confirmLiveEquippedTool(String paired, String playerName,',
     'private static boolean readBackEquippedTool(String raw, String playerName,',
     'private boolean verifyLocalEquipParent(String paired, String playerName,',
     'equipReceipt = confirmLiveEquippedTool(paired, scene.playerName,',
