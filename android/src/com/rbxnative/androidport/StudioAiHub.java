@@ -2210,6 +2210,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Criação 3D não confirmada: " +
                             (problem.getMessage() == null ? "erro MCP" : problem.getMessage()) +
                             ". Verifique o Workspace antes de tentar novamente.");
@@ -3171,6 +3172,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Criação de sistema não confirmada: " +
                             (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
                             ". Confira os quatro serviços antes de repetir.");
@@ -3239,6 +3241,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Criação de ScreenGui não confirmada: " +
                             (error.getMessage() == null ? "erro MCP" : error.getMessage()));
                 });
@@ -3303,6 +3306,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Criação da etiqueta não confirmada: " +
                             (error.getMessage() == null ? "erro MCP" : error.getMessage()));
                 });
@@ -3367,6 +3371,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Criação do modelo não confirmada: " +
                             (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
                             ". Verifique o Explorer.");
@@ -3436,6 +3441,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Alteração 3D não confirmada: " +
                             (error.getMessage() == null ? "erro MCP" : error.getMessage()) +
                             ". Confira a peça antes de tentar novamente.");
@@ -3735,6 +3741,15 @@ public final class StudioAiHub extends Activity {
                 }).show();
     }
 
+    /** Failed writes are ambiguous: keep the checkpoint, pause, never auto-retry. */
+    private void pausePlanAfterFailedWrite() {
+        if (activeTaskPlan == null || !planStepOutstanding) return;
+        planStepOutstanding = false;
+        planPaused = true;
+        renderPlanState();
+        saveCurrentPlanCheckpoint();
+    }
+
     private void renderPlanState() {
         if (planProgress == null || nextPlanStep == null) return;
         TaskPlan plan = activeTaskPlan;
@@ -3960,6 +3975,7 @@ public final class StudioAiHub extends Activity {
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
+                    pausePlanAfterFailedWrite();
                     setBusy(false, "Edição não confirmada: " +
                             (failure.getMessage() == null ? "erro MCP; confira o editor"
                                     : failure.getMessage()) +
