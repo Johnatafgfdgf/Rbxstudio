@@ -622,7 +622,7 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
-    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui;
     private TextView playProbeResult, playSmokeResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
@@ -1345,8 +1345,14 @@ public final class StudioAiHub extends Activity {
     /** Structural snapshot, not an assertion that the player or GUI works. */
     private static final class LocalPlayerScenario {
         final boolean player, backpack, playerGui, humanoid;
+        final String playerName;
         LocalPlayerScenario(boolean player, boolean backpack,
                 boolean playerGui, boolean humanoid) {
+            this(player, backpack, playerGui, humanoid, "");
+        }
+        LocalPlayerScenario(boolean player, boolean backpack,
+                boolean playerGui, boolean humanoid, String playerName) {
+            this.playerName = playerName;
             this.player = player;
             this.backpack = backpack;
             this.playerGui = playerGui;
@@ -1503,7 +1509,7 @@ public final class StudioAiHub extends Activity {
                     (humanoid ? 1 : 0);
             if (score > maxScore) {
                 maxScore = score;
-                best = new LocalPlayerScenario(true, backpack, playerGui, humanoid);
+                best = new LocalPlayerScenario(true, backpack, playerGui, humanoid, name);
             }
             if (best.complete()) return best;
         }
@@ -1530,6 +1536,190 @@ public final class StudioAiHub extends Activity {
                 humanoids.length() < 1 || humanoids.length() > 24)
             throw new IOException("Resultado do cenário acima do limite ou vazio");
         return evaluateLocalPlayerScenario(players, humanoids);
+    }
+
+    /** Real MCP Client properties; this is configuration readiness, not activation. */
+    private static final class LiveToolGuiAudit {
+        final String toolPath, buttonPath;
+        final Boolean toolEnabled, needsHandle, handlePresent;
+        final Boolean screenEnabled, buttonVisible, buttonActive;
+        LiveToolGuiAudit(String toolPath, String buttonPath, Boolean toolEnabled,
+                Boolean needsHandle, Boolean handlePresent, Boolean screenEnabled,
+                Boolean buttonVisible, Boolean buttonActive) {
+            this.toolPath = toolPath;
+            this.buttonPath = buttonPath;
+            this.toolEnabled = toolEnabled;
+            this.needsHandle = needsHandle;
+            this.handlePresent = handlePresent;
+            this.screenEnabled = screenEnabled;
+            this.buttonVisible = buttonVisible;
+            this.buttonActive = buttonActive;
+        }
+        boolean toolReady() {
+            return !toolPath.isEmpty() && Boolean.TRUE.equals(toolEnabled) &&
+                    needsHandle != null &&
+                    (!needsHandle || Boolean.TRUE.equals(handlePresent));
+        }
+        boolean guiReady() {
+            return !buttonPath.isEmpty() && Boolean.TRUE.equals(screenEnabled) &&
+                    Boolean.TRUE.equals(buttonVisible) && Boolean.TRUE.equals(buttonActive);
+        }
+        boolean complete() { return toolReady() && guiReady(); }
+    }
+
+    private static String verifiedFlag(Boolean flag) {
+        return flag == null ? "sem confirmação" : flag ? "sim" : "não";
+    }
+
+    /** Only actual native JSON booleans count; no default-to-true guesses. */
+    private static Boolean strictMcpFlag(JSONObject node, String property) {
+        if (node == null) return null;
+        JSONObject properties = node.optJSONObject("properties");
+        if (properties == null) return null;
+        Object value = properties.opt(property);
+        return value instanceof Boolean ? (Boolean) value : null;
+    }
+
+    /** Client inspection must match the exact discovered node, with no duplicates. */
+    private static JSONObject checkedLiveInstance(String raw, String path, String className)
+            throws IOException {
+        try {
+            JSONObject node = new JSONObject(raw);
+            if (node.has("matches") || !path.equals(node.optString("path", "")) ||
+                    !className.equals(node.optString("className", "")) ||
+                    node.optJSONObject("properties") == null)
+                throw new IOException("Inspeção Client ambígua ou divergente");
+            return node;
+        } catch (org.json.JSONException invalid) {
+            throw new IOException("MCP Client retornou inspeção inválida", invalid);
+        }
+    }
+
+    private static JSONArray strictLiveTree(String raw, String root, String rootClass,
+            int limit) throws IOException {
+        try {
+            JSONArray tree = new JSONArray(raw);
+            if (tree.length() < 1 || tree.length() > limit)
+                throw new IOException("Árvore Client vazia ou fora do limite");
+            JSONObject first = tree.optJSONObject(0);
+            if (first == null || !root.equals(first.optString("fullPath", "")) ||
+                    !rootClass.equals(first.optString("className", "")))
+                throw new IOException("Raiz Client inesperada");
+            return tree;
+        } catch (org.json.JSONException invalid) {
+            // The MCP prefixes a truncated search with "Note: Output limited".
+            throw new IOException("Árvore Client truncada ou inválida", invalid);
+        }
+    }
+
+    /** Select one exact Tool and one GuiButton belonging to the same Player.
+     * Do not scan all users, click, equip, or use arbitrary Luau. */
+    private static String[] selectToolGuiCandidates(JSONArray backpack, JSONArray gui,
+            String playerName) {
+        String backpackRoot = "Players." + playerName + ".Backpack";
+        String guiRoot = "Players." + playerName + ".PlayerGui";
+        String toolPath = "", buttonPath = "", screenPath = "";
+        for (int i = 1; i < backpack.length(); i++) {
+            JSONObject node = backpack.optJSONObject(i);
+            if (node == null) continue;
+            String name = node.optString("name", "");
+            if (!name.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
+            String path = backpackRoot + "." + name;
+            if ("Tool".equals(node.optString("className", "")) &&
+                    "Backpack".equals(node.optString("parentName", "")) &&
+                    path.equals(node.optString("fullPath", ""))) {
+                toolPath = path;
+                break;
+            }
+        }
+        for (int i = 1; i < gui.length(); i++) {
+            JSONObject node = gui.optJSONObject(i);
+            if (node == null || !"ScreenGui".equals(node.optString("className", ""))) continue;
+            String name = node.optString("name", "");
+            if (!name.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
+            String path = guiRoot + "." + name;
+            if ("PlayerGui".equals(node.optString("parentName", "")) &&
+                    path.equals(node.optString("fullPath", ""))) {
+                screenPath = path;
+                break;
+            }
+        }
+        if (!screenPath.isEmpty()) {
+            for (int i = 1; i < gui.length(); i++) {
+                JSONObject node = gui.optJSONObject(i);
+                if (node == null) continue;
+                String type = node.optString("className", "");
+                String path = node.optString("fullPath", "");
+                if (("TextButton".equals(type) || "ImageButton".equals(type)) &&
+                        path.startsWith(screenPath + ".") && path.length() <= 180 &&
+                        path.matches("[A-Za-z0-9_.]+")) {
+                    buttonPath = path;
+                    break;
+                }
+            }
+        }
+        return new String[]{toolPath, screenPath, buttonPath};
+    }
+
+    /** No gameplay event is triggered: this reads the current Client state. */
+    private LiveToolGuiAudit inspectLiveToolGui(String paired, String playerName)
+            throws Exception {
+        if (playerName == null || !playerName.matches("[A-Za-z0-9_]{1,20}"))
+            throw new IOException("Identidade única do jogador não confirmada");
+        String backpackRoot = "Players." + playerName + ".Backpack";
+        String guiRoot = "Players." + playerName + ".PlayerGui";
+        String backpackText = callMcp(paired, "search_game_tree", new JSONObject()
+                .put("datamodel_type", "Client").put("path", backpackRoot)
+                .put("max_depth", 2).put("head_limit", 48));
+        String guiText = callMcp(paired, "search_game_tree", new JSONObject()
+                .put("datamodel_type", "Client").put("path", guiRoot)
+                .put("max_depth", 4).put("head_limit", 64));
+        JSONArray backpack = strictLiveTree(backpackText, backpackRoot, "Backpack", 48);
+        JSONArray gui = strictLiveTree(guiText, guiRoot, "PlayerGui", 64);
+        String[] names = selectToolGuiCandidates(backpack, gui, playerName);
+        Boolean enabled = null, required = null, handle = null;
+        Boolean screenEnabled = null, visible = null, active = null;
+        if (!names[0].isEmpty()) {
+            JSONObject tool = checkedLiveInstance(callMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", names[0])), names[0], "Tool");
+            enabled = strictMcpFlag(tool, "Enabled");
+            required = strictMcpFlag(tool, "RequiresHandle");
+            // Existence of a Handle is structural; it does not prove equipping works.
+            handle = false;
+            for (int i = 1; i < backpack.length(); i++) {
+                JSONObject node = backpack.optJSONObject(i);
+                if (node == null) continue;
+                String type = node.optString("className", "");
+                if (("Part".equals(type) || "MeshPart".equals(type) ||
+                        "UnionOperation".equals(type)) &&
+                        "Handle".equals(node.optString("name", "")) &&
+                        names[0].substring(names[0].lastIndexOf('.') + 1)
+                                .equals(node.optString("parentName", "")) &&
+                        (names[0] + ".Handle").equals(node.optString("fullPath", ""))) {
+                    handle = true;
+                    break;
+                }
+            }
+        }
+        if (!names[1].isEmpty() && !names[2].isEmpty()) {
+            JSONObject screen = checkedLiveInstance(callMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", names[1])), names[1], "ScreenGui");
+            screenEnabled = strictMcpFlag(screen, "Enabled");
+            String type = "TextButton";
+            for (int i = 1; i < gui.length(); i++) {
+                JSONObject node = gui.optJSONObject(i);
+                if (node != null && names[2].equals(node.optString("fullPath", ""))) {
+                    type = node.optString("className", "");
+                    break;
+                }
+            }
+            JSONObject button = checkedLiveInstance(callMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", names[2])), names[2], type);
+            visible = strictMcpFlag(button, "Visible");
+            active = strictMcpFlag(button, "Active");
+        }
+        return new LiveToolGuiAudit(names[0], names[2], enabled, required, handle,
+                screenEnabled, visible, active);
     }
 
     private void runLocalPlaySmoke() {
