@@ -1647,11 +1647,24 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+    private static boolean actionMatchesPlannedKind(String action, String kind) {
+        if ("SCRIPT".equals(kind)) return "propose_script_edit".equals(action) ||
+                "propose_script_create".equals(action);
+        if ("PART".equals(kind)) return "propose_part_create".equals(action) ||
+                "propose_part_update".equals(action) ||
+                "propose_composite_create".equals(action);
+        if ("GUI".equals(kind)) return "propose_billboard_create".equals(action) ||
+                "propose_screen_gui_create".equals(action);
+        if ("ITEM".equals(kind)) return "propose_receive_tool_create".equals(action);
+        return false;
+    }
+
     /** Bounded read-only agent loop with explicit project-disclosure consent. */
     private AgentOutcome runReadOnlyAgent(int p, String key, ModelRoute route,
             List<String[]> turns, long epoch, boolean codeConsent,
             boolean allowProposals, boolean allowParts, boolean allowLabels,
-            boolean allowScreens, boolean allowKits) throws Exception {
+            boolean allowScreens, boolean allowKits,
+            boolean executingPlanStep, String plannedKind) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
@@ -1666,7 +1679,10 @@ public final class StudioAiHub extends Activity {
                         "\nNão proponha ScreenGuis/painéis de tela.") +
                 (allowKits ? RECEIVE_TOOL_PROTOCOL :
                         "\nNão proponha kits de ferramenta/GUI/scripts.") +
-                TASK_PLAN_PROTOCOL});
+                (executingPlanStep
+                        ? "\nEtapa já aprovada como planejamento, proponha somente o tipo " +
+                          plannedKind + " após inspecionar o editor. NÃO crie novo plano."
+                        : TASK_PLAN_PROTOCOL)});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
@@ -1705,12 +1721,18 @@ public final class StudioAiHub extends Activity {
                         "\n\n" + answer, null);
             }
             if ("propose_task_plan".equals(action)) {
+                if (executingPlanStep)
+                    throw new IOException("A etapa atual não pode criar outro plano");
                 TaskPlan plan = validateTaskPlan(decision, reads, allowProposals,
                         allowParts, allowLabels, allowScreens, allowKits);
                 return AgentOutcome.planned("Plano de " + plan.steps.size() +
                         " etapas baseado em " + reads + " leitura(s) MCP. " +
                         "Nenhum objeto foi alterado. Revise e aprove o plano.",
                         plan);
+            }
+            if (executingPlanStep && action.startsWith("propose_") &&
+                    !actionMatchesPlannedKind(action, plannedKind)) {
+                throw new IOException("Proposta não corresponde ao tipo da etapa aprovada");
             }
             if ("propose_script_edit".equals(action)) {
                 if (!allowProposals || !codeConsent || lastReadPath.isEmpty()) {
@@ -3735,6 +3757,11 @@ public final class StudioAiHub extends Activity {
             return;
         }
         final boolean agent = autoInspect.isChecked();
+        final boolean executingPlanStep = planStepOutstanding &&
+                activeTaskPlan != null &&
+                activeTaskPlan.completed < activeTaskPlan.steps.size();
+        final String plannedKind = executingPlanStep
+                ? activeTaskPlan.steps.get(activeTaskPlan.completed).kind : "";
         final boolean codeConsent = agent && includeProject.isChecked() && includeCode.isChecked();
         final boolean allowProposals = agent && codeConsent && proposeEdits.isChecked();
         final boolean allowParts = agent && includeProject.isChecked() && proposeParts.isChecked();
@@ -3778,6 +3805,7 @@ public final class StudioAiHub extends Activity {
         pendingBillboard = null;
         pendingScreen = null;
         pendingKit = null;
+        pendingTaskPlan = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
@@ -3791,10 +3819,11 @@ public final class StudioAiHub extends Activity {
                 final BillboardProposal proposedBillboard;
                 final ScreenGuiProposal proposedScreen;
                 final ReceiveToolProposal proposedKit;
+                final TaskPlan proposedPlan;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, route, turns,
                             epoch, codeConsent, allowProposals, allowParts,
-                            allowLabels, allowScreens, allowKits);
+                            allowLabels, allowScreens, allowKits, executingPlanStep, plannedKind);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
@@ -3803,7 +3832,9 @@ public final class StudioAiHub extends Activity {
                     proposedBillboard = outcome.billboard;
                     proposedScreen = outcome.screen;
                     proposedKit = outcome.kit;
-                    usage = (proposedKit != null ? " • prévia de sistema de item" :
+                    proposedPlan = outcome.plan;
+                    usage = (proposedPlan != null ? " • prévia de plano" :
+                            proposedKit != null ? " • prévia de sistema de item" :
                             proposedScreen != null ? " • prévia de ScreenGui" :
                             proposedBillboard != null ? " • prévia de etiqueta 3D" :
                             proposedComposite != null ? " • prévia de modelo composto" :
@@ -3819,6 +3850,7 @@ public final class StudioAiHub extends Activity {
                     proposedBillboard = null;
                     proposedScreen = null;
                     proposedKit = null;
+                    proposedPlan = null;
                     JSONObject result = requestModelWithFreeFallback(p, key, route,
                             turns, false, epoch, 2);
                     answer = extractText(p, result);
@@ -3853,6 +3885,15 @@ public final class StudioAiHub extends Activity {
                             proposeScreens.isChecked() ? proposedScreen : null;
                     pendingKit = includeProject.isChecked() && includeCode.isChecked() &&
                             autoInspect.isChecked() && proposeKits.isChecked() ? proposedKit : null;
+                    pendingTaskPlan = includeProject.isChecked() && autoInspect.isChecked() &&
+                            !executingPlanStep ? proposedPlan : null;
+                    boolean hasProposal = pendingEdit != null || pendingPart != null ||
+                            pendingPartChange != null || pendingComposite != null ||
+                            pendingBillboard != null || pendingScreen != null ||
+                            pendingKit != null;
+                    if (executingPlanStep && !hasProposal) {
+                        planStepOutstanding = false; // No write confirmed; allow later reinspection.
+                    }
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + route.active + usage +
@@ -3861,6 +3902,7 @@ public final class StudioAiHub extends Activity {
             } catch (Exception problem) {
                 runOnUiThread(() -> {
                     if (epoch == requestEpoch && !isFinishing()) {
+                        if (executingPlanStep) planStepOutstanding = false;
                         String error = problem.getMessage();
                         setBusy(false, agent && problem instanceof IOException && error != null
                                 ? "Agente interrompido: " + error : safeError(problem));
