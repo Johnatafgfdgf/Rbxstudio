@@ -3601,6 +3601,9 @@ public final class StudioAiHub extends Activity {
     private JSONObject requestModelWithFreeFallback(int p, String key, ModelRoute route,
             List<String[]> turns, boolean proposalMode, long epoch,
             int maxRequests) throws Exception {
+        // A queued request may start after consent was revoked. Never contact
+        // the provider for a stale request that was not yet dispatched.
+        if (epoch != requestEpoch) throw new IOException("Cancelado");
         if (route.requests >= maxRequests) {
             throw new IOException("Limite de chamadas de IA atingido (incluindo reserva).");
         }
