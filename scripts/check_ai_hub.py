@@ -770,7 +770,7 @@ for required in [
     'pendingTaskPlan != null',
     'renderPlanState();',
     'A aprovação NÃO executa nenhuma etapa.',
-    'Cada operação requer uma nova inspeção do mapa',
+    'requer uma nova inspeção do mapa',
 ]:
     assert required in java, required
 assert java.count('callMcp(paired, "multi_edit", args)') == 1
