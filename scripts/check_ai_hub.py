@@ -823,6 +823,43 @@ assert 'history.clear();' in restorer
 assert 'callMcp(' not in restorer and 'requestModelWithFreeFallback(' not in restorer
 assert 'Nenhum checkpoint criptografado salvo' in restorer
 
+
+# Toolbox pre-import review is purely local. It never imports a model,
+# executes Luau, forwards source to an AI provider or silently labels safe.
+for required in [
+    'TOOLBOX_XML_PICK_REQUEST = 7604',
+    'MAX_TOOLBOX_XML_BYTES = 2 * 1024 * 1024',
+    'MAX_TOOLBOX_XML_ITEMS = 1200',
+    'MAX_TOOLBOX_XML_SCRIPTS = 100',
+    'private static int sourceRiskMask(String source)',
+    'private static String analyzeToolboxRbxmx(InputStream input)',
+    'Xml.newPullParser()',
+    'private void selectToolboxFile()',
+    'Intent.ACTION_OPEN_DOCUMENT',
+    'startActivityForResult(choose, TOOLBOX_XML_PICK_REQUEST)',
+    'TOOLBOX_XML_PICK_REQUEST',
+    'getContentResolver().openInputStream(selected)',
+    'Nenhuma conclusão de segurança foi obtida.',
+    'Selecionar e analisar modelo .rbxmx',
+    'não prova segurança',
+    'SEM GARANTIA DE SEGURANÇA.',
+    'código ofuscado e dependências externas podem escapar',
+    'Não executa nada nem envia conteúdo à API de IA.',
+]:
+    assert required in java, required
+scanner = java[java.index('private static int sourceRiskMask('):
+               java.index('private void buildUi()')]
+assert 'callMcp(' not in scanner
+assert 'requestModelWithFreeFallback(' not in scanner
+assert 'multi_edit' not in scanner
+assert 'execute_luau' not in scanner
+assert 'insert_asset' not in scanner
+assert 'ByteArrayOutputStream' in scanner
+assert 'sourceRiskMask(item.source)' in scanner
+assert 'sourceChars > MAX_TOOLBOX_XML_BYTES' in scanner
+assert 'lowered.contains("<!doctype")' in scanner
+assert 'lowered.contains("<!entity")' in scanner
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
