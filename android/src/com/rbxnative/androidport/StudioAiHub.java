@@ -1365,7 +1365,8 @@ public final class StudioAiHub extends Activity {
     private static String buildPlaySmokeSummary(boolean startConfirmed, String playState,
             boolean serverWorkspace, boolean clientPlayers, String output,
             boolean stopConfirmed, String problem,
-            boolean sceneRequested, LocalPlayerScenario scene) {
+            boolean sceneRequested, LocalPlayerScenario scene,
+            boolean toolGuiRequested, LiveToolGuiAudit toolGui) {
         boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
                 checkedLocalPlayMode(playState));
         boolean logsAvailable = output != null;
@@ -1393,6 +1394,31 @@ public final class StudioAiHub extends Activity {
                     .append("Humanoid do personagem correspondente: ")
                     .append(scene != null && scene.humanoid ? "identificado" : "não confirmado").append("\n");
         }
+        if (toolGuiRequested) {
+            report.append("CENÁRIO OPCIONAL • estado atual de Tool e GUI no Client\n");
+            if (toolGui == null) {
+                report.append("Leituras de Tool/GUI: não confirmadas.\n");
+            } else {
+                report.append("Tool do Backpack: ")
+                        .append(toolGui.toolPath.isEmpty() ?
+                                "nenhuma Tool compatível na amostra" : toolGui.toolPath).append("\n")
+                        .append("Tool.Enabled: ").append(verifiedFlag(toolGui.toolEnabled)).append("\n")
+                        .append("Tool.RequiresHandle: ").append(verifiedFlag(toolGui.needsHandle)).append("\n")
+                        .append("Handle existente: ").append(verifiedFlag(toolGui.handlePresent)).append("\n")
+                        .append("GuiButton do PlayerGui: ")
+                        .append(toolGui.buttonPath.isEmpty() ?
+                                "nenhum botão compatível na amostra" : toolGui.buttonPath)
+                        .append("\n")
+                        .append("ScreenGui.Enabled: ").append(verifiedFlag(toolGui.screenEnabled)).append("\n")
+                        .append("GuiButton.Visible: ").append(verifiedFlag(toolGui.buttonVisible)).append("\n")
+                        .append("GuiButton.Active: ").append(verifiedFlag(toolGui.buttonActive))
+                        .append("\n")
+                        .append("Tool pronta pela configuração: ")
+                        .append(toolGui.toolReady() ? "sim" : "não confirmada").append("\n")
+                        .append("GUI pronta pela configuração: ")
+                        .append(toolGui.guiReady() ? "sim" : "não confirmada").append("\n");
+            }
+        }
         if (logsAvailable) {
             report.append("Trecho observado do Output:\n")
                     .append(output.substring(0, Math.min(output.length(), MAX_PLAY_LOG_CHARS)))
@@ -1404,13 +1430,15 @@ public final class StudioAiHub extends Activity {
             report.append("Limitação registrada: ").append(problem).append("\n");
         report.append(startConfirmed && playConfirmed && serverWorkspace && clientPlayers &&
                 logsAvailable && stopConfirmed && (!sceneRequested ||
-                (scene != null && scene.complete()))
+                (scene != null && scene.complete())) &&
+                (!toolGuiRequested || (toolGui != null && toolGui.complete()))
                 ? "PASSOU somente nas verificações de inicialização, leitura e encerramento.\n"
                 : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
-        report.append("A presença de PlayerGui/Backpack/Humanoid não prova sua operação. " +
-                "Não verifica controles, colisão, scripts individuais ou qualidade visual. " +
-                "Logs podem incluir mensagens de sessões anteriores. " +
-                "Nenhum comando Luau, publicação ou pedido à API de IA.");
+        report.append("A presença e os estados de PlayerGui/Backpack/Humanoid/Tool/GuiButton " +
+                "NÃO comprovam resposta ao toque, uso da Tool ou eventos Luau. " +
+                "Não testa colisões, scripts, câmera, renderização nem qualidade visual. " +
+                "Logs podem incluir mensagens anteriores. Nenhum comando Luau, " +
+                "clique, publicação ou pedido à API de IA.");
         return report.toString();
     }
 
@@ -1431,7 +1459,8 @@ public final class StudioAiHub extends Activity {
                 .setMessage("O app só iniciará Play se o MCP mostrar Edit. " +
                         "Depois consultará o estado Client/Server e Output, " +
                         "e solicitará parar o Play aberto por este teste. " +
-                        "A verificação opcional do Player só lê instâncias.\n\n" +
+                        "As verificações opcionais do Player/Tool/GUI apenas " +
+                        "leem instâncias e propriedades, sem clicar nem equipar.\n\n" +
                         "Isso NÃO publica um jogo, não abre o Roblox externo, " +
                         "não controla o personagem nem escreve scripts. " +
                         "Se a comunicação falhar durante a inicialização, " +
@@ -1726,8 +1755,10 @@ public final class StudioAiHub extends Activity {
         if (busy || applyingEdit || mcpPairing.isEmpty() ||
                 allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
         final String paired = mcpPairing;
-        final boolean sceneRequested = checkLocalGameplayScene != null &&
-                checkLocalGameplayScene.isChecked();
+        final boolean toolGuiRequested = checkLocalToolGui != null &&
+                checkLocalToolGui.isChecked();
+        final boolean sceneRequested = toolGuiRequested ||
+                (checkLocalGameplayScene != null && checkLocalGameplayScene.isChecked());
         final long epoch = ++requestEpoch;
         runningLocalPlaySmoke = true;
         playSmokeResult.setVisibility(View.VISIBLE);
@@ -1737,7 +1768,9 @@ public final class StudioAiHub extends Activity {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
             boolean serverWorkspace = false, clientPlayers = false;
             LocalPlayerScenario scene = null;
+            LiveToolGuiAudit toolGui = null;
             String sceneProblem = "";
+            String toolGuiProblem = "";
             String playState = "", output = null, problem = "";
             try {
                 String before = readOnlyMcp(paired, "get_studio_state", new JSONObject());
@@ -1769,6 +1802,17 @@ public final class StudioAiHub extends Activity {
                     }
                 }
                 if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                if (toolGuiRequested) {
+                    try {
+                        if (scene == null || !scene.player ||
+                                scene.playerName.isEmpty())
+                            throw new IOException("Player não identificado");
+                        toolGui = inspectLiveToolGui(paired, scene.playerName);
+                    } catch (Exception unavailable) {
+                        toolGuiProblem = "Leitura de Tool/GUI incompleta ou incompatível no Client.";
+                    }
+                }
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
                 output = readOnlyMcp(paired, "get_console_output", new JSONObject());
             } catch (Exception ex) {
                 problem = "Teste ou leitura incompletos; consulte o editor e o Output.";
@@ -1795,8 +1839,8 @@ public final class StudioAiHub extends Activity {
             }
             final String report = buildPlaySmokeSummary(startConfirmed, playState,
                     serverWorkspace, clientPlayers, output, stopConfirmed,
-                    sceneProblem.isEmpty() ? problem : problem + " " + sceneProblem,
-                    sceneRequested, scene);
+                    (problem + " " + sceneProblem + " " + toolGuiProblem).trim(),
+                    sceneRequested, scene, toolGuiRequested, toolGui);
             final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
@@ -2233,6 +2277,11 @@ public final class StudioAiHub extends Activity {
         checkLocalGameplayScene.setTextColor(Color.rgb(228, 236, 250));
         checkLocalGameplayScene.setChecked(false);
         add(root, checkLocalGameplayScene, 4);
+        checkLocalToolGui = new CheckBox(this);
+        checkLocalToolGui.setText("Cenário opcional: estados reais de Tool e GUI");
+        checkLocalToolGui.setTextColor(Color.rgb(228, 236, 250));
+        checkLocalToolGui.setChecked(false);
+        add(root, checkLocalToolGui, 4);
         runLocalPlaySmoke = button("Teste rápido Play local • iniciar → ler Output → parar");
         runLocalPlaySmoke.setOnClickListener(v -> confirmLocalPlaySmoke());
         add(root, runLocalPlaySmoke, 6);
@@ -2459,6 +2508,7 @@ public final class StudioAiHub extends Activity {
         allowLocalPlaySmoke.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
                 if (checkLocalGameplayScene != null) checkLocalGameplayScene.setChecked(false);
+                if (checkLocalToolGui != null) checkLocalToolGui.setChecked(false);
                 if (runningLocalPlaySmoke) {
                     requestEpoch++;
                     abortInFlight();
@@ -2585,6 +2635,7 @@ public final class StudioAiHub extends Activity {
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
         if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting);
+        if (checkLocalToolGui != null) checkLocalToolGui.setEnabled(!waiting);
         if (modelAuditPath != null) modelAuditPath.setEnabled(!waiting);
         if (shareModelAudit != null) shareModelAudit.setEnabled(!waiting &&
                 !localModelAuditSummary.isEmpty());
