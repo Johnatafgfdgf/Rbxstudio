@@ -876,9 +876,11 @@ public final class StudioAiHub extends Activity {
         if (backupPicker != null) backupPicker.setEnabled(!waiting);
         if (modelPicker != null) modelPicker.setEnabled(!waiting);
         if (rememberVerified != null) rememberVerified.setEnabled(!waiting &&
-                project != null && !project.trim().isEmpty());
+                project != null && !project.trim().isEmpty() &&
+                project.length() <= MAX_PROJECT_NAME);
         if (includeMemory != null) includeMemory.setEnabled(!waiting &&
-                project != null && !project.trim().isEmpty());
+                project != null && !project.trim().isEmpty() &&
+                project.length() <= MAX_PROJECT_NAME);
         status.setText(message);
     }
 
@@ -1937,6 +1939,7 @@ public final class StudioAiHub extends Activity {
                     pendingPart = null;
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, objectPath));
+                    recordEditorOutcome("CREATE_PART", objectPath, verified);
                     conversation.setText(conversation.getText() + "\nCriação 3D MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nConfira a peça no mapa e teste o Desfazer.");
@@ -2897,6 +2900,7 @@ public final class StudioAiHub extends Activity {
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, kit.system + " (4 serviços)") +
                             " Teste o botão em Play.");
+                    recordEditorOutcome("CREATE_TOOL_KIT", kit.system, verified);
                     conversation.setText(conversation.getText() + "\nSistema de item MCP:\n" +
                             outcome.substring(0, Math.min(1300, outcome.length())) +
                             "\nConfira Tool, RemoteEvent, scripts, GUI, Backpack e Desfazer.");
@@ -2964,6 +2968,7 @@ public final class StudioAiHub extends Activity {
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, objectPath) +
                             " Teste o funcionamento em Play.");
+                    recordEditorOutcome("CREATE_SCREEN_GUI", objectPath, verified);
                     conversation.setText(conversation.getText() + "\nScreenGui MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nO painel é visível durante o Play. Confira a GUI e o Desfazer.");
@@ -3027,6 +3032,7 @@ public final class StudioAiHub extends Activity {
                     pendingBillboard = null;
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, objectPath));
+                    recordEditorOutcome("CREATE_BILLBOARD", objectPath, verified);
                     conversation.setText(conversation.getText() + "\nBillboardGui MCP:\n" +
                             response.substring(0, Math.min(1000, response.length())) +
                             "\nRevise a etiqueta no Explorer e a opção Desfazer.");
@@ -3090,6 +3096,7 @@ public final class StudioAiHub extends Activity {
                     pendingComposite = null;
                     renderPendingEdit();
                     setBusy(false, readBackNotice(allPartsVerified, objectPath));
+                    recordEditorOutcome("CREATE_MODEL", objectPath, allPartsVerified);
                     conversation.setText(conversation.getText() + "\nModelo 3D MCP:\n" +
                             response.substring(0, Math.min(1200, response.length())) +
                             "\nConfira a criação e o Desfazer no editor.");
@@ -3158,6 +3165,7 @@ public final class StudioAiHub extends Activity {
                     pendingPartChange = null;
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, change.path));
+                    recordEditorOutcome("UPDATE_PART", change.path, verified);
                     conversation.setText(conversation.getText() + "\nAlteração 3D MCP:\n" +
                             outcome.substring(0, Math.min(1200, outcome.length())) +
                             "\nConfira o resultado e o histórico de Desfazer no editor.");
@@ -3362,6 +3370,8 @@ public final class StudioAiHub extends Activity {
                     pendingEdit = null;
                     renderPendingEdit();
                     setBusy(false, readBackNotice(verified, edit.path));
+                    recordEditorOutcome(edit.create ? "CREATE_SCRIPT" : "UPDATE_SCRIPT",
+                            edit.path, verified);
                     conversation.setText(conversation.getText() + "\nMCP multi_edit:\n" +
                             outcome.substring(0, Math.min(1800, outcome.length())) +
                             "\nVerifique o script no Explorer antes de publicar.");
