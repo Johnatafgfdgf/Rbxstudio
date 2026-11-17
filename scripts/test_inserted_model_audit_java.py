@@ -24,7 +24,7 @@ page_code = section(
     "    private static JSONArray parseMcpModelTree")
 risk_method = section(
     "    private static int sourceRiskMask(String source)",
-    "    private static final class ToolboxXmlItem")
+    "    private static final class ScriptDependencies")
 assert "callMcp(" not in path_checker + page_code
 assert "return new AuditScriptPage" in page_code
 
