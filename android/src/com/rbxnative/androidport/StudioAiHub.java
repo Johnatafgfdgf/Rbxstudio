@@ -179,6 +179,21 @@ public final class StudioAiHub extends Activity {
         "position opcional: top, center ou bottom. O painel aparece no Play; " +
         "a IA nunca fornece Luau executável nem grava sem aprovação.";
 
+    private static final String RECEIVE_TOOL_PROTOCOL =
+        "\nPara criar UMA interface de RECEBER ITEM funcional, inspecione primeiro " +
+        "StarterGui com inspect_instance, path exato StarterGui. Depois proponha " +
+        "{\"action\":\"propose_receive_tool_create\",\"system_name\":\"LuzKit\"," +
+        "\"item_label\":\"Lanterna\",\"button_label\":\"Receber item\"," +
+        "\"accent\":[64,157,232],\"reason\":\"motivo\"}. " +
+        "Este sistema cria UMA ferramenta de iluminação demonstrativa com Handle " +
+        "e PointLight, uma ScreenGui com TextButton, um RemoteEvent e um Script " +
+        "de servidor com um LocalScript de cliente. Toda a lógica é FIXA e " +
+        "montada pelo aplicativo, sem código da IA. system_name começa por letra " +
+        "e só tem letras/números/sublinhados, até 25 caracteres; item_label " +
+        "e button_label têm até 30 caracteres. A IA não escolhe modelos " +
+        "Toolbox ou outras operações. Usuário precisa autorizar a criação " +
+        "de scripts e a operação inteira explicitamente.";
+
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
@@ -188,7 +203,7 @@ public final class StudioAiHub extends Activity {
     private String mcpPairing = "";
     private String projectSummary = "";
     private CheckBox includeProject, includeCode, autoInspect, proposeEdits, proposeParts,
-            proposeLabels, proposeScreens;
+            proposeLabels, proposeScreens, proposeKits;
     private boolean applyingEdit;
     private EditProposal pendingEdit;
     private PartProposal pendingPart;
@@ -196,6 +211,7 @@ public final class StudioAiHub extends Activity {
     private CompositeProposal pendingComposite;
     private BillboardProposal pendingBillboard;
     private ScreenGuiProposal pendingScreen;
+    private ReceiveToolProposal pendingKit;
     private TextView proposalPreview;
     private Button applyEdit, discardEdit;
 
@@ -301,6 +317,25 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    /** Fixed four-service system: RemoteEvent, server script, Tool and ScreenGui. */
+    private static final class ReceiveToolProposal {
+        final String system, itemLabel, buttonLabel, reason, inspectedServiceId;
+        final int[] accent;
+        ReceiveToolProposal(String system, String itemLabel, String buttonLabel,
+                String reason, String inspectedServiceId, int[] accent) {
+            this.system = system;
+            this.itemLabel = itemLabel;
+            this.buttonLabel = buttonLabel;
+            this.reason = reason;
+            this.inspectedServiceId = inspectedServiceId;
+            this.accent = accent;
+        }
+        String remoteName() { return system + "_Request"; }
+        String serverName() { return system + "_Server"; }
+        String toolName() { return system + "_Tool"; }
+        String guiName() { return system + "_Gui"; }
+    }
+
     private static final class AgentOutcome {
         final String answer;
         final EditProposal proposal;
@@ -309,28 +344,35 @@ public final class StudioAiHub extends Activity {
         final CompositeProposal composite;
         final BillboardProposal billboard;
         final ScreenGuiProposal screen;
+        final ReceiveToolProposal kit;
         AgentOutcome(String answer, EditProposal proposal) {
-            this(answer, proposal, null, null, null, null, null);
+            this(answer, proposal, null, null, null, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part) {
-            this(answer, proposal, part, null, null, null, null);
+            this(answer, proposal, part, null, null, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange) {
-            this(answer, proposal, part, partChange, null, null, null);
+            this(answer, proposal, part, partChange, null, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange, CompositeProposal composite) {
-            this(answer, proposal, part, partChange, composite, null, null);
+            this(answer, proposal, part, partChange, composite, null, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange, CompositeProposal composite,
                 BillboardProposal billboard) {
-            this(answer, proposal, part, partChange, composite, billboard, null);
+            this(answer, proposal, part, partChange, composite, billboard, null, null);
         }
         AgentOutcome(String answer, EditProposal proposal, PartProposal part,
                 PartChangeProposal partChange, CompositeProposal composite,
                 BillboardProposal billboard, ScreenGuiProposal screen) {
+            this(answer, proposal, part, partChange, composite, billboard, screen, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange, CompositeProposal composite,
+                BillboardProposal billboard, ScreenGuiProposal screen,
+                ReceiveToolProposal kit) {
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
@@ -338,6 +380,7 @@ public final class StudioAiHub extends Activity {
             this.composite = composite;
             this.billboard = billboard;
             this.screen = screen;
+            this.kit = kit;
         }
     }
     private volatile long requestEpoch;
@@ -635,6 +678,11 @@ public final class StudioAiHub extends Activity {
         proposeScreens.setTextColor(Color.rgb(228, 236, 250));
         proposeScreens.setChecked(false);
         add(root, proposeScreens, 6);
+        proposeKits = new CheckBox(this);
+        proposeKits.setText("Permitir propostas de sistema 'Receber item' (Tool, GUI, scripts, RemoteEvent)");
+        proposeKits.setTextColor(Color.rgb(228, 236, 250));
+        proposeKits.setChecked(false);
+        add(root, proposeKits, 6);
         TextView agentNotice = text("Exige MCP ativo e autorização de leitura de scripts. " +
                 "Até 4 chamadas de API faturáveis. Propostas não são aplicadas automaticamente; " +
                 "o editor também pode exigir aprovação MCP.", 12, false);
@@ -666,7 +714,8 @@ public final class StudioAiHub extends Activity {
         applyEdit = button("Revisar e confirmar alteração Luau");
         applyEdit.setVisibility(View.GONE);
         applyEdit.setOnClickListener(v -> {
-            if (pendingScreen != null) confirmPendingScreen();
+            if (pendingKit != null) confirmPendingReceiveTool();
+            else if (pendingScreen != null) confirmPendingScreen();
             else if (pendingBillboard != null) confirmPendingBillboard();
             else if (pendingComposite != null) confirmPendingComposite();
             else if (pendingPartChange != null) confirmPendingPartChange();
@@ -683,6 +732,7 @@ public final class StudioAiHub extends Activity {
             pendingComposite = null;
             pendingBillboard = null;
             pendingScreen = null;
+            pendingKit = null;
             renderPendingEdit();
             status.setText("Proposta descartada. Nenhum script foi alterado.");
         });
@@ -693,7 +743,8 @@ public final class StudioAiHub extends Activity {
         includeProject.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingEdit = null; pendingPart = null;
                 pendingPartChange = null; pendingComposite = null;
-                pendingBillboard = null; pendingScreen = null; renderPendingEdit(); }
+                pendingBillboard = null; pendingScreen = null;
+                pendingKit = null; renderPendingEdit(); }
         });
         proposeParts.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingPart = null; pendingPartChange = null;
@@ -704,6 +755,9 @@ public final class StudioAiHub extends Activity {
         });
         proposeScreens.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingScreen = null; renderPendingEdit(); }
+        });
+        proposeKits.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) { pendingKit = null; renderPendingEdit(); }
         });
         providerPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -718,12 +772,14 @@ public final class StudioAiHub extends Activity {
                 proposeParts.setChecked(false);
                 proposeLabels.setChecked(false);
                 proposeScreens.setChecked(false);
+                proposeKits.setChecked(false);
                 pendingEdit = null;
                 pendingPart = null;
                 pendingPartChange = null;
                 pendingComposite = null;
                 pendingBillboard = null;
                 pendingScreen = null;
+                pendingKit = null;
                 renderPendingEdit();
                 models.clear();
                 discoveredModels.clear();
@@ -1193,7 +1249,7 @@ public final class StudioAiHub extends Activity {
     private AgentOutcome runReadOnlyAgent(int p, String key, ModelRoute route,
             List<String[]> turns, long epoch, boolean codeConsent,
             boolean allowProposals, boolean allowParts, boolean allowLabels,
-            boolean allowScreens) throws Exception {
+            boolean allowScreens, boolean allowKits) throws Exception {
         int last = turns.size() - 1;
         String originalQuestion = turns.get(last)[1];
         turns.set(last, new String[]{"user", originalQuestion + "\n\n" + AGENT_PROTOCOL +
@@ -1205,7 +1261,9 @@ public final class StudioAiHub extends Activity {
                 (allowLabels ? BILLBOARD_PROTOCOL :
                         "\nNão proponha etiquetas 3D.") +
                 (allowScreens ? SCREEN_GUI_PROTOCOL :
-                        "\nNão proponha ScreenGuis/painéis de tela.")});
+                        "\nNão proponha ScreenGuis/painéis de tela.") +
+                (allowKits ? RECEIVE_TOOL_PROTOCOL :
+                        "\nNão proponha kits de ferramenta/GUI/scripts.")});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
@@ -1309,6 +1367,16 @@ public final class StudioAiHub extends Activity {
                 return new AgentOutcome("Painel de tela proposto para revisão: StarterGui." +
                         gui.name + ". Nenhum objeto foi alterado.",
                         null, null, null, null, null, gui);
+            }
+            if ("propose_receive_tool_create".equals(action)) {
+                if (!allowKits || !"StarterGui".equals(lastInspectedPath)) {
+                    throw new IOException("Sistema de item sem autorização ou inspeção de StarterGui");
+                }
+                ReceiveToolProposal kit = validateReceiveToolProposal(decision,
+                        lastInspectedPath, lastInspectedOutput);
+                return new AgentOutcome("Sistema de item proposto: " + kit.system +
+                        ". Quatro serviços serão alterados somente após revisão.",
+                        null, null, null, null, null, null, kit);
             }
             if (!("search_game_tree".equals(action) || "inspect_instance".equals(action)
                     || "script_search".equals(action) || "get_studio_state".equals(action)
@@ -2425,11 +2493,27 @@ public final class StudioAiHub extends Activity {
         if (proposalPreview == null) return;
         boolean visible = pendingEdit != null || pendingPart != null ||
                 pendingPartChange != null || pendingComposite != null ||
-                pendingBillboard != null || pendingScreen != null;
+                pendingBillboard != null || pendingScreen != null || pendingKit != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         discardEdit.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) { proposalPreview.setText(""); return; }
+        if (pendingKit != null) {
+            ReceiveToolProposal kit = pendingKit;
+            applyEdit.setText("Revisar e confirmar RECEBER ITEM");
+            proposalPreview.setText("PRÉVIA • sistema ainda não criado\n" +
+                    "StarterGui." + kit.guiName() + " → botão: " + kit.buttonLabel +
+                    "\nReplicatedStorage." + kit.remoteName() + " (RemoteEvent)" +
+                    "\nServerScriptService." + kit.serverName() + " (Script fixo)" +
+                    "\nServerStorage." + kit.toolName() + " (Tool + Handle + PointLight)" +
+                    "\nTítulo do item: " + kit.itemLabel +
+                    "\nCor do botão RGB: " + Arrays.toString(kit.accent) +
+                    "\nMotivo: " + kit.reason +
+                    "\n\nO servidor entrega uma ferramenta de luz ao Backpack do jogador, " +
+                    "após pedido por RemoteEvent, sem duplicar uma Tool equipada. " +
+                    "A IA não define os scripts. Aprovação obrigatória.");
+            return;
+        }
         if (pendingScreen != null) {
             ScreenGuiProposal gui = pendingScreen;
             applyEdit.setText("Revisar e confirmar PAINEL ScreenGui");
@@ -2626,6 +2710,7 @@ public final class StudioAiHub extends Activity {
                 proposeLabels.isChecked();
         final boolean allowScreens = agent && includeProject.isChecked() &&
                 proposeScreens.isChecked();
+        final boolean allowKits = agent && codeConsent && proposeKits.isChecked();
         final ModelRoute route = new ModelRoute(model, selectedBackupModel(model));
         if (proposeEdits.isChecked() && !codeConsent) {
             status.setText("Propostas precisam do agente, MCP e autorização de leitura de scripts.");
@@ -2652,6 +2737,7 @@ public final class StudioAiHub extends Activity {
         pendingComposite = null;
         pendingBillboard = null;
         pendingScreen = null;
+        pendingKit = null;
         renderPendingEdit();
         setBusy(true, agent ? "Agente iniciando inspeção autorizada…" : "Consultando " + model + "…");
         requests.execute(() -> {
@@ -2664,10 +2750,11 @@ public final class StudioAiHub extends Activity {
                 final CompositeProposal proposedComposite;
                 final BillboardProposal proposedBillboard;
                 final ScreenGuiProposal proposedScreen;
+                final ReceiveToolProposal proposedKit;
                 if (agent) {
                     AgentOutcome outcome = runReadOnlyAgent(p, key, route, turns,
                             epoch, codeConsent, allowProposals, allowParts,
-                            allowLabels, allowScreens);
+                            allowLabels, allowScreens, allowKits);
                     answer = outcome.answer;
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
@@ -2675,7 +2762,9 @@ public final class StudioAiHub extends Activity {
                     proposedComposite = outcome.composite;
                     proposedBillboard = outcome.billboard;
                     proposedScreen = outcome.screen;
-                    usage = (proposedScreen != null ? " • prévia de ScreenGui" :
+                    proposedKit = outcome.kit;
+                    usage = (proposedKit != null ? " • prévia de sistema de item" :
+                            proposedScreen != null ? " • prévia de ScreenGui" :
                             proposedBillboard != null ? " • prévia de etiqueta 3D" :
                             proposedComposite != null ? " • prévia de modelo composto" :
                             proposedPartChange != null ? " • prévia de mudança 3D" :
@@ -2689,6 +2778,7 @@ public final class StudioAiHub extends Activity {
                     proposedComposite = null;
                     proposedBillboard = null;
                     proposedScreen = null;
+                    proposedKit = null;
                     JSONObject result = requestModelWithFreeFallback(p, key, route,
                             turns, false, epoch, 2);
                     answer = extractText(p, result);
@@ -2721,6 +2811,8 @@ public final class StudioAiHub extends Activity {
                             proposeLabels.isChecked() ? proposedBillboard : null;
                     pendingScreen = includeProject.isChecked() && autoInspect.isChecked() &&
                             proposeScreens.isChecked() ? proposedScreen : null;
+                    pendingKit = includeProject.isChecked() && includeCode.isChecked() &&
+                            autoInspect.isChecked() && proposeKits.isChecked() ? proposedKit : null;
                     renderPendingEdit();
                     prompt.setText("");
                     setBusy(false, "Resposta recebida de " + route.active + usage +
