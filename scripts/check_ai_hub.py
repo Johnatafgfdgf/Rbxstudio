@@ -1078,6 +1078,20 @@ for required in [
     'private static String buildPlaySmokeSummary(',
     'private void confirmLocalPlaySmoke()',
     'private void runLocalPlaySmoke()',
+    'private LiveToolGuiAudit inspectLiveToolGui(String paired, String playerName)',
+    'private static Boolean strictMcpFlag(JSONObject node, String property)',
+    'private static JSONObject checkedLiveInstance(String raw, String path, String className)',
+    'private static JSONArray strictLiveTree(',
+    'private static String[] selectToolGuiCandidates(',
+    'private static boolean hasDirectToolHandle(JSONArray backpack, String toolPath)',
+    'checkLocalToolGui != null &&',
+    'toolGui = inspectLiveToolGui(paired, scene.playerName)',
+    '.put("datamodel_type", "Client").put("path", backpackRoot)',
+    '.put("datamodel_type", "Client").put("path", guiRoot)',
+    '.put("max_depth", 2).put("head_limit", 48)',
+    '.put("max_depth", 4).put("head_limit", 64)',
+    'toolGui != null && toolGui.complete()',
+
     'private static LocalPlayerScenario evaluateLocalPlayerScenario(',
     'private LocalPlayerScenario inspectLocalPlayerGameplay(String paired)',
     'checkLocalGameplayScene != null &&',
@@ -1112,7 +1126,8 @@ for required in [
 ]:
     assert required in smoke_section, required
 assert smoke_section.count('callMcp(paired, "start_stop_play"') == 2
-assert smoke_section.count('callMcp(paired, "search_game_tree"') == 3
+assert smoke_section.count('callMcp(paired, "search_game_tree"') == 5
+assert smoke_section.count('callMcp(paired, "inspect_instance"') == 3
 assert 'new JSONObject().put("is_start", false)' in smoke_section
 assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
 assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
@@ -1121,6 +1136,8 @@ for forbidden in ['requestModelWithFreeFallback(', 'executeApproved3dCode(',
     assert forbidden not in smoke_section, forbidden
 assert 'allowLocalPlaySmoke.setChecked(false)' in java
 assert 'checkLocalGameplayScene.setChecked(false)' in java
+assert 'checkLocalToolGui.setChecked(false)' in java
+assert 'if (checkLocalToolGui != null) checkLocalToolGui.setEnabled(!waiting)' in java
 assert 'if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting)' in java
 assert 'runningLocalPlaySmoke = false' in java
 assert 'if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting)' in java
