@@ -984,7 +984,15 @@ public final class StudioAiHub extends Activity {
                 ? "Leitura MCP confirmou " + kind + " em " + path
                 : "Gravação MCP inconclusiva para " + kind + " em " + path +
                     "; NÃO repetir sem inspecionar o Explorer.";
-        history.add(new String[]{"assistant", "[Resultado real do editor] " + evidence});
+        String toolReceipt = "[Resultado real do editor] " + evidence;
+        if (!history.isEmpty() &&
+                "assistant".equals(history.get(history.size() - 1)[0])) {
+            String[] previous = history.get(history.size() - 1);
+            previous[1] = previous[1] + "\n\n" + toolReceipt;
+        } else {
+            history.add(new String[]{"assistant", toolReceipt});
+        }
+        // Preserve alternating user/assistant turns required by Gemini/Claude.
         while (history.size() > MAX_HISTORY) history.remove(0);
         if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;
         try {
