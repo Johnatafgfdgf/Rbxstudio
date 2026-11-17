@@ -7,6 +7,13 @@ on:
     paths:
       - .github/workflows/export-ai-full-source.yml
       - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
+      - android/src/com/rbxnative/androidport/RookPlayerActivity.java
+      - player/src/lib.rs
+      - player/src/platform.rs
+      - patches/rook--android-port.patch
+      - scripts/test_ai_android_touch_java.py
+      - docs/ANDROID_AI_PHASE15_ROOK_REAL_TOUCH_EVIDENCE_2026-11-17.md
       - scripts/check_ai_hub.py
       - core/tests/ai_receive_tool.rs
       - .github/workflows/engine-compatibility.yml
