@@ -1661,27 +1661,26 @@ public final class StudioAiHub extends Activity {
                 break;
             }
         }
-        for (int i = 1; i < gui.length(); i++) {
-            JSONObject node = gui.optJSONObject(i);
-            if (node == null || !"ScreenGui".equals(node.optString("className", ""))) continue;
-            String name = node.optString("name", "");
-            if (!name.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
-            String path = guiRoot + "." + name;
-            if ("PlayerGui".equals(node.optString("parentName", "")) &&
-                    path.equals(node.optString("fullPath", ""))) {
-                screenPath = path;
-                break;
-            }
-        }
-        if (!screenPath.isEmpty()) {
-            for (int i = 1; i < gui.length(); i++) {
-                JSONObject node = gui.optJSONObject(i);
+        // Find the first ScreenGui that actually contains a button, not
+        // merely the first ScreenGui (which may be decorative or empty).
+        for (int i = 1; i < gui.length() && buttonPath.isEmpty(); i++) {
+            JSONObject screen = gui.optJSONObject(i);
+            if (screen == null || !"ScreenGui".equals(
+                    screen.optString("className", ""))) continue;
+            String screenName = screen.optString("name", "");
+            if (!screenName.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
+            String pathRoot = guiRoot + "." + screenName;
+            if (!"PlayerGui".equals(screen.optString("parentName", "")) ||
+                    !pathRoot.equals(screen.optString("fullPath", ""))) continue;
+            for (int k = 1; k < gui.length(); k++) {
+                JSONObject node = gui.optJSONObject(k);
                 if (node == null) continue;
                 String type = node.optString("className", "");
                 String path = node.optString("fullPath", "");
                 if (("TextButton".equals(type) || "ImageButton".equals(type)) &&
-                        path.startsWith(screenPath + ".") && path.length() <= 180 &&
+                        path.startsWith(pathRoot + ".") && path.length() <= 180 &&
                         path.matches("[A-Za-z0-9_.]+")) {
+                    screenPath = pathRoot;
                     buttonPath = path;
                     break;
                 }
