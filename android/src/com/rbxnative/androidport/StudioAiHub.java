@@ -622,7 +622,7 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
-    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip;
+    private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate;
     private TextView playProbeResult, playSmokeResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
@@ -1368,7 +1368,7 @@ public final class StudioAiHub extends Activity {
             boolean sceneRequested, LocalPlayerScenario scene,
             boolean toolGuiRequested, LiveToolGuiAudit toolGui,
             boolean equipRequested, boolean equipReceipt, boolean equipReadBack,
-            boolean equippedEvent) {
+            boolean equippedEvent, boolean activateRequested, boolean activatedEvent) {
         boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
                 checkedLocalPlayMode(playState));
         boolean logsAvailable = output != null;
@@ -1433,6 +1433,12 @@ public final class StudioAiHub extends Activity {
                     .append(equippedEvent ? "observado" : "não confirmado")
                     .append("\n");
         }
+        if (activateRequested) {
+            report.append("CENÁRIO OPCIONAL • Tool.Activated disparado por API, NÃO por toque\n")
+                    .append("Evento real Tool.Activated no Client: ")
+                    .append(activatedEvent ? "observado" : "não confirmado")
+                    .append("\n");
+        }
         if (logsAvailable) {
             report.append("Trecho observado do Output:\n")
                     .append(output.substring(0, Math.min(output.length(), MAX_PLAY_LOG_CHARS)))
@@ -1446,13 +1452,15 @@ public final class StudioAiHub extends Activity {
                 logsAvailable && stopConfirmed && (!sceneRequested ||
                 (scene != null && scene.complete())) &&
                 (!toolGuiRequested || (toolGui != null && toolGui.complete())) &&
-                (!equipRequested || (equipReceipt && equipReadBack && equippedEvent))
+                (!equipRequested || (equipReceipt && equipReadBack && equippedEvent)) &&
+                (!activateRequested || activatedEvent)
                 ? "PASSOU somente nas verificações solicitadas de Play local.\n"
                 : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
         report.append("Presença e propriedades de objetos não comprovam resposta ao toque. " +
                 "EquipTool, se solicitado, altera apenas a sessão Play local e pode " +
-                "executar scripts existentes da Tool; observar Equipped não comprova Activated nem " +
-                "clique em GUI. Não testa colisões, scripts individuais, câmera, " +
+                "executar scripts existentes da Tool; ativação pela API pode disparar " +
+                "lógica do jogo, mas NÃO prova toque real nem clique em GUI. " +
+                "Não testa colisões, scripts individuais, câmera, "
                 "renderização nem qualidade visual. Logs podem incluir mensagens " +
                 "anteriores. Nenhum código da IA, publicação ou envio à API de IA.");
         return report.toString();
@@ -1472,8 +1480,11 @@ public final class StudioAiHub extends Activity {
         }
         final boolean equipSelected = checkLocalToolEquip != null &&
                 checkLocalToolEquip.isChecked();
+        final boolean activateSelected = checkLocalToolActivate != null &&
+                checkLocalToolActivate.isChecked();
         new android.app.AlertDialog.Builder(this)
-                .setTitle(equipSelected ? "Autorizar equipagem real no Play local?" :
+                .setTitle(activateSelected ? "Autorizar Tool.Activated por API no Play local?" :
+                        equipSelected ? "Autorizar equipagem real no Play local?" :
                         "Executar teste rápido de Play local?")
                 .setMessage("O app só iniciará Play se o MCP mostrar Edit. " +
                         "Depois consultará o estado Client/Server e Output, " +
@@ -1486,7 +1497,12 @@ public final class StudioAiHub extends Activity {
                         "teste confiável e não a experiência oficial. A Tool será " +
                         "verificada novamente pela árvore real antes de encerrar Play.\n\n" :
                         "Sem equipagem ou cliques automáticos.\n\n") +
-                        "Isso não publica jogos nem injeta toques Android ou " +
+                        (activateSelected ?
+                        "Você também autorizou UMA chamada de Tool:Activate() e " +
+                        "Tool:Deactivate() programática. Isso dispara possíveis " +
+                        "scripts e efeitos já existentes. NÃO equivale a um toque " +
+                        "real no Android e não interage com GuiButtons.\n\n" : "") +
+                        "Isso não publica jogos nem injeta toques Android ou "
                         "altera os scripts salvos. Se a comunicação falhar, " +
                         "confira manualmente se o Play foi encerrado. " +
                         "Nenhum log vai para a IA.")
@@ -1872,12 +1888,64 @@ public final class StudioAiHub extends Activity {
         return readBackEquippedTool(tree, playerName, toolPath);
     }
 
+    /** Explicit, opt-in programmatic Tool:Activate on a disposable local Play
+     * session. This is NOT an Android tap and does NOT test GuiButton input. */
+    private static String boundedLocalActivateLuau(String playerName, String toolPath)
+            throws IOException {
+        if (playerName == null || !playerName.matches("[A-Za-z0-9_]{1,20}"))
+            throw new IOException("Player não autorizado");
+        String prefix = "Players." + playerName + ".Backpack.";
+        if (toolPath == null || !toolPath.startsWith(prefix))
+            throw new IOException("Tool não corresponde ao Backpack original");
+        String name = toolPath.substring(prefix.length());
+        if (!name.matches("[A-Za-z_][A-Za-z0-9_ -]{0,39}"))
+            throw new IOException("Nome da Tool não autorizado");
+        return "local plr = game:GetService(\"Players\").LocalPlayer\n" +
+                "if not plr or plr.Name ~= \"" + playerName +
+                "\" then return \"PLAYER_NOT_LOCAL\" end\n" +
+                "local char = plr.Character\n" +
+                "if not char then return \"CHAR_NOT_READY\" end\n" +
+                "local found, count = nil, 0\n" +
+                "for _, child in ipairs(char:GetChildren()) do\n" +
+                "  if child.Name == \"" + name + "\" then\n" +
+                "    count = count + 1\n" +
+                "    if child:IsA(\"Tool\") then found = child end\n" +
+                "  end\n" +
+                "end\n" +
+                "if count ~= 1 or not found or not found.Enabled then\n" +
+                "  return \"TOOL_NOT_READY\"\n" +
+                "end\n" +
+                "local activatedObserved = false\n" +
+                "local activatedListener = found.Activated:Connect(function()\n" +
+                "  activatedObserved = true\n" +
+                "end)\n" +
+                "local safe = pcall(function() found:Activate() end)\n" +
+                "task.wait(0.3)\n" +
+                "pcall(function() found:Deactivate() end)\n" +
+                "activatedListener:Disconnect()\n" +
+                "if not safe then return \"ACTIVATION_NOT_CONFIRMED\" end\n" +
+                "return activatedObserved and \"ACTIVATED_EVENT\" or \"ACTIVATION_NOT_CONFIRMED\"";
+    }
+
+    /** A successful MCP call alone is not proof of an Activated signal. */
+    private boolean confirmProgrammaticActivated(String paired, String playerName,
+            String toolPath) throws Exception {
+        String code = boundedLocalActivateLuau(playerName, toolPath);
+        String receipt = callMcp(paired, "execute_luau", new JSONObject()
+                .put("datamodel_type", "Client").put("code", code));
+        if (!"ACTIVATED_EVENT".equals(receipt == null ? "" : receipt.trim()))
+            throw new IOException("Tool.Activated não foi observado no Client");
+        return true;
+    }
+
     private void runLocalPlaySmoke() {
         if (busy || applyingEdit || mcpPairing.isEmpty() ||
                 allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
         final String paired = mcpPairing;
-        final boolean equipRequested = checkLocalToolEquip != null &&
-                checkLocalToolEquip.isChecked();
+        final boolean activateRequested = checkLocalToolActivate != null &&
+                checkLocalToolActivate.isChecked();
+        final boolean equipRequested = activateRequested ||
+                (checkLocalToolEquip != null && checkLocalToolEquip.isChecked());
         final boolean toolGuiRequested = checkLocalToolGui != null &&
                 checkLocalToolGui.isChecked();
         final boolean scanToolGui = toolGuiRequested || equipRequested;
@@ -1892,10 +1960,11 @@ public final class StudioAiHub extends Activity {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
             boolean serverWorkspace = false, clientPlayers = false;
             boolean equipReceipt = false, equipReadBack = false, equippedEvent = false;
+            boolean activatedEvent = false;
             LocalPlayerScenario scene = null;
             LiveToolGuiAudit toolGui = null;
             String sceneProblem = "";
-            String toolGuiProblem = "", equipProblem = "";
+            String toolGuiProblem = "", equipProblem = "", activationProblem = "";
             String playState = "", output = null, problem = "";
             try {
                 String before = readOnlyMcp(paired, "get_studio_state", new JSONObject());
@@ -1961,6 +2030,24 @@ public final class StudioAiHub extends Activity {
                     }
                 }
                 if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                if (activateRequested) {
+                    try {
+                        if (!equipReceipt || !equipReadBack || !equippedEvent ||
+                                scene == null || toolGui == null)
+                            throw new IOException("Equipagem e evento Equipped incompletos");
+                        if (epoch != requestEpoch ||
+                                allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked() ||
+                                checkLocalToolEquip == null || !checkLocalToolEquip.isChecked() ||
+                                checkLocalToolActivate == null ||
+                                !checkLocalToolActivate.isChecked())
+                            throw new IOException("Autorização de ativação revogada");
+                        activatedEvent = confirmProgrammaticActivated(paired, scene.playerName,
+                                toolGui.toolPath);
+                    } catch (Exception unavailable) {
+                        activationProblem = "Tool.Activated via API não foi confirmado no Client.";
+                    }
+                }
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
                 output = readOnlyMcp(paired, "get_console_output", new JSONObject());
             } catch (Exception ex) {
                 problem = "Teste ou leitura incompletos; consulte o editor e o Output.";
@@ -1988,9 +2075,10 @@ public final class StudioAiHub extends Activity {
             final String report = buildPlaySmokeSummary(startConfirmed, playState,
                     serverWorkspace, clientPlayers, output, stopConfirmed,
                     (problem + " " + sceneProblem + " " + toolGuiProblem +
-                            " " + equipProblem).trim(),
+                            " " + equipProblem + " " + activationProblem).trim(),
                     sceneRequested, scene, toolGuiRequested, toolGui,
-                    equipRequested, equipReceipt, equipReadBack, equippedEvent);
+                    equipRequested, equipReceipt, equipReadBack, equippedEvent,
+                    activateRequested, activatedEvent);
             final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
@@ -2437,6 +2525,11 @@ public final class StudioAiHub extends Activity {
         checkLocalToolEquip.setTextColor(Color.rgb(228, 236, 250));
         checkLocalToolEquip.setChecked(false);
         add(root, checkLocalToolEquip, 4);
+        checkLocalToolActivate = new CheckBox(this);
+        checkLocalToolActivate.setText("Avançado: testar Tool.Activated por API (NÃO é toque no Android)");
+        checkLocalToolActivate.setTextColor(Color.rgb(228, 236, 250));
+        checkLocalToolActivate.setChecked(false);
+        add(root, checkLocalToolActivate, 4);
         runLocalPlaySmoke = button("Teste rápido Play local • iniciar → ler Output → parar");
         runLocalPlaySmoke.setOnClickListener(v -> confirmLocalPlaySmoke());
         add(root, runLocalPlaySmoke, 6);
@@ -2665,6 +2758,7 @@ public final class StudioAiHub extends Activity {
                 if (checkLocalGameplayScene != null) checkLocalGameplayScene.setChecked(false);
                 if (checkLocalToolGui != null) checkLocalToolGui.setChecked(false);
                 if (checkLocalToolEquip != null) checkLocalToolEquip.setChecked(false);
+                if (checkLocalToolActivate != null) checkLocalToolActivate.setChecked(false);
                 if (runningLocalPlaySmoke) {
                     requestEpoch++;
                     abortInFlight();
@@ -2676,6 +2770,14 @@ public final class StudioAiHub extends Activity {
                     playSmokeResult.setVisibility(View.GONE);
                 }
             }
+        });
+        checkLocalToolActivate.setOnCheckedChangeListener((v, checked) -> {
+            if (checked && checkLocalToolEquip != null && !checkLocalToolEquip.isChecked())
+                checkLocalToolEquip.setChecked(true);
+        });
+        checkLocalToolEquip.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked && checkLocalToolActivate != null)
+                checkLocalToolActivate.setChecked(false);
         });
         allowLocalPlayProbe.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
@@ -2793,6 +2895,7 @@ public final class StudioAiHub extends Activity {
         if (checkLocalGameplayScene != null) checkLocalGameplayScene.setEnabled(!waiting);
         if (checkLocalToolGui != null) checkLocalToolGui.setEnabled(!waiting);
         if (checkLocalToolEquip != null) checkLocalToolEquip.setEnabled(!waiting);
+        if (checkLocalToolActivate != null) checkLocalToolActivate.setEnabled(!waiting);
         if (modelAuditPath != null) modelAuditPath.setEnabled(!waiting);
         if (shareModelAudit != null) shareModelAudit.setEnabled(!waiting &&
                 !localModelAuditSummary.isEmpty());
