@@ -618,6 +618,36 @@ for required in [
 ]:
     assert required in engine_kit, required
 
+
+# All verified editor writes must reject MCP transport-level 'success'
+# messages which actually contain Luau error or collision status strings.
+for required in [
+    'private static String checkedEditReceipt(String raw, String expected)',
+    'if (raw == null || !expected.equals(raw.trim()))',
+    'status.startsWith("NAME_EXISTS")',
+    'status.startsWith("STALE_PART")',
+    'status.startsWith("KIT_NAME_EXISTS")',
+    'executeApproved3dCode(paired, command),',
+    '"CREATED_RECEIVE_TOOL:" + kit.system',
+    '"CREATED_SCREEN_GUI:" + gui.name',
+    '"CREATED_BILLBOARD:" + label.name',
+    '"CREATED_MODEL:" + model.name',
+    '"UPDATED:" + change.path.substring("Workspace.".length())',
+    '"CREATED:" + part.name',
+]:
+    assert required in java, required
+assert java.count('checkedEditReceipt(') == 7
+for required in [
+    'Testar conexão com editor (MCP local)',
+    'private void diagnoseLocalEditor()',
+    'readOnlyMcp(paired, "get_studio_state", new JSONObject())',
+    'readOnlyMcp(paired, "inspect_instance",',
+    '"StarterGui".equals(target.optString("className", ""))',
+    'Nenhuma chave ou dado enviado ao provedor de IA.',
+]:
+    assert required in java, required
+assert 'new JSONObject().put("code", "' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
