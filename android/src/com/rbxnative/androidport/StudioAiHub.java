@@ -1008,6 +1008,22 @@ public final class StudioAiHub extends Activity {
         memoryPreview = text("", 12, false);
         memoryPreview.setVisibility(View.GONE);
         add(root, memoryPreview, 9);
+
+        add(root, text("Segurança dos modelos da Toolbox", 14, true), 5);
+        TextView toolboxHelp = text("Analise um arquivo de modelo .rbxmx ANTES " +
+                "de inserir no mapa. O app lê o XML localmente, conta Script, " +
+                "LocalScript e ModuleScript e marca sinais de código suspeito. " +
+                "Não aceita modelos .rbxm binários ou IDs da loja neste recurso. " +
+                "Não executa nada nem envia conteúdo à API de IA.", 12, false);
+        add(root, toolboxHelp, 5);
+        scanToolboxFile = button("Selecionar e analisar modelo .rbxmx");
+        scanToolboxFile.setOnClickListener(v -> selectToolboxFile());
+        add(root, scanToolboxFile, 6);
+        toolboxScanResult = text("", 12, false);
+        toolboxScanResult.setPadding(dp(11), dp(11), dp(11), dp(11));
+        toolboxScanResult.setBackground(shape(Color.rgb(26, 42, 65), 13));
+        toolboxScanResult.setVisibility(View.GONE);
+        add(root, toolboxScanResult, 9);
         boolean namedProject = project != null && !project.trim().isEmpty() &&
                 project.length() <= MAX_PROJECT_NAME;
         rememberVerified.setEnabled(namedProject);
@@ -1255,6 +1271,7 @@ public final class StudioAiHub extends Activity {
     private void setBusy(boolean waiting, String message) {
         busy = waiting;
         refresh.setEnabled(!waiting);
+        if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         save.setEnabled(!waiting);
         send.setEnabled(!waiting);
         if (continueTask != null) continueTask.setEnabled(!waiting);
