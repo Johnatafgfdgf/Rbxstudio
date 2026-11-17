@@ -11,7 +11,7 @@ import tempfile
 source = (Path(__file__).resolve().parents[1] /
           "android/src/com/rbxnative/androidport/StudioAiHub.java").read_text()
 start = source.index("    private static int sourceRiskMask(String source)")
-end = source.index("    private static final class ToolboxXmlItem", start)
+end = source.index("    private static final class ScriptDependencies", start)
 method = source[start:end].strip()
 assert "return mask;" in method and method.endswith("}")
 assert "callMcp(" not in method and "request(" not in method
