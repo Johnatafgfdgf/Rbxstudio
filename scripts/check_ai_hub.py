@@ -577,6 +577,24 @@ assert java.index('verifyKitDestinations(paired, kit)') < java.index(
     'executeApproved3dCode(paired, command)'
 )
 
+# A runtime collision is a hard error, not a misleading "success" string.
+# Service parenting is guarded and all newly staged objects are destroyed on
+# an attachment failure. No scripts are parented before Source is validated.
+for required in [
+    "then error('KIT_NAME_EXISTS') end",
+    'local serverOk=pcall(function() serverScript.Source=',
+    'local clientOk=pcall(function() logic.Source=',
+    'local committed,commitError=pcall(function()',
+    "error('KIT_COMMIT_FAILED: '..tostring(commitError))",
+    'pcall(function() serverScript:Destroy() end)',
+    'pcall(function() screen:Destroy() end)',
+    'pcall(function() tool:Destroy() end)',
+    'pcall(function() remote:Destroy() end)',
+]:
+    assert required in java, required
+assert java.index('if not clientOk then error(') < java.index('remote.Parent=rs')
+assert java.index('remote.Parent=rs') < java.index('serverScript.Parent=server')
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
