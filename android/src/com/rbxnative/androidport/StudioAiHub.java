@@ -79,6 +79,8 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_MODEL_AUDIT_TREES = 12;
     private static final int MAX_MODEL_AUDIT_SCRIPTS = 16;
     private static final int MAX_MODEL_AUDIT_PAGES = 2;
+    private static final int MAX_PLAY_LOG_LINES = 8;
+    private static final int MAX_PLAY_LOG_CHARS = 1800;
     private static final String AGENT_PROTOCOL =
         "Você analisa um projeto Roblox com ferramentas de LEITURA AUTORIZADA. " +
         "Responda SOMENTE com um objeto JSON válido, sem Markdown. Formatos: " +
@@ -619,7 +621,10 @@ public final class StudioAiHub extends Activity {
     private final List<String> backupIds = new ArrayList<>();
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
-    private Button scanToolboxFile, auditInsertedModel;
+    private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay;
+    private CheckBox allowLocalPlayProbe;
+    private TextView playProbeResult;
+    private boolean probingLocalPlay;
     private EditText modelAuditPath;
     private CheckBox allowLocalModelAudit, shareModelAudit;
     private boolean auditingInsertedModel;
@@ -1374,6 +1379,126 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+    /** Only the exact native MCP status fields are considered evidence of Play. */
+    private static String checkedLocalPlayMode(String state) {
+        if (state == null || state.length() > 2000) return "INCONCLUSIVO";
+        String mode = null, available = null, focused = null;
+        for (String line : state.split("\\r?\\n")) {
+            if (line.startsWith("- Current Studio Mode: "))
+                mode = line.substring("- Current Studio Mode: ".length()).trim();
+            if (line.startsWith("- Available DataModels: "))
+                available = line.substring("- Available DataModels: ".length()).trim();
+            if (line.startsWith("- Focused DataModel in the viewport: "))
+                focused = line.substring("- Focused DataModel in the viewport: ".length()).trim();
+        }
+        if ("Play".equals(mode) && "Client".equals(focused) &&
+                ("Edit, Client, Server".equals(available) ||
+                        "Client, Server".equals(available)))
+            return "PLAY_LOCAL_CONFIRMADO";
+        if ("Edit".equals(mode) && "Edit".equals(available) && "Edit".equals(focused))
+            return "EDIT";
+        if ("Starting".equals(mode) && "Edit".equals(available) && "Edit".equals(focused))
+            return "INICIANDO";
+        return "INCONCLUSIVO";
+    }
+
+    /** Report only observed MCP data. No game input, screenshot or publication. */
+    private static String buildLocalPlayReport(String state, String output) {
+        String mode = checkedLocalPlayMode(state);
+        StringBuilder report = new StringBuilder("DIAGNÓSTICO LOCAL MCP • SOMENTE LEITURA\n");
+        switch (mode) {
+            case "PLAY_LOCAL_CONFIRMADO":
+                report.append("Estado: Play local indicado pelo MCP (Client/Server disponíveis).\n");
+                break;
+            case "EDIT":
+                report.append("Estado: Edit. Nenhum Play local confirmado nesta leitura.\n");
+                break;
+            case "INICIANDO":
+                report.append("Estado: Starting. O editor ainda não disponibilizou Client/Server.\n");
+                break;
+            default:
+                report.append("Estado: inconclusivo. Resposta MCP incompatível.\n");
+        }
+        if (output == null) {
+            report.append("Output: não obtido. Inspeção incompleta.\n");
+        } else {
+            String[] lines = output.split("\\r?\\n");
+            int errors = 0, warnings = 0, shown = 0;
+            StringBuilder highlights = new StringBuilder();
+            for (String raw : lines) {
+                String line = raw.trim();
+                if (line.isEmpty()) continue;
+                String lower = line.toLowerCase(Locale.ROOT);
+                boolean err = Pattern.compile("\\b(error|exception|traceback|failed)\\b")
+                        .matcher(lower).find() || lower.contains("attempt to ");
+                boolean warn = !err && Pattern.compile("\\b(warn|warning)\\b")
+                        .matcher(lower).find();
+                if (err) errors++;
+                if (warn) warnings++;
+                if ((err || warn) && shown++ < MAX_PLAY_LOG_LINES) {
+                    String shortened = line.length() > 220 ?
+                            line.substring(0, 220) + "..." : line;
+                    highlights.append("\n• ").append(shortened);
+                }
+            }
+            report.append("Output obtido pelo MCP: ").append(output.length())
+                    .append(" caracteres recebidos (a ferramenta limita o texto).\n")
+                    .append("Linhas com indícios: ").append(errors).append(" erro(s), ")
+                    .append(warnings).append(" aviso(s) • análise por palavras, não diagnóstico definitivo.\n");
+            if (highlights.length() > 0)
+                report.append("Trechos de atenção:").append(highlights).append("\n");
+            report.append("Trecho do Output (somente neste aparelho):\n")
+                    .append(output.substring(0, Math.min(output.length(), MAX_PLAY_LOG_CHARS)));
+            if (output.length() > MAX_PLAY_LOG_CHARS) report.append("\n[Exibição limitada]");
+            report.append("\n");
+        }
+        report.append("Não foi executada nenhuma ação de Play, teste de input, " +
+                "captura de tela ou autocorreção. Ausência de erros visíveis " +
+                "não prova que o jogo funciona. Nenhum dado enviado à API de IA.");
+        return report.toString();
+    }
+
+    /** Open local Play through existing editor controls; diagnostics are read-only. */
+    private void inspectLocalPlayOutput() {
+        if (busy || applyingEdit) return;
+        if (mcpPairing.isEmpty()) {
+            status.setText("Ative primeiro o MCP local do editor.");
+            return;
+        }
+        if (allowLocalPlayProbe == null || !allowLocalPlayProbe.isChecked()) {
+            status.setText("Autorize a leitura local de estado/Output para este diagnóstico.");
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        final String paired = mcpPairing;
+        probingLocalPlay = true;
+        playProbeResult.setVisibility(View.VISIBLE);
+        playProbeResult.setText("Consultando estado e Output do editor via MCP local...");
+        setBusy(true, "Lendo estado do editor e Output (sem executar Play)...");
+        requests.execute(() -> {
+            String report;
+            try {
+                String state = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                String output = readOnlyMcp(paired, "get_console_output", new JSONObject());
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                report = buildLocalPlayReport(state, output);
+            } catch (Exception ex) {
+                report = "DIAGNÓSTICO MCP INCOMPLETO\n" +
+                        "Não foi possível ler todo o estado/Output atual do editor. " +
+                        "Nenhum resultado de Play confirmado. Nenhuma edição solicitada.";
+            }
+            final String result = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || !probingLocalPlay || isFinishing()) return;
+                probingLocalPlay = false;
+                if (allowLocalPlayProbe == null || !allowLocalPlayProbe.isChecked()) return;
+                playProbeResult.setText(result);
+                setBusy(false, "Leitura MCP encerrada • relatório local, sem escrita.");
+            });
+        });
+    }
+
     private void selectToolboxFile() {
         if (busy || applyingEdit) return;
         Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -1605,6 +1730,25 @@ public final class StudioAiHub extends Activity {
         modelAuditResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         modelAuditResult.setVisibility(View.GONE);
         add(root, modelAuditResult, 5);
+        add(root, text("Diagnóstico Play local • leitura real MCP", 14, true), 5);
+        TextView playHelp = text("Abra Play local pelo controle já existente do editor. " +
+                "Esta ferramenta não inicia, para ou simula um jogo: apenas consulta " +
+                "get_studio_state e get_console_output no MCP local. " +
+                "Não usa API Key nem envia logs à IA.", 12, false);
+        add(root, playHelp, 4);
+        allowLocalPlayProbe = new CheckBox(this);
+        allowLocalPlayProbe.setText("Autorizo ler LOCALMENTE estado e Output nesta sessão");
+        allowLocalPlayProbe.setTextColor(Color.rgb(228, 236, 250));
+        allowLocalPlayProbe.setChecked(false);
+        add(root, allowLocalPlayProbe, 4);
+        inspectLocalPlay = button("Verificar Play/Output do editor • somente leitura");
+        inspectLocalPlay.setOnClickListener(v -> inspectLocalPlayOutput());
+        add(root, inspectLocalPlay, 5);
+        playProbeResult = text("", 12, false);
+        playProbeResult.setPadding(dp(11), dp(11), dp(11), dp(11));
+        playProbeResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        playProbeResult.setVisibility(View.GONE);
+        add(root, playProbeResult, 8);
         shareModelAudit = new CheckBox(this);
         shareModelAudit.setText("Enviar somente o RELATÓRIO desta auditoria à IA (sem código-fonte)");
         shareModelAudit.setTextColor(Color.rgb(228, 236, 250));
@@ -1723,6 +1867,11 @@ public final class StudioAiHub extends Activity {
         cancel.setOnClickListener(v -> {
             requestEpoch++;
             abortInFlight();
+            if (probingLocalPlay) {
+                probingLocalPlay = false;
+                if (playProbeResult != null)
+                    playProbeResult.setText("Diagnóstico de Play cancelado.");
+            }
             if (auditingInsertedModel) {
                 auditingInsertedModel = false;
                 if (modelAuditResult != null)
@@ -1803,6 +1952,20 @@ public final class StudioAiHub extends Activity {
                 localModelAuditSummary = "";
                 shareModelAudit.setChecked(false);
                 shareModelAudit.setEnabled(false);
+            }
+        });
+        allowLocalPlayProbe.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) {
+                if (probingLocalPlay) {
+                    requestEpoch++;
+                    abortInFlight();
+                    probingLocalPlay = false;
+                    setBusy(false, "Permissão do diagnóstico de Play revogada.");
+                }
+                if (playProbeResult != null) {
+                    playProbeResult.setText("");
+                    playProbeResult.setVisibility(View.GONE);
+                }
             }
         });
         shareModelAudit.setOnCheckedChangeListener((v, checked) -> {
@@ -1902,6 +2065,7 @@ public final class StudioAiHub extends Activity {
         refresh.setEnabled(!waiting);
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
+        if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (modelAuditPath != null) modelAuditPath.setEnabled(!waiting);
         if (shareModelAudit != null) shareModelAudit.setEnabled(!waiting &&
                 !localModelAuditSummary.isEmpty());
