@@ -667,10 +667,13 @@ for required in [
     'verifiedEditorObject(paired, "ServerStorage." + kit.toolName(), "Tool")',
     'verifiedEditorObject(paired, edit.path, edit.className)',
     'verifiedScriptEdit(paired, edit, beforeScript)',
+    'private boolean verifiedPartUpdate(String paired, PartChangeProposal change)',
+    'verifiedPartUpdate(paired, change)',
+    'private static double[] expectedAnglesMatrix(double[] degrees)',
     'a operação pode já ter sido aplicada.',
 ]:
     assert required in java, required
-assert java.count('readBackNotice(') == 7  # method + six approved write types
+assert java.count('readBackNotice(') == 8  # method + seven approved write types
 assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
     'verifiedEditorObject(paired, objectPath, "Part")')
 assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < java.index(
