@@ -399,7 +399,7 @@ public final class StudioAiHub extends Activity {
     private TextView memoryPreview;
     private EditText apiKey, prompt;
     private TextView status, conversation;
-    private Button refresh, send, save, cancel;
+    private Button refresh, send, continueTask, save, cancel;
     private final List<String> models = new ArrayList<>();
 
     private static final class ApiHttpException extends IOException {
@@ -738,6 +738,9 @@ public final class StudioAiHub extends Activity {
         send = button("Enviar mensagem ao modelo");
         send.setOnClickListener(v -> sendMessage());
         add(root, send, 6);
+        continueTask = button("Continuar tarefa anterior • usa a API");
+        continueTask.setOnClickListener(v -> continueLastTask());
+        add(root, continueTask, 6);
         cancel = button("Cancelar análise");
         cancel.setEnabled(false);
         cancel.setOnClickListener(v -> {
@@ -867,6 +870,7 @@ public final class StudioAiHub extends Activity {
         refresh.setEnabled(!waiting);
         save.setEnabled(!waiting);
         send.setEnabled(!waiting);
+        if (continueTask != null) continueTask.setEnabled(!waiting);
         cancel.setEnabled(waiting && !applyingEdit);
         providerPicker.setEnabled(!waiting);
         if (applyEdit != null) applyEdit.setEnabled(!waiting);
@@ -3395,6 +3399,31 @@ public final class StudioAiHub extends Activity {
                 });
             }
         });
+    }
+
+    /**
+     * Explicit next-step action; never silently burns tokens or executes writes.
+     * The model must inspect the current Edit datamodel before new proposals.
+     */
+    private void continueLastTask() {
+        if (busy || applyingEdit) return;
+        if (!autoInspect.isChecked() || !includeProject.isChecked()) {
+            status.setText("Ative o agente, MCP e consentimento do Explorer para continuar.");
+            return;
+        }
+        if (history.isEmpty()) {
+            status.setText("Nenhuma tarefa anterior nesta sessão. Descreva o objetivo primeiro.");
+            return;
+        }
+        if (!prompt.getText().toString().trim().isEmpty()) {
+            status.setText("Envie ou limpe a mensagem atual antes de continuar.");
+            return;
+        }
+        prompt.setText("Continue a tarefa anterior usando somente informações " +
+                "confirmadas do editor. Inspecione novamente o projeto antes de propor " +
+                "a próxima etapa. NÃO repita operações cuja gravação ficou inconclusiva. " +
+                "Mostre uma proposta de alteração por vez e exija aprovação.");
+        sendMessage();
     }
 
     private void sendMessage() {
