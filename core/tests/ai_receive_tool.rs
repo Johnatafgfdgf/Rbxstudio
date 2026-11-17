@@ -6,6 +6,7 @@
 use rbx_android_core::{Editor, PlaySession};
 use rbx_dom::{Ref, Variant, WeakDom};
 use std::time::Duration;
+use rook_engine::{InputEvent, TouchPhase};
 
 fn find(dom: &WeakDom, name: &str) -> Option<Ref> {
     let mut stack = dom.root_refs().to_vec();
@@ -67,6 +68,8 @@ fn assemble(e: &mut Editor) {
         local button = Instance.new('TextButton')
         button.Name = 'ReceiveItem'
         button.Size = UDim2.fromOffset(200, 52)
+        button.AnchorPoint = Vector2.new(0.5, 0.5)
+        button.Position = UDim2.fromScale(0.5, 0.5)
         button.Text = 'Receber item'
         local client = Instance.new('LocalScript')
         client.Name = 'RequestClient'
@@ -145,4 +148,39 @@ fn ai_receive_tool_play_delivers_once_to_backpack() {
         editor.dom.get(workspace).unwrap().properties().get("AttributesSerialize"),
     );
     assert_eq!(attrs.get("GrantCount"), Some(&Variant::Float64(1.)), "logs: {:?}", editor.logs);
+}
+
+
+#[test]
+fn ai_receive_tool_mobile_tap_activated_invokes_local_script_and_server() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut editor = Editor::open_or_create(tmp.path().join("kit-touch.rbxlx")).unwrap();
+    assemble(&mut editor);
+    let mut play = PlaySession::start(&mut editor).expect("Play should start");
+    play.viewport(960, 480);
+    for _ in 0..12 {
+        play.step(&mut editor, Duration::from_secs_f64(1. / 60.)).unwrap();
+        editor.dom.take_changes();
+    }
+    play.run_client(r#"
+        local gui=game.Players.LocalPlayer.PlayerGui:FindFirstChild('AI_Grant_Gui')
+        assert(gui and gui.ReceiveItem and gui.ReceiveItem.RequestClient,
+            'StarterGui was not cloned into PlayerGui with the LocalScript')
+    "#).expect("ScreenGui and touch handler must be installed in PlayerGui");
+    play.input(InputEvent::Touch {
+        id: 42, phase: TouchPhase::Begin, x: 480., y: 240.,
+    });
+    play.input(InputEvent::Touch {
+        id: 42, phase: TouchPhase::End, x: 480., y: 240.,
+    });
+    for _ in 0..20 {
+        play.step(&mut editor, Duration::from_secs_f64(1. / 60.)).unwrap();
+        editor.dom.take_changes();
+    }
+    let workspace = find(&editor.dom, "Workspace").unwrap();
+    let attrs = rbx_dom::attributes::decode(
+        editor.dom.get(workspace).unwrap().properties().get("AttributesSerialize"),
+    );
+    assert_eq!(attrs.get("GrantCount"), Some(&Variant::Float64(1.)),
+        "touch Activated must reach server-authoritative delivery: {:?}", editor.logs);
 }
