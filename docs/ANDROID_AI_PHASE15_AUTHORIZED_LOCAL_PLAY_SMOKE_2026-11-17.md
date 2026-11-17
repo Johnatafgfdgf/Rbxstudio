@@ -53,6 +53,14 @@ O avaliador exige classe e caminho exatos, não junta objetos de jogadores difer
 
 CI e APK devem ser verificados para o commit exato da fase. Mesmo CI aprovado **não comprova** execução em Android físico nem compatibilidade Play real no aparelho.
 
+## Resultado confirmado da revisão do cenário
+
+Os testes de contratos, os testes Java extraídos do código de produção (incluindo o avaliador de jogador), e a **compilação da Activity Android SDK 35** passaram no commit `56e7ec35d101`: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44025405710 .
+
+A exportação completa do código-fonte desse commit também concluiu: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44025405587 .
+
+O workflow ARM64 experimental dessa revisão é independente e não deve ser confundido com a compilação Java: https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44025405621 . **Sem APK final verificado ou testes em aparelho, não marcar a experiência como validada.**
+
 ## Próximos testes físicos
 
 1. Abrir um mapa descartável e ativar a integração MCP local;
