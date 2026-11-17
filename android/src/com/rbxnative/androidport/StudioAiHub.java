@@ -1690,6 +1690,24 @@ public final class StudioAiHub extends Activity {
         return new String[]{toolPath, screenPath, buttonPath};
     }
 
+    /** A Tool's real Handle must be its direct BasePart-shaped child. */
+    private static boolean hasDirectToolHandle(JSONArray backpack, String toolPath) {
+        if (backpack == null || toolPath == null || toolPath.isEmpty()) return false;
+        String toolName = toolPath.substring(toolPath.lastIndexOf('.') + 1);
+        for (int i = 1; i < backpack.length(); i++) {
+            JSONObject node = backpack.optJSONObject(i);
+            if (node == null) continue;
+            String type = node.optString("className", "");
+            if (("Part".equals(type) || "MeshPart".equals(type) ||
+                    "UnionOperation".equals(type) || "WedgePart".equals(type)) &&
+                    "Handle".equals(node.optString("name", "")) &&
+                    toolName.equals(node.optString("parentName", "")) &&
+                    (toolPath + ".Handle").equals(node.optString("fullPath", "")))
+                return true;
+        }
+        return false;
+    }
+
     /** No gameplay event is triggered: this reads the current Client state. */
     private LiveToolGuiAudit inspectLiveToolGui(String paired, String playerName)
             throws Exception {
@@ -1714,21 +1732,7 @@ public final class StudioAiHub extends Activity {
             enabled = strictMcpFlag(tool, "Enabled");
             required = strictMcpFlag(tool, "RequiresHandle");
             // Existence of a Handle is structural; it does not prove equipping works.
-            handle = false;
-            for (int i = 1; i < backpack.length(); i++) {
-                JSONObject node = backpack.optJSONObject(i);
-                if (node == null) continue;
-                String type = node.optString("className", "");
-                if (("Part".equals(type) || "MeshPart".equals(type) ||
-                        "UnionOperation".equals(type)) &&
-                        "Handle".equals(node.optString("name", "")) &&
-                        names[0].substring(names[0].lastIndexOf('.') + 1)
-                                .equals(node.optString("parentName", "")) &&
-                        (names[0] + ".Handle").equals(node.optString("fullPath", ""))) {
-                    handle = true;
-                    break;
-                }
-            }
+            handle = hasDirectToolHandle(backpack, names[0]);
         }
         if (!names[1].isEmpty() && !names[2].isEmpty()) {
             JSONObject screen = checkedLiveInstance(callMcp(paired, "inspect_instance",
