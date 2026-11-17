@@ -680,6 +680,96 @@ public final class StudioAiHub extends Activity {
         return mask;
     }
 
+    /**
+     * Static require inventory for one source snippet. This does NOT evaluate
+     * the expression or fetch external assets. Relative names can only be
+     * marked present if the exact ModuleScript is in the audited tree.
+     */
+    private static final class ScriptDependencies {
+        final List<String> relativeModules = new ArrayList<>();
+        final List<String> externalAssets = new ArrayList<>();
+        final List<String> externalServices = new ArrayList<>();
+        int dynamicRequires;
+        boolean overflow;
+    }
+
+    private static void addBoundedDependency(List<String> target, String item,
+            ScriptDependencies report) {
+        if (target.contains(item)) return;
+        if (target.size() >= 12) {
+            report.overflow = true;
+        } else {
+            target.add(item);
+        }
+    }
+
+    private static ScriptDependencies scanScriptDependencies(String source) {
+        ScriptDependencies result = new ScriptDependencies();
+        if (source == null || source.isEmpty()) return result;
+        // Inspect at most the already validated bounded Luau snippet.
+        String code = source.length() > 24000 ? source.substring(0, 24000) : source;
+        java.util.regex.Matcher require = Pattern.compile(
+                "\\brequire\\s*\\(\\s*([^\\r\\n)]{1,150})\\)",
+                Pattern.CASE_INSENSITIVE).matcher(code);
+        int count = 0;
+        while (require.find()) {
+            if (++count > 40) {
+                result.overflow = true;
+                break;
+            }
+            String expr = require.group(1).trim();
+            if (expr.matches("[0-9]{5,18}")) {
+                addBoundedDependency(result.externalAssets, expr, result);
+                continue;
+            }
+            java.util.regex.Matcher local = Pattern.compile(
+                    "^script\\s*\\.\\s*Parent(?:\\s*\\.\\s*Parent){0,2}\\s*\\.\\s*" +
+                    "([A-Za-z_][A-Za-z0-9_]{0,63})$",
+                    Pattern.CASE_INSENSITIVE).matcher(expr);
+            if (local.matches()) {
+                addBoundedDependency(result.relativeModules,
+                        expr.replaceAll("\\s+", ""), result);
+            } else {
+                result.dynamicRequires++;
+            }
+        }
+        // Service use is a dependency signal, not a proof of suspicious intent.
+        String[] services = {"ReplicatedStorage", "ServerStorage",
+                "ServerScriptService", "DataStoreService", "MessagingService",
+                "TeleportService", "HttpService", "InsertService"};
+        for (String service : services) {
+            if (Pattern.compile("\\b" + service + "\\b", Pattern.CASE_INSENSITIVE)
+                    .matcher(code).find()) {
+                addBoundedDependency(result.externalServices, service, result);
+            }
+        }
+        if (source.length() > 24000) result.overflow = true;
+        return result;
+    }
+
+    /**
+     * Only resolve a simple script.Parent(.Parent)*.Module require against
+     * paths already returned by the bounded tree audit. No new MCP request.
+     * Returns "" for anything ambiguous, malformed or outside this Model.
+     */
+    private static String localModulePath(String scriptPath, String expression,
+            String modelRoot) {
+        if (scriptPath == null || modelRoot == null ||
+                !scriptPath.startsWith(modelRoot + ".")) return "";
+        String expr = expression == null ? "" : expression.replaceAll("\\s+", "");
+        if (!expr.matches("(?i)script\\.Parent(\\.Parent){0,2}\\.[A-Za-z_][A-Za-z0-9_]{0,63}"))
+            return "";
+        String[] parts = expr.split("\\.");
+        String parent = scriptPath;
+        for (int i = 1; i < parts.length - 1; i++) {
+            int dot = parent.lastIndexOf('.');
+            if (dot < 0) return "";
+            parent = parent.substring(0, dot);
+        }
+        String candidate = parent + "." + parts[parts.length - 1];
+        return candidate.startsWith(modelRoot + ".") ? candidate : "";
+    }
+
     private static final class ToolboxXmlItem {
         final String className;
         String name = "";
