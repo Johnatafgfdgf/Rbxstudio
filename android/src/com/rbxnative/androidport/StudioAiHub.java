@@ -1652,7 +1652,7 @@ public final class StudioAiHub extends Activity {
             JSONObject node = backpack.optJSONObject(i);
             if (node == null) continue;
             String name = node.optString("name", "");
-            if (!name.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
+            if (!name.matches("[A-Za-z_][A-Za-z0-9_ -]{0,39}")) continue;
             String path = backpackRoot + "." + name;
             if ("Tool".equals(node.optString("className", "")) &&
                     "Backpack".equals(node.optString("parentName", "")) &&
@@ -1668,7 +1668,7 @@ public final class StudioAiHub extends Activity {
             if (screen == null || !"ScreenGui".equals(
                     screen.optString("className", ""))) continue;
             String screenName = screen.optString("name", "");
-            if (!screenName.matches("[A-Za-z_][A-Za-z0-9_]{0,39}")) continue;
+            if (!screenName.matches("[A-Za-z_][A-Za-z0-9_ -]{0,39}")) continue;
             String pathRoot = guiRoot + "." + screenName;
             if (!"PlayerGui".equals(screen.optString("parentName", "")) ||
                     !pathRoot.equals(screen.optString("fullPath", ""))) continue;
@@ -1679,7 +1679,7 @@ public final class StudioAiHub extends Activity {
                 String path = node.optString("fullPath", "");
                 if (("TextButton".equals(type) || "ImageButton".equals(type)) &&
                         path.startsWith(pathRoot + ".") && path.length() <= 180 &&
-                        path.matches("[A-Za-z0-9_.]+")) {
+                        path.matches("[A-Za-z0-9_ .-]+")) {
                     screenPath = pathRoot;
                     buttonPath = path;
                     break;
