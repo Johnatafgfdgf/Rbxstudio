@@ -213,6 +213,7 @@ public final class StudioAiHub extends Activity {
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private static final int MAX_PROJECT_MEMORY = 16;
     private static final int MAX_PROJECT_NAME = 160;
+    private static final int MAX_PLAN_CHECKPOINT_BYTES = 4600;
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
     private final List<String[]> history = new ArrayList<>();
     private int provider;
@@ -231,6 +232,8 @@ public final class StudioAiHub extends Activity {
     private ScreenGuiProposal pendingScreen;
     private ReceiveToolProposal pendingKit;
     private TaskPlan pendingTaskPlan, activeTaskPlan;
+    private CheckBox persistPlanCheckpoints;
+    private Button restorePlanCheckpoint, erasePlanCheckpoint;
     private boolean planPaused, planStepOutstanding, submittingPlanStep;
     private TextView planProgress, proposalPreview;
     private Button nextPlanStep, togglePlan, cancelPlan, applyEdit, discardEdit;
@@ -377,10 +380,11 @@ public final class StudioAiHub extends Activity {
         }
     }
 
-    private static TaskPlan validateTaskPlan(JSONObject data, int reads,
-            boolean allowScripts, boolean allowParts, boolean allowLabels,
-            boolean allowScreens, boolean allowItems) throws Exception {
-        if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia");
+    /**
+     * Validate data structure without granting any editor permission. Used
+     * again after decrypting a checkpoint that might be stale or corrupted.
+     */
+    private static TaskPlan parseTaskPlanShape(JSONObject data) throws Exception {
         String goal = safeField(data, "goal", 180, true);
         JSONArray items = data.optJSONArray("steps");
         if (items == null || items.length() < 2 || items.length() > 5)
@@ -390,17 +394,31 @@ public final class StudioAiHub extends Activity {
             JSONObject item = items.optJSONObject(i);
             if (item == null) throw new IOException("Etapa do plano inválida");
             String kind = safeField(item, "kind", 12, true);
-            boolean permitted =
-                    ("SCRIPT".equals(kind) && allowScripts) ||
-                    ("PART".equals(kind) && allowParts) ||
-                    ("GUI".equals(kind) && (allowLabels || allowScreens)) ||
-                    ("ITEM".equals(kind) && allowItems);
-            if (!permitted) throw new IOException("Tipo de etapa sem ferramenta autorizada: " + kind);
+            if (!("SCRIPT".equals(kind) || "PART".equals(kind) ||
+                    "GUI".equals(kind) || "ITEM".equals(kind)))
+                throw new IOException("Tipo desconhecido de etapa");
             String title = safeField(item, "title", 70, true);
             String instruction = safeField(item, "instruction", 260, true);
             steps.add(new PlanStep(kind, title, instruction));
         }
         return new TaskPlan(goal, steps);
+    }
+
+    private static TaskPlan validateTaskPlan(JSONObject data, int reads,
+            boolean allowScripts, boolean allowParts, boolean allowLabels,
+            boolean allowScreens, boolean allowItems) throws Exception {
+        if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia");
+        TaskPlan plan = parseTaskPlanShape(data);
+        for (PlanStep step : plan.steps) {
+            boolean permitted =
+                    ("SCRIPT".equals(step.kind) && allowScripts) ||
+                    ("PART".equals(step.kind) && allowParts) ||
+                    ("GUI".equals(step.kind) && (allowLabels || allowScreens)) ||
+                    ("ITEM".equals(step.kind) && allowItems);
+            if (!permitted)
+                throw new IOException("Tipo de etapa sem ferramenta autorizada: " + step.kind);
+        }
+        return plan;
     }
 
     private static boolean planStepMatches(String step, String kind) {
