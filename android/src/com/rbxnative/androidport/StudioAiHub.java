@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Xml;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -23,6 +24,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Locale;
+import java.util.regex.Pattern;
+import org.xmlpull.v1.XmlPullParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,6 +67,10 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_EDIT_OLD = 400;
     private static final int MAX_EDIT_NEW = 2400;
     private static final int MAX_SCRIPT_SOURCE = 10000;
+    private static final int TOOLBOX_XML_PICK_REQUEST = 7604;
+    private static final int MAX_TOOLBOX_XML_BYTES = 2 * 1024 * 1024;
+    private static final int MAX_TOOLBOX_XML_ITEMS = 1200;
+    private static final int MAX_TOOLBOX_XML_SCRIPTS = 100;
     private static final String AGENT_PROTOCOL =
         "Você analisa um projeto Roblox com ferramentas de LEITURA AUTORIZADA. " +
         "Responda SOMENTE com um objeto JSON válido, sem Markdown. Formatos: " +
@@ -501,7 +509,8 @@ public final class StudioAiHub extends Activity {
     private final List<ModelEntry> visibleModels = new ArrayList<>();
     private final List<String> backupIds = new ArrayList<>();
     private CheckBox rememberVerified, includeMemory;
-    private TextView memoryPreview;
+    private TextView memoryPreview, toolboxScanResult;
+    private Button scanToolboxFile;
     private EditText apiKey, prompt;
     private TextView status, conversation;
     private Button refresh, send, continueTask, save, cancel;
@@ -638,6 +647,214 @@ public final class StudioAiHub extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.bottomMargin = dp(bottomMargin);
         layout.addView(view, params);
+    }
+
+
+    /** A local source text heuristic, not proof that a model is safe or malicious. */
+    private static int sourceRiskMask(String source) {
+        if (source == null || source.isEmpty()) return 0;
+        String lower = source.toLowerCase(Locale.ROOT);
+        int mask = 0;
+        if (Pattern.compile("\\bloadstring\\s*\\(").matcher(lower).find()) mask |= 1;
+        if (Pattern.compile("\\brequire\\s*\\(\\s*[0-9]{5,}").matcher(lower).find()) mask |= 2;
+        if (Pattern.compile("\\bhttps?://|\\bhttpservice\\b|\\bhttpget\\s*\\(|\\bgetasync\\s*\\(|\\bpostasync\\s*\\(")
+                .matcher(lower).find()) mask |= 4;
+        if (Pattern.compile("\\bgetfenv\\s*\\(|\\bsetfenv\\s*\\(|\\bstring\\s*\\.\\s*char\\s*\\(")
+                .matcher(lower).find()) mask |= 8;
+        if (Pattern.compile("\\binsertservice\\b|\\bloadasset\\s*\\(")
+                .matcher(lower).find()) mask |= 16;
+        if (Pattern.compile("\\bdatastoreservice\\b|\\bmessagingservice\\b|\\bteleportservice\\b")
+                .matcher(lower).find()) mask |= 32;
+        return mask;
+    }
+
+    private static final class ToolboxXmlItem {
+        final String className;
+        String name = "";
+        boolean hasSource;
+        String source = "";
+        ToolboxXmlItem(String className) {
+            this.className = className == null ? "" : className;
+        }
+        boolean isScript() {
+            return "Script".equals(className) ||
+                    "LocalScript".equals(className) ||
+                    "ModuleScript".equals(className);
+        }
+    }
+
+    /**
+     * The file picker supplies an rbxmx XML model. This parser never creates
+     * game instances, executes code, runs require, imports assets or calls AI.
+     * Reject DTD/entity declarations, malformed XML, big files and large trees.
+     */
+    private static String analyzeToolboxRbxmx(InputStream input) throws Exception {
+        if (input == null) throw new IOException("Arquivo não foi aberto");
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        try (InputStream in = input) {
+            int n;
+            while ((n = in.read(buffer)) >= 0) {
+                if (bytes.size() + n > MAX_TOOLBOX_XML_BYTES)
+                    throw new IOException("Arquivo acima de 2 MiB; análise recusada");
+                bytes.write(buffer, 0, n);
+            }
+        }
+        String xml = bytes.toString(StandardCharsets.UTF_8.name());
+        if (!xml.trim().startsWith("<") ||
+                !xml.toLowerCase(Locale.ROOT).contains("<roblox")) {
+            throw new IOException("Formato não reconhecido. Selecione um .rbxmx XML");
+        }
+        String lowered = xml.toLowerCase(Locale.ROOT);
+        if (lowered.contains("<!doctype") || lowered.contains("<!entity"))
+            throw new IOException("XML com DOCTYPE/ENTITY não é aceito");
+        XmlPullParser parser = Xml.newPullParser();
+        parser.setInput(new StringReader(xml));
+        List<ToolboxXmlItem> stack = new ArrayList<>();
+        List<String> details = new ArrayList<>();
+        int totalItems = 0, scriptCount = 0, missingSource = 0;
+        int[] classes = new int[3];
+        int[] riskCounts = new int[6];
+        int sourceChars = 0;
+        int token = parser.getEventType();
+        boolean root = false;
+        while (token != XmlPullParser.END_DOCUMENT) {
+            if (token == XmlPullParser.START_TAG) {
+                String tag = parser.getName();
+                if (!root) {
+                    if (!"roblox".equals(tag))
+                        throw new IOException("Raiz XML não é <roblox>");
+                    root = true;
+                }
+                if ("Item".equals(tag)) {
+                    if (++totalItems > MAX_TOOLBOX_XML_ITEMS)
+                        throw new IOException("Modelo acima do limite de 1.200 instâncias");
+                    if (stack.size() >= 64)
+                        throw new IOException("Modelo muito profundamente aninhado");
+                    stack.add(new ToolboxXmlItem(parser.getAttributeValue(null, "class")));
+                } else if (!stack.isEmpty() &&
+                        ("string".equals(tag) || "ProtectedString".equals(tag) ||
+                         "BinaryString".equals(tag))) {
+                    String field = parser.getAttributeValue(null, "name");
+                    ToolboxXmlItem item = stack.get(stack.size() - 1);
+                    if (item.isScript() && "Source".equals(field)) {
+                        item.hasSource = true;
+                        if (!"BinaryString".equals(tag)) {
+                            String text = parser.nextText();
+                            item.source = text.length() > 120000 ? text.substring(0, 120000) : text;
+                            if (text.length() > 120000) item.source += "\n-- [SOURCE_TRUNCATED]";
+                            sourceChars += item.source.length();
+                            if (sourceChars > MAX_TOOLBOX_XML_BYTES)
+                                throw new IOException("Scripts acima do limite total de leitura");
+                        }
+                    } else if ("Name".equals(field) && item.name.isEmpty()) {
+                        String text = parser.nextText();
+                        item.name = text.length() > 70 ? text.substring(0, 70) : text;
+                    }
+                }
+            } else if (token == XmlPullParser.END_TAG && "Item".equals(parser.getName())) {
+                if (stack.isEmpty()) throw new IOException("Itens XML inconsistentes");
+                ToolboxXmlItem item = stack.remove(stack.size() - 1);
+                if (item.isScript()) {
+                    if (++scriptCount > MAX_TOOLBOX_XML_SCRIPTS)
+                        throw new IOException("Mais de 100 scripts; análise incompleta recusada");
+                    int classIndex = "Script".equals(item.className) ? 0 :
+                            "LocalScript".equals(item.className) ? 1 : 2;
+                    classes[classIndex]++;
+                    if (!item.hasSource || item.source.isEmpty() ||
+                            item.source.contains("[SOURCE_TRUNCATED]")) missingSource++;
+                    int mask = sourceRiskMask(item.source);
+                    for (int i = 0; i < riskCounts.length; i++) {
+                        if ((mask & (1 << i)) != 0) riskCounts[i]++;
+                    }
+                    if (mask != 0 && details.size() < 16) {
+                        String title = item.name.replaceAll("[\\r\\n\\t]", " ").trim();
+                        details.add("• " + item.className + " " +
+                                (title.isEmpty() ? "(sem nome)" : title) +
+                                ": " + Integer.bitCount(mask) + " categoria(s) de alerta");
+                    }
+                }
+            }
+            token = parser.next();
+        }
+        if (!root || !stack.isEmpty() || totalItems == 0)
+            throw new IOException("Arquivo XML sem instâncias válidas");
+        String[] descriptions = {
+            "loadstring", "require(ID) externo", "HTTP/rede",
+            "ambiente dinâmico/ofuscação", "carregamento de assets",
+            "DataStore/Messaging/Teleport"
+        };
+        StringBuilder report = new StringBuilder("ANÁLISE ESTÁTICA LOCAL DO .RBXMX\n");
+        report.append("Instâncias XML: ").append(totalItems)
+                .append("\nScripts: ").append(scriptCount)
+                .append(" • Script ").append(classes[0])
+                .append(" • LocalScript ").append(classes[1])
+                .append(" • ModuleScript ").append(classes[2]);
+        report.append("\nCódigo ausente, vazio ou truncado: ").append(missingSource);
+        int categories = 0;
+        for (int i = 0; i < riskCounts.length; i++) {
+            if (riskCounts[i] > 0) {
+                categories++;
+                report.append("\n⚠ ").append(descriptions[i])
+                        .append(": ").append(riskCounts[i]).append(" script(s)");
+            }
+        }
+        for (String detail : details) report.append("\n").append(detail);
+        report.append("\n\nRESULTADO: ");
+        if (missingSource != 0)
+            report.append("REVISÃO INCOMPLETA. Há fontes não inspecionadas.");
+        else if (scriptCount == 0)
+            report.append("Nenhum script XML identificado (não prova segurança).");
+        else if (categories != 0)
+            report.append("Há sinais para REVISÃO HUMANA antes de importar.");
+        else report.append("Nenhum destes padrões detectado, SEM GARANTIA DE SEGURANÇA.");
+        report.append("\nAnálise heurística: comentários podem gerar falsos alertas; " +
+                "código ofuscado e dependências externas podem escapar. " +
+                "Não testa Play. Não importa nem executa o modelo, " +
+                "não acessa a internet e não envia fontes à IA.");
+        return report.toString();
+    }
+
+    private void selectToolboxFile() {
+        if (busy || applyingEdit) return;
+        Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        choose.addCategory(Intent.CATEGORY_OPENABLE);
+        choose.setType("*/*");
+        choose.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(choose, TOOLBOX_XML_PICK_REQUEST);
+        } catch (Exception unavailable) {
+            status.setText("Nenhum seletor de arquivos disponível neste dispositivo.");
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != TOOLBOX_XML_PICK_REQUEST ||
+                resultCode != Activity.RESULT_OK ||
+                data == null || data.getData() == null || busy) return;
+        final android.net.Uri selected = data.getData();
+        final long epoch = ++requestEpoch;
+        toolboxScanResult.setVisibility(View.VISIBLE);
+        toolboxScanResult.setText("Lendo somente o arquivo XML selecionado...");
+        setBusy(true, "Inspecionando .rbxmx localmente, sem executar scripts...");
+        requests.execute(() -> {
+            String result;
+            try (InputStream input = getContentResolver().openInputStream(selected)) {
+                result = analyzeToolboxRbxmx(input);
+            } catch (Exception error) {
+                result = "Análise recusada ou incompleta: " +
+                        (error.getMessage() == null ? "arquivo incompatível" :
+                                error.getMessage()) +
+                        "\nNenhuma conclusão de segurança foi obtida.";
+            }
+            final String report = result;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                toolboxScanResult.setText(report);
+                setBusy(false, "Análise local concluída ou recusada; nenhum asset importado.");
+            });
+        });
     }
 
     private void buildUi() {
