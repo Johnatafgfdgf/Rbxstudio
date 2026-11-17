@@ -413,8 +413,9 @@ assert 'callMcp(mcpPairing, action' not in java
 
 
 
-# ScreenGui creation is limited to app-generated, non-interactive, responsive
-# components. A real MCP inspection, full child-name check, and user confirmation
+# ScreenGui creation is limited to app-generated, responsive components.
+# The only permitted optional interaction is an app-owned close action.
+# A real MCP inspection, full child-name check, and user confirmation
 # must all precede the one native editor write operation.
 for required in [
     'SCREEN_GUI_PROTOCOL',
@@ -462,8 +463,53 @@ assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert 'case "execute_luau"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
+
+# Close-button feature never grants model-authored scripts. The app generates
+# the TextButton and attaches exactly its own small close-only LocalScript.
+for required in [
+    r'\"close_button\":true',
+    r'\"button_label\":\"Fechar\"',
+    'final boolean closeButton;',
+    'this.closeButton = closeButton;',
+    'boolean closeButton = false;',
+    'if (input.has("close_button")) {',
+    'requested instanceof Boolean',
+    'if (!closeButton && input.has("button_label"))',
+    'safeField(input, "button_label", 24, false)',
+    'buttonLabel = "Fechar"',
+    'int panelHeight = 92 + gui.lines.size() * 46 + (gui.closeButton ? 54 : 0);',
+    'private static final String CLOSE_PANEL_SCRIPT',
+    'button.Activated:Connect(function()',
+    "FindFirstAncestorOfClass('ScreenGui')",
+    'if panel then panel.Enabled = false end end)',
+    'if (gui.closeButton) {',
+    'Instance.new(\\"TextButton\\")',
+    'close.AutoButtonColor = true',
+    'close.Active = true',
+    'close.TextScaled = true',
+    'close.RichText = false',
+    'close.Text = ',
+    'luauTextLiteral(gui.buttonLabel)',
+    'Instance.new(\\"LocalScript\\")',
+    'closeLogic.Name = \\"ClosePanelClient\\"',
+    'luauTextLiteral(CLOSE_PANEL_SCRIPT)',
+    'if not sourceOk then error(\\"CLOSE_SCRIPT_SOURCE_DENIED\\") end',
+    'closeLogic.Parent = close',
+    'close.Parent = panel',
+    'panel.Parent = screen',
+    'gui.closeButton',
+    'gui.buttonLabel',
+    'executeApproved3dCode(paired, fixedScreenGuiLuau(gui))',
+]:
+    assert required in java, required
+# The edit logic is still only reachable through the button and a fixed source;
+# no new capability for the LLM to invoke arbitrary edit or execution tools.
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
 assert 'pub fn open_ai_hub(project: &str, pairing: &str)' in gpui_patch
-print("Android AI hub, bounded Luau script and 3D Part create/update approval contracts passed (static; no device tests).")
+print("RBX Studio AI contracts: approved fixed close button, ScreenGui, Parts and script tools passed (static Java; device tests pending).")
