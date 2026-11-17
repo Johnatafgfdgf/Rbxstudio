@@ -119,37 +119,47 @@ public final class StudioTouchDiagnostics {
                     report.optString("source", "")) ||
                     !report.optString("id", "").matches("[0-9a-f-]{36}"))
                 return "Relatório de toque com origem desconhecida: ignorado.";
-            int downs = report.optInt("down", -1);
-            int ups = report.optInt("up", -1);
-            int canceled = report.optInt("cancel", -1);
-            if (downs < 0 || ups < 0 || canceled < 0 || ups > downs ||
-                    canceled > downs || ups + canceled > downs)
-                return "Relatório de toque inconsistente: não confirmado.";
-            boolean ready = report.optBoolean("ready", false);
-            StringBuilder out = new StringBuilder("PLAY ROOK • ENTRADA ANDROID\n")
-                    .append("Player informou pronto: ").append(ready ? "sim" : "não").append("\n")
-                    .append("MotionEvent ACTION_DOWN: ").append(downs).append("\n")
-                    .append("MotionEvent ACTION_UP: ").append(ups).append("\n")
-                    .append("MotionEvent ACTION_CANCEL: ").append(canceled).append("\n")
-                    .append("Player encerrou: ")
-                    .append(report.optBoolean("stopped", false) ? "registrado" : "não confirmado")
-                    .append("\n");
-            if (ready && downs > 0 && ups > 0) {
-                out.append("EVIDÊNCIA: a rota Java da Activity recebeu eventos reais " +
-                        "de tela touchscreen durante o Play.\n");
-            } else {
-                out.append("INCONCLUSIVO: não foi confirmado um ciclo de toque " +
-                        "na rota Java do player. O input nativo pode não passar " +
-                        "por dispatchTouchEvent.\n");
-            }
-            out.append("Não comprova entrada no motor nativo, GuiButton.Activated, " +
-                    "MouseButton1Click, Tool.Activated, resposta de scripts ou " +
-                    "efeito visual. Sem coordenadas, gravação de tela ou envio à IA.");
-            return out.toString();
+            return formatTouchEvidence(report.optBoolean("ready", false),
+                    report.optInt("down", -1), report.optInt("up", -1),
+                    report.optInt("cancel", -1),
+                    report.optBoolean("stopped", false));
         } catch (Exception ignored) {
             return "Não foi possível ler o relatório local de toques. " +
                     "Nenhum resultado foi presumido.";
         }
+    }
+
+
+    /** Pure Java format contract; no access to Android windows or user data. */
+    static boolean consistentTouchTotals(int down, int up, int cancel) {
+        return down >= 0 && up >= 0 && cancel >= 0 &&
+                down <= 100000 && up <= down && cancel <= down &&
+                (long) up + cancel <= down;
+    }
+
+    static String formatTouchEvidence(boolean ready, int downs, int ups,
+            int canceled, boolean stopped) {
+        if (!consistentTouchTotals(downs, ups, canceled))
+            return "Relatório de toque inconsistente: não confirmado.";
+        StringBuilder out = new StringBuilder("PLAY ROOK • ENTRADA ANDROID\n")
+                .append("Player informou pronto: ").append(ready ? "sim" : "não").append("\n")
+                .append("MotionEvent ACTION_DOWN: ").append(downs).append("\n")
+                .append("MotionEvent ACTION_UP: ").append(ups).append("\n")
+                .append("MotionEvent ACTION_CANCEL: ").append(canceled).append("\n")
+                .append("Player encerrou: ")
+                .append(stopped ? "registrado" : "não confirmado").append("\n");
+        if (ready && downs > 0 && ups > 0) {
+            out.append("EVIDÊNCIA: a rota Java da Activity recebeu eventos " +
+                    "touchscreen durante o Play.\n");
+        } else {
+            out.append("INCONCLUSIVO: não foi confirmado um ciclo de toque " +
+                    "na rota Java do player. O input nativo pode não passar " +
+                    "por dispatchTouchEvent.\n");
+        }
+        out.append("Não comprova entrada no motor nativo, GuiButton.Activated, " +
+                "MouseButton1Click, Tool.Activated, resposta de scripts ou " +
+                "efeito visual. Sem coordenadas, gravação de tela ou envio à IA.");
+        return out.toString();
     }
 
     /** Clear authorization and local evidence without changing the saved game. */
