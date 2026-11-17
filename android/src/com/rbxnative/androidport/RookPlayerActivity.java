@@ -109,7 +109,8 @@ public final class RookPlayerActivity extends NativeActivity {
                             activation.getString("path"), activation.getInt("queued"),
                             activation.getInt("attempted"), activation.getInt("completed"),
                             activation.getInt("unresolved"), activation.getInt("failed"),
-                            activation.getInt("errors"));
+                            activation.getInt("errors"),
+                            activation.getInt("journalChanges"));
                 }
                 return "";
             case "native-touch-counts": {

@@ -1683,7 +1683,7 @@ index 7c5ba3f..fb05cbf 100644
                  "Press"
              } else if hovered {
                  "Hover"
-@@ -349,6 +378,145 @@ impl DataModel {
+@@ -349,6 +378,156 @@ impl DataModel {
          scrolled.is_some() || self.any_active(&hits)
      }
  
@@ -1799,20 +1799,31 @@ index 7c5ba3f..fb05cbf 100644
 +                            .chars().take(240).collect::<String>()
 +                    });
 +                    #[cfg(target_os = "android")]
-+                    let stats = if observed_button.is_some() {
-+                        rook_lua::signal_probe::capture(|| {
++                    let (stats, journal_changes) = if observed_button.is_some() {
++                        // Evidence is confined to this synchronous Activated window.
++                        // The DOM journal counts mutations, NOT visual effects or
++                        // definitive causation by a particular Luau callback.
++                        let before = self.runtime.world().dom.journal().end();
++                        let journal_on = self.runtime.world().dom.journal().is_enabled();
++                        let stats = rook_lua::signal_probe::capture(|| {
 +                            self.fire(button, "Activated", (object, count));
-+                        }).1
++                        }).1;
++                        let after = self.runtime.world().dom.journal().end();
++                        let changes = if journal_on {
++                            after.saturating_sub(before).min(1000) as u32
++                        } else { 0 };
++                        (stats, changes)
 +                    } else {
 +                        self.fire(button, "Activated", (object, count));
-+                        Default::default()
++                        (Default::default(), 0)
 +                    };
 +                    #[cfg(not(target_os = "android"))]
 +                    self.fire(button, "Activated", (object, count));
 +                    #[cfg(target_os = "android")]
 +                    if let Some(path) = observed_button {
 +                        crate::touch_probe::activated(&path, stats.queued, stats.attempted,
-+                            stats.completed, stats.unresolved, stats.failed, stats.errors);
++                            stats.completed, stats.unresolved, stats.failed, stats.errors,
++                            journal_changes);
 +                    }
 +                }
 +            }
@@ -2075,17 +2086,17 @@ new file mode 100644
 index 0000000..0000000
 --- /dev/null
 +++ b/crates/rook-engine/src/touch_probe.rs
-@@ -0,0 +1,27 @@
+@@ -0,0 +0,29 @@
 +//! Opt-in, touch-only evidence from the actual Rook GUI signal emission.
 +//! This is NOT a synthetic tap or a proof that a user's Luau callback ran.
 +use std::sync::{Arc, Mutex};
 +
-+type Listener = Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>;
++type Listener = Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>;
 +static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
 +
 +/// The isolated Android player process installs this listener only with
 +/// explicit one-shot consent. No other host starts diagnostics.
-+pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>>) {
++pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>>) {
 +    if let Ok(mut current) = LISTENER.lock() {
 +        *current = listener;
 +    }
@@ -2097,10 +2108,12 @@ index 0000000..0000000
 +
 +/// Reports only *after* GUI touch handling fires the Activated event.
 +pub(crate) fn activated(path: &str, queued: u32, attempted: u32,
-+        completed: u32, unresolved: u32, failed: u32, errors: u32) {
++        completed: u32, unresolved: u32, failed: u32, errors: u32,
++        journal_changes: u32) {
 +    let listener = LISTENER.lock().ok().and_then(|current| current.clone());
 +    if let Some(listener) = listener {
-+        listener(path, queued, attempted, completed, unresolved, failed, errors);
++        listener(path, queued, attempted, completed, unresolved, failed,
++            errors, journal_changes);
 +    }
 +}
 diff --git a/crates/rook-engine/src/bridges/input/world.rs b/crates/rook-engine/src/bridges/input/world.rs

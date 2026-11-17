@@ -160,3 +160,24 @@ A versão real de `mlua` usada pelo Rook define o estado terminal da corrotina
 como `ThreadStatus::Finished`, e não `Unresumable`. A instrumentação
 só contabiliza `Finished` **sem novo erro**; `Resumable` continua sem
 conclusão comprovada e `Error` não é contabilizado como sucesso.
+ 
+## Continuação — alterações observadas no DOM durante Activated
+
+Sem criar scripts artificiais nem injetar toques, o host Android passa a
+consultar o contador absoluto do diário de mutações (`Dom::journal().end()`)
+**imediatamente antes e depois** de emitir o `GuiButton.Activated` real.
+Se o diário estiver habilitado, transmite a diferença numérica, limitada a
+1.000 entradas por sinal, junto com os resultados do despachante. O Java
+guarda, apenas na sessão opt-in atual e até 200 sinais:
+
+- `journalChanges`: total limitado de registros de alterações do DOM.
+- `guiWithJournalChanges`: quantidade de sinais com pelo menos um registro.
+
+Nenhum objeto, propriedade, valor, script, coordenada ou screenshot é
+persistido pelo diagnóstico. O recurso reutiliza consentimento específico
+de GUI, token de uso único e armazenamento privado do Android.
+Uma mudança registrada na mesma janela **não atribui causalidade a um
+script específico**, não garante que a mudança persistiu e **não prova**
+resultado visual. Zero alterações também não prova ausência de efeitos
+(se o diário estava desativado, por exemplo). Para confirmar efeitos de
+jogo é necessário observar o estado esperado em testes reais no aparelho.
