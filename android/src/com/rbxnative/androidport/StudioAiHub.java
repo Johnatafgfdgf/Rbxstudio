@@ -167,13 +167,17 @@ public final class StudioAiHub extends Activity {
         "{\"action\":\"propose_screen_gui_create\",\"gui_name\":\"PainelAjuda\"," +
         "\"title\":\"Como jogar\",\"lines\":[\"Explore o mapa\"," +
         "\"Encontre a ponte\"],\"accent\":[69,149,231]," +
-        "\"position\":\"top\",\"reason\":\"motivo\"}. " +
-        "Somente ScreenGui com Frame, TextLabels e componentes de layout; " +
-        "nenhum botão, script, evento ou código Luau. gui_name: 1 a 40 letras, " +
+        "\"position\":\"top\",\"close_button\":true,\"button_label\":\"Fechar\"," +
+        "\"reason\":\"motivo\"}. " +
+        "Somente ScreenGui com Frame e TextLabels. Opcionalmente inclua um " +
+        "botão de FECHAR funcional quando close_button=true, com button_label " +
+        "de até 24 caracteres. O aplicativo cria um LocalScript FIXO " +
+        "que desativa o ScreenGui ao receber Activated. A IA não escreve " +
+        "Luau nem define outros comportamentos. gui_name: 1 a 40 letras, " +
         "números ou sublinhados, começando com letra. title: até 60 caracteres, " +
         "lines: 1 a 3 frases com até 90 caracteres cada. accent RGB opcional, " +
-        "position opcional: top, center ou bottom. O painel só aparece no jogo; " +
-        "a IA nunca executa código nem grava sem sua aprovação.";
+        "position opcional: top, center ou bottom. O painel aparece no Play; " +
+        "a IA nunca fornece Luau executável nem grava sem aprovação.";
 
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private final ExecutorService requests = Executors.newSingleThreadExecutor();
@@ -278,11 +282,13 @@ public final class StudioAiHub extends Activity {
     }
 
     private static final class ScreenGuiProposal {
-        final String name, title, position, reason, originalServiceId;
+        final String name, title, position, reason, originalServiceId, buttonLabel;
         final List<String> lines;
         final int[] accent;
+        final boolean closeButton;
         ScreenGuiProposal(String name, String title, String position, String reason,
-                String originalServiceId, List<String> lines, int[] accent) {
+                String originalServiceId, List<String> lines, int[] accent,
+                boolean closeButton, String buttonLabel) {
             this.name = name;
             this.title = title;
             this.position = position;
@@ -290,6 +296,8 @@ public final class StudioAiHub extends Activity {
             this.originalServiceId = originalServiceId;
             this.lines = lines;
             this.accent = accent;
+            this.closeButton = closeButton;
+            this.buttonLabel = buttonLabel;
         }
     }
 
@@ -2024,10 +2032,25 @@ public final class StudioAiHub extends Activity {
                 "bottom".equals(position))) {
             throw new IOException("Posição de painel desconhecida");
         }
+        boolean closeButton = false;
+        if (input.has("close_button")) {
+            Object requested = input.opt("close_button");
+            if (!(requested instanceof Boolean)) {
+                throw new IOException("close_button deve ser verdadeiro ou falso");
+            }
+            closeButton = (Boolean) requested;
+        }
+        if (!closeButton && input.has("button_label")) {
+            throw new IOException("O texto do botão exige close_button=true");
+        }
+        String buttonLabel = closeButton
+                ? safeField(input, "button_label", 24, false) : "";
+        if (closeButton && buttonLabel.isEmpty()) buttonLabel = "Fechar";
         String reason = safeField(input, "reason", 400, true);
         JSONObject original = checkedScreenGuiRoot(inspectedOutput, name);
         return new ScreenGuiProposal(name, title, position, reason,
-                original.optString("uniqueId", ""), lines, accent);
+                original.optString("uniqueId", ""), lines, accent,
+                closeButton, buttonLabel);
     }
 
     /** App-owned, fixed, responsive informational GUI; no scripts or buttons. */
