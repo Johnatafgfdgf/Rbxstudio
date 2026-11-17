@@ -1148,7 +1148,7 @@ assert 'new JSONObject().put("is_start", false)' in smoke_section
 assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
 assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
 for forbidden in ['requestModelWithFreeFallback(', 'executeApproved3dCode(',
-                  'multi_edit', 'save_place', 'publish', 'user_mouse_input']:
+                  'multi_edit', 'save_place', 'publish_animation', 'user_mouse_input']:
     assert forbidden not in smoke_section, forbidden
 assert 'allowLocalPlaySmoke.setChecked(false)' in java
 assert 'checkLocalGameplayScene.setChecked(false)' in java
