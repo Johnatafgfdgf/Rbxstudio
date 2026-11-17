@@ -7656,3 +7656,82 @@ index 0a25492..cd3eff4 100644
          .find_map(|name| dom.content_property(id, name).filter(|u| !u.is_empty()))
          .unwrap_or_default()
  }
+diff --git a/crates/rook-engine/src/tests/gui.rs b/crates/rook-engine/src/tests/gui.rs
+index 0000000..0000000 100644
+--- a/crates/rook-engine/src/tests/gui.rs
++++ b/crates/rook-engine/src/tests/gui.rs
+@@ -281,0 +282,74 @@
++/// Headless regression: a real Rook GUI hit calls the existing Luau
++/// LocalScript, and the script mutates the actual client DOM. This uses
++/// injected test input only in CI; it is NOT proof of physical Android touch.
++fn touch_gui_fixture() -> (Session, usize) {
++    let mut server = Server::new(&Options::default()).unwrap();
++    let starter = service(&server, "StarterGui");
++    let screen = add_under(&server, starter, "ScreenGui", "TouchFixture", "");
++    let button = add_under(&server, screen, "TextButton", "Action", "");
++    add_under(
++        &server,
++        button,
++        "LocalScript",
++        "TouchAction",
++        r#"
++        local button = script.Parent
++        button.Size = UDim2.fromScale(1, 1)
++        button.Active = true
++        button.Text = "PRONTO"
++        button.Activated:Connect(function()
++            button.Text = "TOQUE_CONFIRMADO"
++        end)
++        "#,
++    );
++    server.start();
++    let options = Options {
++        touch_input: true,
++        initial_viewport: Some((800, 600)),
++        ..Options::default()
++    };
++    let mut session = Session::new(server, options);
++    let index = session.join("TouchRegression", 1).unwrap();
++    session.run_for(0.25);
++    (session, index)
++}
++
++fn touch_gui_text(session: &mut Session, index: usize) -> Option<Value> {
++    let client = session.client_mut(index)?;
++    let world = client.runtime().world();
++    let dom = &world.dom;
++    let player = dom.local_player()?;
++    let gui = dom.find_first_child(player, "PlayerGui", false)?;
++    let screen = dom.find_first_child(gui, "TouchFixture", false)?;
++    let button = dom.find_first_child(screen, "Action", false)?;
++    dom.property_by_name(button, "Text")
++}
++
++#[test]
++fn touch_activation_updates_visible_gui_state() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++    session.input(index, InputEvent::Touch {
++        id: 71, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 71, phase: TouchPhase::End, x: 400.0, y: 300.0,
++    });
++    session.run_for(0.1);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("TOQUE_CONFIRMADO".into())));
++}
++
++#[test]
++fn touch_cancel_does_not_activate_or_change_gui_state() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++    session.input(index, InputEvent::Touch {
++        id: 72, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 72, phase: TouchPhase::Cancel, x: 400.0, y: 300.0,
++    });
++    session.run_for(0.1);
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++}

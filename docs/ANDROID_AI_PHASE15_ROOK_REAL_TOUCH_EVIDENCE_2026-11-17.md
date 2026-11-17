@@ -211,3 +211,22 @@ quando um handler do sinal de toque foi acompanhado na sessão. O
 tratamento normal dos demais handlers não ganha essas leituras extras.
 O listener de GUI é desinstalado após o 200º sinal real registrado e
 não segue capturando caminhos de botões ou mutações após esse limite.
+
+## Continuação — regressão de estado GUI após evento real do Rook
+
+Foi acrescentada ao **código de testes do próprio motor Rook** uma
+regressão que cria `ScreenGui` + `TextButton` + `LocalScript`,
+executa o cliente Luau, injeta eventos de toque **somente no processo
+headless de teste** pela API `Session::input(InputEvent::Touch)`
+e compara o valor real de `TextButton.Text` no DOM do cliente.
+O cenário positivo exige `PRONTO → TOQUE_CONFIRMADO` após
+Begin + End sobre o botão. O cenário negativo exige que Begin +
+Cancel **não** mude o texto. Os dois testes verificam o efeito
+real de um `LocalScript` no modelo cliente, não apenas o número de
+handlers ou o diário DOM. As rotas de testes são executadas como
+`cargo test -p rook-engine --lib` no workflow de compatibilidade,
+com logs incluídos no artifact de regressão.
+
+A entrada no teste é programática e serve para detectar regressões:
+**não representa um dedo físico, uma GPU Android ou a experiência
+visual no aparelho.** O teste Android real continua necessário.

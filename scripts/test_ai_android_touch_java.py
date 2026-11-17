@@ -69,6 +69,11 @@ assert "crate::signal_probe::queued(connection)" in rook_patch
 assert "crate::signal_probe::attempted(connection)" in rook_patch
 assert "crate::signal_probe::finished(outcome, dom_changes)" in rook_patch
 assert "thread.status() == ThreadStatus::Finished" in rook_patch
+assert "touch_activation_updates_visible_gui_state" in rook_patch
+assert "touch_cancel_does_not_activate_or_change_gui_state" in rook_patch
+assert "TOQUE_CONFIRMADO" in rook_patch
+assert "TouchPhase::Cancel" in rook_patch
+
 assert "errors_before = observe.then(" in rook_patch
 assert "if let Some(before) = errors_before" in rook_patch
 assert "if seen >= 199" in player
