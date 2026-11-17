@@ -60,31 +60,41 @@ public final class PlaySmokeHarness {
         yes(checkedLocalPlayMode(edit).equals("EDIT"));
         yes(checkedLocalPlayMode(starting).equals("INICIANDO"));
 
-        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "");
+        String all = buildPlaySmokeSummary(true, play, true, true, "no errors", true, "", false, null);
         yes(all.contains("Início autorizado com recibo: confirmado"));
         yes(all.contains("Client/Server durante Play: confirmados"));
         yes(all.contains("Retorno ao Edit: confirmado"));
         yes(all.contains("Árvore Server.Workspace: confirmada"));
         yes(all.contains("Árvore Client.Players: confirmada"));
-        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "")
+        yes(buildPlaySmokeSummary(true, play, false, true, "log", true, "", false, null)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "")
+        yes(buildPlaySmokeSummary(true, play, true, false, "log", true, "", false, null)
                 .contains("INCONCLUSIVO"));
         yes(all.contains("PASSOU somente nas verificações"));
+        LocalPlayerScenario complete = new LocalPlayerScenario(true, true, true, true);
+        LocalPlayerScenario missingHumanoid = new LocalPlayerScenario(true, true, true, false);
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, complete)
+                .contains("PASSOU somente nas verificações"));
+        String missing = buildPlaySmokeSummary(true, play, true, true,
+                "log", true, "", true, missingHumanoid);
+        yes(missing.contains("Humanoid do personagem correspondente: não confirmado"));
+        yes(missing.contains("INCONCLUSIVO"));
+        yes(buildPlaySmokeSummary(true, play, true, true, "log", true, "", true, null)
+                .contains("INCONCLUSIVO"));
         yes(all.contains("não verifica") || all.contains("Não verifica"));
         String partial = buildPlaySmokeSummary(true, edit, true, true, "log", true,
-                "Client/Server ausentes");
+                "Client/Server ausentes", false, null);
         yes(partial.contains("INCONCLUSIVO"));
         yes(!partial.contains("PASSOU somente"));
-        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "");
+        String failedStop = buildPlaySmokeSummary(true, play, true, true, "log", false, "", false, null);
         yes(failedStop.contains("Retorno ao Edit: NÃO CONFIRMADO"));
         yes(failedStop.contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "")
+        yes(buildPlaySmokeSummary(false, play, true, true, "log", true, "", false, null)
                 .contains("INCONCLUSIVO"));
-        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "")
+        yes(buildPlaySmokeSummary(true, play, true, true, null, true, "", false, null)
                 .contains("Output durante o teste: indisponível"));
         String longText = "E".repeat(3000);
-        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "");
+        String trimmed = buildPlaySmokeSummary(true, play, true, true, longText, true, "", false, null);
         yes(trimmed.contains("[Output limitado]"));
         yes(trimmed.length() < 2600);
         System.out.println("Local Play smoke production Java helpers: passed");
