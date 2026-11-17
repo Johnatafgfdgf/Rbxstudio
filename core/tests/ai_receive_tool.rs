@@ -162,16 +162,27 @@ fn ai_receive_tool_mobile_tap_activated_invokes_local_script_and_server() {
         play.step(&mut editor, Duration::from_secs_f64(1. / 60.)).unwrap();
         editor.dom.take_changes();
     }
+    // Unlike IgnoreGuiInset=true in the existing touch regression, this
+    // StarterGui ScreenGui uses the engine's default top-bar inset. Its
+    // visual center is at y = 58 + (480 - 58)/2 = 269, not viewport y=240.
+    // Confirm the actual GuiObject geometry before sending a touch.
     play.run_client(r#"
         local gui=game.Players.LocalPlayer.PlayerGui:FindFirstChild('AI_Grant_Gui')
         assert(gui and gui.ReceiveItem and gui.ReceiveItem.RequestClient,
             'StarterGui was not cloned into PlayerGui with the LocalScript')
-    "#).expect("ScreenGui and touch handler must be installed in PlayerGui");
+        local b=gui.ReceiveItem
+        assert(gui.IgnoreGuiInset == false, 'regression requires default GUI inset')
+        local p,s=b.AbsolutePosition,b.AbsoluteSize
+        assert(p.X <= 480 and 480 <= p.X+s.X and
+               p.Y <= 269 and 269 <= p.Y+s.Y,
+               ('touch coordinate misses button: pos=%s size=%s')
+                    :format(tostring(p),tostring(s)))
+    "#).expect("ScreenGui must render its button below the top-bar inset");
     play.input(InputEvent::Touch {
-        id: 42, phase: TouchPhase::Begin, x: 480., y: 240.,
+        id: 42, phase: TouchPhase::Begin, x: 480., y: 269.,
     });
     play.input(InputEvent::Touch {
-        id: 42, phase: TouchPhase::End, x: 480., y: 240.,
+        id: 42, phase: TouchPhase::End, x: 480., y: 269.,
     });
     for _ in 0..20 {
         play.step(&mut editor, Duration::from_secs_f64(1. / 60.)).unwrap();
