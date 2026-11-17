@@ -1,7 +1,7 @@
 name: RBX-Mobile engine compatibility
 on:
   push:
-    branches: ['work/rbx-mobile-*']
+    branches: ['work/rbx-mobile-*', 'work/ai-autonomous-*']
   pull_request:
   workflow_dispatch:
 permissions:
