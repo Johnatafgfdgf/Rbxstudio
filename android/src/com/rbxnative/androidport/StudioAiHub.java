@@ -3247,6 +3247,168 @@ public final class StudioAiHub extends Activity {
     }
 
     /** Only the verified Part may be changed; no model-supplied Luau is inserted. */
+
+    /**
+     * Exactly one inspected, global Lighting service. These fields are
+     * bounded numbers, not app/model-supplied Luau or property names.
+     */
+    private static double inspectedLightingNumber(JSONObject props, String key,
+            double low, double high) throws IOException {
+        Object raw = props.opt(key);
+        if (!(raw instanceof Number))
+            throw new IOException("Lighting não forneceu " + key + " numérico");
+        double value = ((Number) raw).doubleValue();
+        if (!Double.isFinite(value) || value < low || value > high)
+            throw new IOException("Lighting " + key + " fora do intervalo verificável");
+        return value;
+    }
+
+    private static JSONObject verifiedLightingInspection(String raw) throws Exception {
+        JSONObject item = new JSONObject(raw);
+        if (item.has("matches") || !"Lighting".equals(item.optString("className", "")) ||
+                !"Lighting".equals(item.optString("path", "")))
+            throw new IOException("Lighting duplicado ou inspeção MCP inesperada");
+        JSONObject props = item.optJSONObject("properties");
+        if (props == null) throw new IOException("Lighting não expõe propriedades verificáveis");
+        return props;
+    }
+
+    private static Double optionalLightingNumber(JSONObject model, String key,
+            double min, double max) throws IOException {
+        if (!model.has(key)) return null;
+        Object raw = model.opt(key);
+        if (!(raw instanceof Number))
+            throw new IOException("Valor numérico obrigatório: " + key);
+        double value = ((Number) raw).doubleValue();
+        if (!Double.isFinite(value) || value < min || value > max)
+            throw new IOException("Valor fora do intervalo em " + key);
+        return value;
+    }
+
+    private static LightingProposal validateLightingProposal(JSONObject model,
+            String lastInspectedPath, String lastInspectedText) throws Exception {
+        if (!"Lighting".equals(lastInspectedPath))
+            throw new IOException("A IA precisa inspecionar Lighting antes de alterar");
+        JSONObject properties = verifiedLightingInspection(lastInspectedText);
+        double oldTime = inspectedLightingNumber(properties, "ClockTime", 0, 24);
+        double oldBrightness = inspectedLightingNumber(properties, "Brightness", 0, 1000);
+        Double time = optionalLightingNumber(model, "clock_time", 0, 24);
+        Double brightness = optionalLightingNumber(model, "brightness", 0, 10);
+        if (time == null && brightness == null)
+            throw new IOException("Nenhuma propriedade de Lighting solicitada");
+        String reason = safeField(model, "reason", 400, true);
+        return new LightingProposal(reason, oldTime, oldBrightness, time, brightness);
+    }
+
+    private static String fixedLightingLuau(LightingProposal change) {
+        StringBuilder script = new StringBuilder();
+        script.append("local l = game:GetService(\"Lighting\")\n")
+                .append("if math.abs(l.ClockTime - ")
+                .append(Double.toString(change.beforeClockTime))
+                .append(") > 0.005 or math.abs(l.Brightness - ")
+                .append(Double.toString(change.beforeBrightness))
+                .append(") > 0.005 then return \"STALE_LIGHTING\" end\n");
+        if (change.clockTime != null) {
+            script.append("l.ClockTime = ")
+                    .append(Double.toString(change.clockTime)).append("\n");
+        }
+        if (change.brightness != null) {
+            script.append("l.Brightness = ")
+                    .append(Double.toString(change.brightness)).append("\n");
+        }
+        return script.append("return \"UPDATED_LIGHTING:Lighting\"").toString();
+    }
+
+    private static boolean lightingMatches(JSONObject props, LightingProposal change)
+            throws IOException {
+        double currentTime = inspectedLightingNumber(props, "ClockTime", 0, 24);
+        double currentBrightness = inspectedLightingNumber(props, "Brightness", 0, 1000);
+        double expectedTime = change.clockTime == null ?
+                change.beforeClockTime : change.clockTime;
+        double expectedBrightness = change.brightness == null ?
+                change.beforeBrightness : change.brightness;
+        return Math.abs(currentTime - expectedTime) <= 0.02 &&
+                Math.abs(currentBrightness - expectedBrightness) <= 0.02;
+    }
+
+    private void confirmPendingLighting() {
+        final LightingProposal change = pendingLighting;
+        if (change == null || busy || applyingEdit) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeLighting.isChecked()) {
+            status.setText("Reative permissão de Lighting e análise do Explorer.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Alterar a iluminação do mapa?")
+                .setMessage("Lighting global\nHorário: " + change.beforeClockTime + " → " +
+                        (change.clockTime == null ? "inalterado" : change.clockTime) +
+                        "\nBrilho: " + change.beforeBrightness + " → " +
+                        (change.brightness == null ? "inalterado" : change.brightness) +
+                        "\n\nMotivo: " + change.reason +
+                        "\n\nO app verificará o estado anterior e fará uma única " +
+                        "operação MCP real, seguida de leitura de confirmação. " +
+                        "A IA não fornece código executável. Use Desfazer no editor, se necessário.")
+                .setNegativeButton("Revisar", null)
+                .setPositiveButton("Confirmar Lighting", (dialog, which) ->
+                        applyApprovedLighting(change))
+                .show();
+    }
+
+    private void applyApprovedLighting(LightingProposal change) {
+        if (busy || applyingEdit || pendingLighting != change || mcpPairing.isEmpty()) return;
+        if (!includeProject.isChecked() || !autoInspect.isChecked() ||
+                !proposeLighting.isChecked()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Reinspecionando Lighting antes da edição…");
+        requests.execute(() -> {
+            try {
+                JSONObject before = verifiedLightingInspection(readOnlyMcp(paired,
+                        "inspect_instance", new JSONObject().put("path", "Lighting")));
+                if (Math.abs(inspectedLightingNumber(before, "ClockTime", 0, 24) -
+                                change.beforeClockTime) > 0.005 ||
+                        Math.abs(inspectedLightingNumber(before, "Brightness", 0, 1000) -
+                                change.beforeBrightness) > 0.005) {
+                    throw new IOException("Lighting mudou desde a proposta. Inspecione novamente.");
+                }
+                if (epoch != requestEpoch) throw new IOException("Sessão alterada");
+                String receipt = checkedEditReceipt(
+                        executeApproved3dCode(paired, fixedLightingLuau(change)),
+                        "UPDATED_LIGHTING:Lighting");
+                boolean verified;
+                try {
+                    verified = lightingMatches(verifiedLightingInspection(readOnlyMcp(paired,
+                            "inspect_instance", new JSONObject().put("path", "Lighting"))), change);
+                } catch (Exception unreadable) {
+                    verified = false;
+                }
+                final boolean result = verified;
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingLighting = null;
+                    renderPendingEdit();
+                    setBusy(false, readBackNotice(result, "Lighting"));
+                    recordEditorOutcome("UPDATE_LIGHTING", "Lighting", result);
+                    conversation.setText(conversation.getText() +
+                            "\nLighting MCP: " + receipt + "\nConfira a cena no editor e em Play.");
+                });
+            } catch (Exception failure) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pausePlanAfterFailedWrite();
+                    setBusy(false, "Lighting não confirmado: " +
+                            (failure.getMessage() == null ? "inspecione o editor" :
+                                    failure.getMessage()) +
+                            ". Não repita sem conferir Lighting.");
+                });
+            }
+        });
+    }
+
     private static String fixedPartUpdateLuau(PartChangeProposal part) {
         String name = part.path.substring("Workspace.".length());
         StringBuilder code = new StringBuilder();
