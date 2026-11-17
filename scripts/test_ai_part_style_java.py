@@ -110,8 +110,8 @@ public final class PartStyleHarness {
                 "Workspace.Casa.Piso", "safe nested style", "Plastic",
                 0.0, true, true, "Wood", 0.2, null, null);
         String nestedCode = fixedPartStyleLuau(nested);
-        yes(nestedCode.contains("local parent = ws:FindFirstChild(\\\"Casa\\\")"));
-        yes(nestedCode.contains("parent:IsA(\\\"Model\\\")"));
+        yes(nestedCode.contains("local parent = ws:FindFirstChild(\"Casa\")"));
+        yes(nestedCode.contains("parent:IsA(\"Model\")"));
         yes(nestedCode.contains("parent.Parent ~= ws"));
         yes(nestedCode.contains("p.Parent ~= parent"));
         yes(nestedCode.contains("UPDATED_STYLE:Casa.Piso"));
