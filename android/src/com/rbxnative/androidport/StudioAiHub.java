@@ -1675,7 +1675,9 @@ public final class StudioAiHub extends Activity {
                 ensurePartNameFree(paired, part);
                 if (epoch != requestEpoch) throw new IOException("Sessão alterada antes da criação");
                 // Only the Android confirmation can select this fixed native operation.
-                String outcome = runApprovedPartCommand(paired, part, null);
+                String outcome = checkedEditReceipt(
+                        runApprovedPartCommand(paired, part, null),
+                        "CREATED:" + part.name);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -1911,6 +1913,40 @@ public final class StudioAiHub extends Activity {
         code.append("model.Parent = ws\nreturn \"CREATED_MODEL:")
                 .append(model.name).append("\"");
         return code.toString();
+    }
+
+
+    /**
+     * execute_luau can transport a successful MCP message even when Luau
+     * returns "NAME_EXISTS"/"STALE_PART" or an AssistantCommand error string.
+     * Only an exact app-authored receipt proves the requested edit ran.
+     */
+    private static String checkedEditReceipt(String raw, String expected)
+            throws IOException {
+        if (expected == null || !expected.matches(
+                "(CREATED|UPDATED|CREATED_MODEL|CREATED_BILLBOARD|" +
+                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL):[A-Za-z][A-Za-z0-9_]{0,39}")) {
+            throw new IOException("Identificador de confirmação inválido");
+        }
+        if (raw == null || !expected.equals(raw.trim())) {
+            String status = raw == null ? "" : raw.trim();
+            if (status.startsWith("NAME_EXISTS") || status.startsWith("GUI_EXISTS") ||
+                    status.startsWith("LABEL_EXISTS") ||
+                    status.startsWith("KIT_NAME_EXISTS")) {
+                throw new IOException("O objeto já existe; nada foi confirmado");
+            }
+            if (status.startsWith("STALE_PART")) {
+                throw new IOException("A peça mudou; revise a proposta antes de reaplicar");
+            }
+            if (status.startsWith("INVALID_PART") ||
+                    status.startsWith("INVALID_MODEL")) {
+                throw new IOException("O objeto original não é válido; nenhuma edição confirmada");
+            }
+            // Do not echo Luau errors, model text or secrets from tool output.
+            throw new IOException("O editor não confirmou o resultado exato da operação. " +
+                    "Confira o Explorer e o Output antes de repetir.");
+        }
+        return expected;
     }
 
     /** Shared real MCP transport for approved, app-generated 3D operations only. */
@@ -2496,7 +2532,9 @@ public final class StudioAiHub extends Activity {
                 if (command.length() > 11000) {
                     throw new IOException("Sistema de item acima do limite de código");
                 }
-                String outcome = executeApproved3dCode(paired, command);
+                String outcome = checkedEditReceipt(
+                        executeApproved3dCode(paired, command),
+                        "CREATED_RECEIVE_TOOL:" + kit.system);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -2558,7 +2596,9 @@ public final class StudioAiHub extends Activity {
                     throw new IOException("O serviço StarterGui mudou após a proposta");
                 }
                 if (epoch != requestEpoch) throw new IOException("Sessão alterada");
-                String outcome = executeApproved3dCode(paired, fixedScreenGuiLuau(gui));
+                String outcome = checkedEditReceipt(
+                        executeApproved3dCode(paired, fixedScreenGuiLuau(gui)),
+                        "CREATED_SCREEN_GUI:" + gui.name);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -2617,7 +2657,9 @@ public final class StudioAiHub extends Activity {
                     throw new IOException("A peça foi substituída após a proposta");
                 }
                 if (epoch != requestEpoch) throw new IOException("Sessão alterada");
-                String response = executeApproved3dCode(paired, fixedBillboardLuau(label));
+                String response = checkedEditReceipt(
+                        executeApproved3dCode(paired, fixedBillboardLuau(label)),
+                        "CREATED_BILLBOARD:" + label.name);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -2670,7 +2712,9 @@ public final class StudioAiHub extends Activity {
             try {
                 ensureWorkspaceNameFree(paired, model.name);
                 if (epoch != requestEpoch) throw new IOException("Sessão mudou antes de criar");
-                String response = executeApproved3dCode(paired, fixedCompositeLuau(model));
+                String response = checkedEditReceipt(
+                        executeApproved3dCode(paired, fixedCompositeLuau(model)),
+                        "CREATED_MODEL:" + model.name);
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
@@ -2735,7 +2779,9 @@ public final class StudioAiHub extends Activity {
             try {
                 verifyPartUnchanged(paired, change);
                 if (epoch != requestEpoch) throw new IOException("Sessão mudou antes da edição");
-                String outcome = runApprovedPartCommand(paired, null, change);
+                String outcome = checkedEditReceipt(
+                        runApprovedPartCommand(paired, null, change),
+                        "UPDATED:" + change.path.substring("Workspace.".length()));
                 runOnUiThread(() -> {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
