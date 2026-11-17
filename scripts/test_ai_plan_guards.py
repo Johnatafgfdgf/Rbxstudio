@@ -38,6 +38,8 @@ public final class PlanGuardHarness {
         yes(planStepMatches("PART", "CREATE_PART"));
         yes(planStepMatches("PART", "CREATE_MODEL"));
         yes(planStepMatches("PART", "UPDATE_PART"));
+        yes(planStepMatches("PART", "UPDATE_PART_STYLE"));
+        no(planStepMatches("GUI", "UPDATE_PART_STYLE"));
         yes(planStepMatches("GUI", "CREATE_SCREEN_GUI"));
         yes(planStepMatches("GUI", "CREATE_BILLBOARD"));
         yes(planStepMatches("ITEM", "CREATE_TOOL_KIT"));
@@ -52,6 +54,8 @@ public final class PlanGuardHarness {
         yes(actionMatchesPlannedKind("propose_script_create", "SCRIPT"));
         yes(actionMatchesPlannedKind("propose_part_create", "PART"));
         yes(actionMatchesPlannedKind("propose_part_update", "PART"));
+        yes(actionMatchesPlannedKind("propose_part_style_update", "PART"));
+        no(actionMatchesPlannedKind("propose_part_style_update", "SCRIPT"));
         yes(actionMatchesPlannedKind("propose_composite_create", "PART"));
         yes(actionMatchesPlannedKind("propose_billboard_create", "GUI"));
         yes(actionMatchesPlannedKind("propose_screen_gui_create", "GUI"));
@@ -63,7 +67,7 @@ public final class PlanGuardHarness {
         no(actionMatchesPlannedKind("execute_luau", "PART"));
         no(actionMatchesPlannedKind("publish_animation", "ITEM"));
         no(actionMatchesPlannedKind("propose_task_plan", "SCRIPT"));
-        System.out.println("Production Java plan guards: 30 acceptance/rejection cases passed");
+        System.out.println("Production Java plan guards: 34 acceptance/rejection cases passed");
     }
 }
 """ % (matcher, dispatcher)
