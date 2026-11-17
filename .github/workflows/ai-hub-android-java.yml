@@ -10,6 +10,7 @@ on:
       - android/src/com/rbxnative/androidport/StudioServices.java
       - android/StudioManifest.xml
       - scripts/check_ai_hub.py
+      - scripts/test_mcp_receipt.py
 
 permissions:
   contents: read
@@ -31,6 +32,8 @@ jobs:
         run: sdkmanager 'platforms;android-35'
       - name: Verify static safety and provider contracts
         run: python3 scripts/check_ai_hub.py
+      - name: Assert MCP write success and failure receipts in real Java
+        run: python3 scripts/test_mcp_receipt.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
