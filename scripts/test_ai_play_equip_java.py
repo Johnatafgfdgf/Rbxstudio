@@ -44,7 +44,7 @@ public class EquipHarness {
         JSONObject optJSONObject(int index) { return items.get(index); }
     }
     JSONArray fixture;
-    String nextReceipt = "EQUIPPED";
+    String nextReceipt = "EQUIPPED_EVENT";
     int luaCalls, treeCalls;
     JSONObject lastLua, lastTree;
     private String callMcp(String paired, String tool, JSONObject args) throws IOException {
@@ -90,9 +90,13 @@ public class EquipHarness {
         yes(code.contains("Humanoid:EquipTool") || code.contains("humanoid:EquipTool(found)"));
         yes(code.contains("LocalPlayer"));
         yes(code.contains("if count ~= 1 or not found then"));
-        yes(code.contains("task.wait(0.25)"));
+        yes(code.contains("task.wait(0.3)"));
+        yes(code.contains("found.Equipped:Connect("));
+        yes(code.contains("equippedListener:Disconnect()"));
+        yes(code.contains("equippedObserved"));
         yes(code.contains("\"Magic Sword\""));
-        yes(code.contains("\"EQUIPPED\""));
+        yes(code.contains("\"EQUIPPED_EVENT\""));
+        yes(code.contains("\"EQUIPPED_NO_EVENT\""));
         yes(!code.contains("HttpService"));
         yes(!code.contains("require("));
         bad(() -> boundedLocalEquipLuau("Alex", "Players.Bob.Backpack.Magic Sword"));
@@ -105,15 +109,18 @@ public class EquipHarness {
                 .contains("\"Test-Sword\""));
 
         EquipHarness runtime = new EquipHarness();
-        yes(runtime.confirmLiveEquippedTool("session", p, sword));
+        yes("EQUIPPED_EVENT".equals(runtime.confirmLiveEquippedTool("session", p, sword)));
         yes(runtime.luaCalls == 1);
         yes("Client".equals(runtime.lastLua.getString("datamodel_type")));
         yes(code.equals(runtime.lastLua.getString("code")));
+        runtime.nextReceipt = "EQUIPPED_NO_EVENT";
+        yes("EQUIPPED_NO_EVENT".equals(
+                runtime.confirmLiveEquippedTool("session", p, sword)));
         runtime.nextReceipt = "EQUIP_NOT_CONFIRMED";
         bad(() -> runtime.confirmLiveEquippedTool("session", p, sword));
-        runtime.nextReceipt = "EQUIPPED and something else";
+        runtime.nextReceipt = "EQUIPPED_EVENT and something else";
         bad(() -> runtime.confirmLiveEquippedTool("session", p, sword));
-        runtime.nextReceipt = "EQUIPPED";
+        runtime.nextReceipt = "EQUIPPED_EVENT";
 
         JSONArray good = new JSONArray()
                 .put(row("Workspace.Alex", "Alex", "Model", "Workspace"))
