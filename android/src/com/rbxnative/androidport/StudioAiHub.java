@@ -640,6 +640,9 @@ public final class StudioAiHub extends Activity {
         add(root, freeModelsNotice, 11);
 
         add(root, text("Contexto do projeto (opcional)", 14, true), 4);
+        Button connectionTest = button("Testar conexão com editor (MCP local)");
+        connectionTest.setOnClickListener(v -> diagnoseLocalEditor());
+        add(root, connectionTest, 5);
         Button inspectProject = button("Inspecionar Explorer real via MCP");
         inspectProject.setOnClickListener(v -> inspectProject());
         add(root, inspectProject, 5);
@@ -1215,6 +1218,55 @@ public final class StudioAiHub extends Activity {
     private String readExplorerViaMcp(String paired, int depth) throws Exception {
         return readOnlyMcp(paired, "search_game_tree",
                 new JSONObject().put("max_depth", depth));
+    }
+
+    /**
+     * Diagnostic never writes to the place, sends nothing to an AI provider,
+     * or displays the private pairing token. It verifies both the local MCP
+     * broker and a real Edit Datamodel service before enabling confidence.
+     */
+    private void diagnoseLocalEditor() {
+        final String paired = mcpPairing;
+        if (paired.isEmpty()) {
+            status.setText("Editor não forneceu MCP: ative a integração no Studio.");
+            return;
+        }
+        if (busy) return;
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Testando servidor local e serviço StarterGui…");
+        requests.execute(() -> {
+            try {
+                String state = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                if (!state.contains("Edit")) {
+                    throw new IOException("Editor não disponibilizou o DataModel Edit");
+                }
+                String inspect = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", "StarterGui"));
+                JSONObject target = new JSONObject(inspect);
+                if (!"StarterGui".equals(target.optString("className", "")) ||
+                        !"StarterGui".equals(target.optString("path", ""))) {
+                    throw new IOException("Serviço StarterGui não respondeu à inspeção");
+                }
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    setBusy(false, "MCP local conectado • Editor Edit e StarterGui confirmados");
+                    conversation.setText(conversation.getText() +
+                            "\n\nDIAGNÓSTICO MCP LOCAL:\n" +
+                            "Conexão 127.0.0.1: OK\n" +
+                            "DataModel Edit: OK\n" +
+                            "Inspeção real StarterGui: OK\n" +
+                            "Nenhuma chave ou dado enviado ao provedor de IA.\n" +
+                            "Escrita, autorização do editor e Play precisam de teste separado.");
+                });
+            } catch (Exception problem) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    setBusy(false, "MCP local indisponível ou incompatível. " +
+                            "Volte ao editor, confirme que a integração está ativa e " +
+                            "teste novamente. Nenhuma edição foi solicitada.");
+                });
+            }
+        });
     }
 
     private void inspectProject() {
