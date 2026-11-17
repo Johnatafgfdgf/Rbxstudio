@@ -412,6 +412,56 @@ assert 'case "execute_luau"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
 
+
+# ScreenGui creation is limited to app-generated, non-interactive, responsive
+# components. A real MCP inspection, full child-name check, and user confirmation
+# must all precede the one native editor write operation.
+for required in [
+    'SCREEN_GUI_PROTOCOL',
+    'proposeScreens.setChecked(false)',
+    'proposeScreens.setText("Permitir propostas de painéis ScreenGui para celular")',
+    'if ("propose_screen_gui_create".equals(action))',
+    'lastInspectedPath',
+    'validateScreenGuiProposal(decision,',
+    'private static JSONObject checkedScreenGuiRoot(',
+    '"StarterGui".equals(root.optString("className", ""))',
+    'children.optInt("childrenCount", -1) != immediate.length()',
+    '("StarterGui." + name).equalsIgnoreCase(child.optString("path", ""))',
+    'private static ScreenGuiProposal validateScreenGuiProposal(',
+    'items.length() < 1 || items.length() > 3',
+    'safeField(input, "gui_name", 40, true)',
+    'safeField(input, "title", 60, true)',
+    'safeField(new JSONObject().put("line", raw), "line", 90, true)',
+    'optionalUpdateColor(new JSONObject().put("color", input.opt("accent")))',
+    '"top".equals(position) || "center".equals(position)',
+    'private static String fixedScreenGuiLuau(ScreenGuiProposal gui)',
+    'Instance.new(\\"ScreenGui\\")',
+    'Instance.new(\\"Frame\\")',
+    'Instance.new(\\"UITextSizeConstraint\\")',
+    'Instance.new(\\"UISizeConstraint\\")',
+    'Instance.new(\\"UIListLayout\\")',
+    'screen.ResetOnSpawn = false',
+    'screen.IgnoreGuiInset = false',
+    'title.RichText = false',
+    'line.RichText = false',
+    'luauTextLiteral(gui.title)',
+    'luauTextLiteral(gui.lines.get(i))',
+    'screen.Parent = service',
+    'private void confirmPendingScreen()',
+    '.setPositiveButton("Sim, criar painel",',
+    'private void applyApprovedScreen(ScreenGuiProposal gui)',
+    'readOnlyMcp(paired, "inspect_instance",',
+    'checkedScreenGuiRoot(current, gui.name)',
+    'gui.originalServiceId.equals(root.optString("uniqueId", ""))',
+    'executeApproved3dCode(paired, fixedScreenGuiLuau(gui))',
+    'pendingScreen = includeProject.isChecked() && autoInspect.isChecked()',
+]:
+    assert required in java, required
+
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
