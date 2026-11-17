@@ -1367,7 +1367,8 @@ public final class StudioAiHub extends Activity {
             boolean stopConfirmed, String problem,
             boolean sceneRequested, LocalPlayerScenario scene,
             boolean toolGuiRequested, LiveToolGuiAudit toolGui,
-            boolean equipRequested, boolean equipReceipt, boolean equipReadBack) {
+            boolean equipRequested, boolean equipReceipt, boolean equipReadBack,
+            boolean equippedEvent) {
         boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
                 checkedLocalPlayMode(playState));
         boolean logsAvailable = output != null;
@@ -1427,6 +1428,9 @@ public final class StudioAiHub extends Activity {
                     .append("\n")
                     .append("Tool no personagem por leitura MCP independente: ")
                     .append(equipReadBack ? "confirmada" : "não confirmada")
+                    .append("\n")
+                    .append("Evento real Tool.Equipped no Client: ")
+                    .append(equippedEvent ? "observado" : "não confirmado")
                     .append("\n");
         }
         if (logsAvailable) {
@@ -1442,12 +1446,12 @@ public final class StudioAiHub extends Activity {
                 logsAvailable && stopConfirmed && (!sceneRequested ||
                 (scene != null && scene.complete())) &&
                 (!toolGuiRequested || (toolGui != null && toolGui.complete())) &&
-                (!equipRequested || (equipReceipt && equipReadBack))
+                (!equipRequested || (equipReceipt && equipReadBack && equippedEvent))
                 ? "PASSOU somente nas verificações solicitadas de Play local.\n"
                 : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
         report.append("Presença e propriedades de objetos não comprovam resposta ao toque. " +
                 "EquipTool, se solicitado, altera apenas a sessão Play local e pode " +
-                "executar scripts existentes da Tool; não comprova Activated nem " +
+                "executar scripts existentes da Tool; observar Equipped não comprova Activated nem " +
                 "clique em GUI. Não testa colisões, scripts individuais, câmera, " +
                 "renderização nem qualidade visual. Logs podem incluir mensagens " +
                 "anteriores. Nenhum código da IA, publicação ou envio à API de IA.");
@@ -1809,21 +1813,30 @@ public final class StudioAiHub extends Activity {
                 "    return \"HANDLE_INVALID\"\n" +
                 "  end\n" +
                 "end\n" +
-                "humanoid:EquipTool(found)\n" +
-                "task.wait(0.25)\n" +
-                "return found.Parent == char and \"EQUIPPED\" or \"EQUIP_NOT_CONFIRMED\"";
+                "local equippedObserved = false\n" +
+                "local equippedListener = found.Equipped:Connect(function()\n" +
+                "  equippedObserved = true\n" +
+                "end)\n" +
+                "local safe = pcall(function() humanoid:EquipTool(found) end)\n" +
+                "task.wait(0.3)\n" +
+                "equippedListener:Disconnect()\n" +
+                "if not safe or found.Parent ~= char then\n" +
+                "  return \"EQUIP_NOT_CONFIRMED\"\n" +
+                "end\n" +
+                "return equippedObserved and \"EQUIPPED_EVENT\" or \"EQUIPPED_NO_EVENT\"";
     }
 
     /** Strong postcondition: the Tool moved from Backpack into this local
      * Client character in the actual running DataModel. */
-    private boolean confirmLiveEquippedTool(String paired, String playerName,
+    private String confirmLiveEquippedTool(String paired, String playerName,
             String toolPath) throws Exception {
         String luau = boundedLocalEquipLuau(playerName, toolPath);
         String response = callMcp(paired, "execute_luau", new JSONObject()
                 .put("datamodel_type", "Client").put("code", luau));
-        if (!"EQUIPPED".equals(response == null ? "" : response.trim()))
+        String receipt = response == null ? "" : response.trim();
+        if (!"EQUIPPED_EVENT".equals(receipt) && !"EQUIPPED_NO_EVENT".equals(receipt))
             throw new IOException("EquipTool não recebeu confirmação exata do Client");
-        return true;
+        return receipt;
     }
 
     private static boolean readBackEquippedTool(String raw, String playerName,
@@ -1878,7 +1891,7 @@ public final class StudioAiHub extends Activity {
         requests.execute(() -> {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
             boolean serverWorkspace = false, clientPlayers = false;
-            boolean equipReceipt = false, equipReadBack = false;
+            boolean equipReceipt = false, equipReadBack = false, equippedEvent = false;
             LocalPlayerScenario scene = null;
             LiveToolGuiAudit toolGui = null;
             String sceneProblem = "";
@@ -1936,8 +1949,10 @@ public final class StudioAiHub extends Activity {
                                 checkLocalToolEquip == null ||
                                 !checkLocalToolEquip.isChecked())
                             throw new IOException("Autorização de equipagem revogada");
-                        equipReceipt = confirmLiveEquippedTool(paired, scene.playerName,
+                        String receipt = confirmLiveEquippedTool(paired, scene.playerName,
                                 toolGui.toolPath);
+                        equipReceipt = true;
+                        equippedEvent = "EQUIPPED_EVENT".equals(receipt);
                         if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
                         equipReadBack = verifyLocalEquipParent(paired, scene.playerName,
                                 toolGui.toolPath);
@@ -1975,7 +1990,7 @@ public final class StudioAiHub extends Activity {
                     (problem + " " + sceneProblem + " " + toolGuiProblem +
                             " " + equipProblem).trim(),
                     sceneRequested, scene, toolGuiRequested, toolGui,
-                    equipRequested, equipReceipt, equipReadBack);
+                    equipRequested, equipReceipt, equipReadBack, equippedEvent);
             final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
