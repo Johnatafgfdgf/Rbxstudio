@@ -195,6 +195,21 @@ public final class StudioAiHub extends Activity {
         "Toolbox ou outras operações. Usuário precisa autorizar a criação " +
         "de scripts e a operação inteira explicitamente.";
 
+    private static final String TASK_PLAN_PROTOCOL =
+        "\\nPara um pedido que exige VÁRIAS alterações, você PODE criar um plano após " +
+        "uma leitura MCP real (search_game_tree, inspect_instance ou get_studio_state). " +
+        "Use JSON {\\\"action\\\":\\\"propose_task_plan\\\",\\\"goal\\\":\\\"Objetivo do jogo\\\"," +
+        "\\\"steps\\\":[{\\\"kind\\\":\\\"PART\\\",\\\"title\\\":\\\"Construir plataforma\\\"," +
+        "\\\"instruction\\\":\\\"Criar plataforma inicial em Workspace\\\"}," +
+        "{\\\"kind\\\":\\\"GUI\\\",\\\"title\\\":\\\"Criar painel\\\"," +
+        "\\\"instruction\\\":\\\"Criar painel informativo de início\\\"}]}. " +
+        "São de 2 a 5 etapas. kind só pode ser SCRIPT, PART, GUI ou ITEM. " +
+        "SCRIPT exige autorização de scripts; PART exige peças; GUI exige painéis " +
+        "ou etiquetas; ITEM exige autorização de kit. Não inclua publicação, " +
+        "Toolbox, exclusões, execução remota nem testes que o editor não pode confirmar. " +
+        "O plano é uma PROPOSTA. Após aprovação, cada etapa é enviada ao modelo " +
+        "individualmente e só avança depois de uma escrita real confirmada pelo MCP; " +
+        "NENHUM plano dispensa aprovação individual de escrita.";
     private static final String PREFS = "rbxstudio-ai-hub-v1";
     private static final int MAX_PROJECT_MEMORY = 16;
     private static final int MAX_PROJECT_NAME = 160;
@@ -215,8 +230,10 @@ public final class StudioAiHub extends Activity {
     private BillboardProposal pendingBillboard;
     private ScreenGuiProposal pendingScreen;
     private ReceiveToolProposal pendingKit;
-    private TextView proposalPreview;
-    private Button applyEdit, discardEdit;
+    private TaskPlan pendingTaskPlan, activeTaskPlan;
+    private boolean planPaused, planStepOutstanding;
+    private TextView planProgress, proposalPreview;
+    private Button nextPlanStep, togglePlan, cancelPlan, applyEdit, discardEdit;
 
     private static final class EditProposal {
         final String path, oldText, newText, reason;
@@ -339,6 +356,65 @@ public final class StudioAiHub extends Activity {
         String guiName() { return system + "_Gui"; }
     }
 
+
+    private static final class PlanStep {
+        final String kind, title, instruction;
+        PlanStep(String kind, String title, String instruction) {
+            this.kind = kind;
+            this.title = title;
+            this.instruction = instruction;
+        }
+    }
+
+    /** Session-only plan. Every planned write still goes through existing consent and readback. */
+    private static final class TaskPlan {
+        final String goal;
+        final List<PlanStep> steps;
+        int completed;
+        TaskPlan(String goal, List<PlanStep> steps) {
+            this.goal = goal;
+            this.steps = Collections.unmodifiableList(new ArrayList<>(steps));
+        }
+    }
+
+    private static TaskPlan validateTaskPlan(JSONObject data, int reads,
+            boolean allowScripts, boolean allowParts, boolean allowLabels,
+            boolean allowScreens, boolean allowItems) throws Exception {
+        if (reads < 1) throw new IOException("O plano exige inspeção MCP real prévia");
+        String goal = safeField(data, "goal", 180, true);
+        JSONArray items = data.optJSONArray("steps");
+        if (items == null || items.length() < 2 || items.length() > 5)
+            throw new IOException("Plano precisa de duas a cinco etapas");
+        List<PlanStep> steps = new ArrayList<>();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) throw new IOException("Etapa do plano inválida");
+            String kind = safeField(item, "kind", 12, true);
+            boolean permitted =
+                    ("SCRIPT".equals(kind) && allowScripts) ||
+                    ("PART".equals(kind) && allowParts) ||
+                    ("GUI".equals(kind) && (allowLabels || allowScreens)) ||
+                    ("ITEM".equals(kind) && allowItems);
+            if (!permitted) throw new IOException("Tipo de etapa sem ferramenta autorizada: " + kind);
+            String title = safeField(item, "title", 70, true);
+            String instruction = safeField(item, "instruction", 260, true);
+            steps.add(new PlanStep(kind, title, instruction));
+        }
+        return new TaskPlan(goal, steps);
+    }
+
+    private static boolean planStepMatches(String step, String kind) {
+        switch (step) {
+            case "SCRIPT": return "CREATE_SCRIPT".equals(kind) || "UPDATE_SCRIPT".equals(kind);
+            case "PART": return "CREATE_PART".equals(kind) ||
+                    "UPDATE_PART".equals(kind) || "CREATE_MODEL".equals(kind);
+            case "GUI": return "CREATE_SCREEN_GUI".equals(kind) ||
+                    "CREATE_BILLBOARD".equals(kind);
+            case "ITEM": return "CREATE_TOOL_KIT".equals(kind);
+            default: return false;
+        }
+    }
+
     private static final class AgentOutcome {
         final String answer;
         final EditProposal proposal;
@@ -348,6 +424,10 @@ public final class StudioAiHub extends Activity {
         final BillboardProposal billboard;
         final ScreenGuiProposal screen;
         final ReceiveToolProposal kit;
+        final TaskPlan plan;
+        static AgentOutcome planned(String answer, TaskPlan plan) {
+            return new AgentOutcome(answer, null, null, null, null, null, null, null, plan);
+        }
         AgentOutcome(String answer, EditProposal proposal) {
             this(answer, proposal, null, null, null, null, null, null);
         }
@@ -376,6 +456,13 @@ public final class StudioAiHub extends Activity {
                 PartChangeProposal partChange, CompositeProposal composite,
                 BillboardProposal billboard, ScreenGuiProposal screen,
                 ReceiveToolProposal kit) {
+            this(answer, proposal, part, partChange, composite, billboard, screen, kit, null);
+        }
+        AgentOutcome(String answer, EditProposal proposal, PartProposal part,
+                PartChangeProposal partChange, CompositeProposal composite,
+                BillboardProposal billboard, ScreenGuiProposal screen,
+                ReceiveToolProposal kit, TaskPlan plan) {
+            this.plan = plan;
             this.answer = answer;
             this.proposal = proposal;
             this.part = part;
@@ -1542,7 +1629,8 @@ public final class StudioAiHub extends Activity {
                 (allowScreens ? SCREEN_GUI_PROTOCOL :
                         "\nNão proponha ScreenGuis/painéis de tela.") +
                 (allowKits ? RECEIVE_TOOL_PROTOCOL :
-                        "\nNão proponha kits de ferramenta/GUI/scripts.")});
+                        "\nNão proponha kits de ferramenta/GUI/scripts.") +
+                TASK_PLAN_PROTOCOL});
         int reads = 0;
         String lastReadPath = "";
         String lastSearchedParent = "";
@@ -1579,6 +1667,14 @@ public final class StudioAiHub extends Activity {
                         " consulta(s) MCP reais)\nFerramentas: " +
                         (toolTrace.length() == 0 ? "nenhuma" : toolTrace.toString()) +
                         "\n\n" + answer, null);
+            }
+            if ("propose_task_plan".equals(action)) {
+                TaskPlan plan = validateTaskPlan(decision, reads, allowProposals,
+                        allowParts, allowLabels, allowScreens, allowKits);
+                return AgentOutcome.planned("Plano de " + plan.steps.size() +
+                        " etapas baseado em " + reads + " leitura(s) MCP. " +
+                        "Nenhum objeto foi alterado. Revise e aprove o plano.",
+                        plan);
             }
             if ("propose_script_edit".equals(action)) {
                 if (!allowProposals || !codeConsent || lastReadPath.isEmpty()) {
