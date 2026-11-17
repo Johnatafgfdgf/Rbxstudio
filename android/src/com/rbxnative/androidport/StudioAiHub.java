@@ -1746,6 +1746,7 @@ public final class StudioAiHub extends Activity {
             else if (pendingScreen != null) confirmPendingScreen();
             else if (pendingBillboard != null) confirmPendingBillboard();
             else if (pendingComposite != null) confirmPendingComposite();
+            else if (pendingPartStyle != null) confirmPendingPartStyle();
             else if (pendingPartChange != null) confirmPendingPartChange();
             else if (pendingPart != null) confirmPendingPart();
             else confirmPendingEdit();
@@ -1754,6 +1755,7 @@ public final class StudioAiHub extends Activity {
         discardEdit = button("Descartar proposta");
         discardEdit.setVisibility(View.GONE);
         discardEdit.setOnClickListener(v -> {
+            pendingPartStyle = null;
             pendingEdit = null;
             pendingPart = null;
             pendingPartChange = null;
@@ -1807,7 +1809,8 @@ public final class StudioAiHub extends Activity {
                 revokeSharedContext(); // Project data must not remain in stale turns.
                 conversation.setText("Contexto do projeto revogado; histórico da sessão limpo.");
                 pendingEdit = null; pendingPart = null;
-                pendingPartChange = null; pendingComposite = null;
+                pendingPartChange = null; pendingPartStyle = null;
+                pendingComposite = null;
                 pendingBillboard = null; pendingScreen = null;
                 pendingKit = null; pendingLighting = null;
                 pendingTaskPlan = null;
@@ -1819,6 +1822,7 @@ public final class StudioAiHub extends Activity {
         });
         proposeParts.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) { pendingPart = null; pendingPartChange = null;
+                pendingPartStyle = null;
                 pendingComposite = null; renderPendingEdit(); }
         });
         proposeLighting.setOnCheckedChangeListener((v, checked) -> {
@@ -1852,6 +1856,7 @@ public final class StudioAiHub extends Activity {
                 pendingEdit = null;
                 pendingPart = null;
                 pendingPartChange = null;
+                pendingPartStyle = null;
                 pendingComposite = null;
                 pendingBillboard = null;
                 pendingScreen = null;
@@ -2190,6 +2195,7 @@ public final class StudioAiHub extends Activity {
             pendingEdit = null;
             pendingPart = null;
             pendingPartChange = null;
+            pendingPartStyle = null;
             renderPendingEdit();
             modelPicker.setAdapter(new ArrayAdapter<String>(this,
                     android.R.layout.simple_spinner_dropdown_item,
@@ -3586,7 +3592,7 @@ public final class StudioAiHub extends Activity {
             throws IOException {
         if (expected == null || !expected.matches(
                 "(CREATED|UPDATED|CREATED_MODEL|CREATED_BILLBOARD|" +
-                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|UPDATED_LIGHTING):" +
+                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|UPDATED_LIGHTING|UPDATED_STYLE):" +
                 "[A-Za-z][A-Za-z0-9_]{0,39}")) {
             throw new IOException("Identificador de confirmação inválido");
         }
@@ -4699,7 +4705,8 @@ public final class StudioAiHub extends Activity {
     private void renderPendingEdit() {
         if (proposalPreview == null) return;
         boolean visible = pendingEdit != null || pendingPart != null ||
-                pendingPartChange != null || pendingComposite != null ||
+                pendingPartChange != null || pendingPartStyle != null ||
+                pendingComposite != null ||
                 pendingBillboard != null || pendingScreen != null || pendingKit != null ||
                 pendingLighting != null || pendingTaskPlan != null;
         proposalPreview.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -4802,6 +4809,23 @@ public final class StudioAiHub extends Activity {
             preview.append("\n\nCada peça é ancorada e possui colisão. " +
                     "Nenhum objeto será criado sem sua confirmação.");
             proposalPreview.setText(preview.toString());
+            return;
+        }
+        if (pendingPartStyle != null) {
+            PartStyleProposal style = pendingPartStyle;
+            applyEdit.setText("Revisar e confirmar PROPRIEDADES DA PEÇA");
+            proposalPreview.setText("PRÉVIA • Part não modificada\n" +
+                    "Objeto: " + style.path + "\nMotivo: " + style.reason +
+                    "\n\nMaterial: " + style.beforeMaterial + " → " +
+                    (style.material == null ? "inalterado" : style.material) +
+                    "\nTransparência: " + style.beforeTransparency + " → " +
+                    (style.transparency == null ? "inalterada" : style.transparency) +
+                    "\nAncorada: " + style.beforeAnchored + " → " +
+                    (style.anchored == null ? "inalterada" : style.anchored) +
+                    "\nColisão: " + style.beforeCanCollide + " → " +
+                    (style.canCollide == null ? "inalterada" : style.canCollide) +
+                    "\n\nO editor revalida as propriedades antes e depois da edição. " +
+                    "Confirmação individual obrigatória.");
             return;
         }
         if (pendingPartChange != null) {
@@ -4937,7 +4961,8 @@ public final class StudioAiHub extends Activity {
     private void restoreSavedPlan() {
         if (busy || applyingEdit || planStepOutstanding) return;
         if (pendingEdit != null || pendingPart != null ||
-                pendingPartChange != null || pendingComposite != null ||
+                pendingPartChange != null || pendingPartStyle != null ||
+                pendingComposite != null ||
                 pendingBillboard != null || pendingScreen != null ||
                 pendingKit != null || pendingTaskPlan != null) {
             status.setText("Revise ou descarte a proposta atual antes de restaurar.");
@@ -5348,6 +5373,7 @@ public final class StudioAiHub extends Activity {
         pendingEdit = null;
         pendingPart = null;
         pendingPartChange = null;
+        pendingPartStyle = null;
         pendingComposite = null;
         pendingBillboard = null;
         pendingScreen = null;
@@ -5363,6 +5389,7 @@ public final class StudioAiHub extends Activity {
                 final EditProposal proposed;
                 final PartProposal proposedPart;
                 final PartChangeProposal proposedPartChange;
+                final PartStyleProposal proposedPartStyle;
                 final CompositeProposal proposedComposite;
                 final BillboardProposal proposedBillboard;
                 final ScreenGuiProposal proposedScreen;
@@ -5378,13 +5405,15 @@ public final class StudioAiHub extends Activity {
                     proposed = outcome.proposal;
                     proposedPart = outcome.part;
                     proposedPartChange = outcome.partChange;
+                    proposedPartStyle = outcome.partStyle;
                     proposedComposite = outcome.composite;
                     proposedBillboard = outcome.billboard;
                     proposedScreen = outcome.screen;
                     proposedKit = outcome.kit;
                     proposedLighting = outcome.lighting;
                     proposedPlan = outcome.plan;
-                    usage = (proposedLighting != null ? " • prévia de Lighting" :
+                    usage = (proposedPartStyle != null ? " • prévia de propriedades 3D" :
+                            proposedLighting != null ? " • prévia de Lighting" :
                             proposedPlan != null ? " • prévia de plano" :
                             proposedKit != null ? " • prévia de sistema de item" :
                             proposedScreen != null ? " • prévia de ScreenGui" :
@@ -5398,6 +5427,7 @@ public final class StudioAiHub extends Activity {
                     proposed = null;
                     proposedPart = null;
                     proposedPartChange = null;
+                    proposedPartStyle = null;
                     proposedComposite = null;
                     proposedBillboard = null;
                     proposedScreen = null;
@@ -5430,6 +5460,8 @@ public final class StudioAiHub extends Activity {
                             proposeParts.isChecked() ? proposedPart : null;
                     pendingPartChange = includeProject.isChecked() && autoInspect.isChecked() &&
                             proposeParts.isChecked() ? proposedPartChange : null;
+                    pendingPartStyle = includeProject.isChecked() && autoInspect.isChecked() &&
+                            proposeParts.isChecked() ? proposedPartStyle : null;
                     pendingComposite = includeProject.isChecked() && autoInspect.isChecked() &&
                             proposeParts.isChecked() ? proposedComposite : null;
                     pendingBillboard = includeProject.isChecked() && autoInspect.isChecked() &&
@@ -5443,7 +5475,8 @@ public final class StudioAiHub extends Activity {
                     pendingTaskPlan = includeProject.isChecked() && autoInspect.isChecked() &&
                             !executingPlanStep ? proposedPlan : null;
                     boolean hasProposal = pendingEdit != null || pendingPart != null ||
-                            pendingPartChange != null || pendingComposite != null ||
+                            pendingPartChange != null || pendingPartStyle != null ||
+                            pendingComposite != null ||
                             pendingBillboard != null || pendingScreen != null ||
                             pendingKit != null || pendingLighting != null;
                     if (executingPlanStep && !hasProposal) {
