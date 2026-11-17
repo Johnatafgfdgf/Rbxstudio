@@ -897,8 +897,12 @@ for required in [
     'if (text.isEmpty() && "script_read".equals(tool)) return "";',
 ]:
     assert required in java, required
-auditor = java[java.index('private String auditModelInEditor('):
-               java.index('private void selectToolboxFile()')]
+# Combine only the local audit implementation and its entry point. The
+# separately authorized Play smoke test is intentionally not part of auditing.
+auditor = (java[java.index('private String auditModelInEditor('):
+                java.index('    /** Accept only an exact shell receipt')] +
+           java[java.index('private void startInsertedModelAudit()'):
+                java.index('    /** Only the exact native MCP status fields')])
 for forbidden in ['executeApproved3dCode(', 'callMcp(', 'multi_edit',
                   'insert_asset', 'requestModelWithFreeFallback(',
                   'StudioServices.credential(', 'save_place',
