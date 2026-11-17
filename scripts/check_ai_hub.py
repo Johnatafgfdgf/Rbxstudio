@@ -680,6 +680,40 @@ assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < jav
     'verifiedScriptEdit(paired, edit, beforeScript)')
 assert 'retryApprovedWrite' not in java
 
+# Project memory is explicitly opt-in, limited to metadata from actual
+# verified MCP writes, AES-GCM protected through the existing Keystore service.
+# Saved events are not user prompts, API keys, source code or screenshots.
+for required in [
+    'private String projectMemoryService() throws Exception',
+    'MessageDigest.getInstance("SHA-256")',
+    'StudioServices.credential(this, "write", projectMemoryService(), payload, "")',
+    'StudioServices.credential(\n                this, "read", projectMemoryService(), "", "")',
+    'private void recordEditorOutcome(String kind, String path, boolean verified)',
+    'if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;',
+    'new JSONObject().put("kind", kind).put("path", path)',
+    'while (events.length() > MAX_PROJECT_MEMORY) events.remove(0)',
+    'private String memoryForPrompt() throws Exception',
+    'includeProject.isChecked() && includeMemory.isChecked()',
+    'includeMemory.setChecked(false)',
+    'StudioServices.credential(this, "delete",',
+    'history.clear(); // Revoking code consent also drops cached provider context.',
+    'history.clear(); // Project contents must not remain in stale provider turns.',
+    'history.clear(); // Do not resend previously approved memory via old turns.',
+    'recordEditorOutcome("CREATE_PART", objectPath, verified)',
+    'recordEditorOutcome("CREATE_MODEL", objectPath, allPartsVerified)',
+    'recordEditorOutcome("UPDATE_PART", change.path, verified)',
+    'recordEditorOutcome("CREATE_SCREEN_GUI", objectPath, verified)',
+    'recordEditorOutcome("CREATE_BILLBOARD", objectPath, verified)',
+    'recordEditorOutcome("CREATE_TOOL_KIT", kit.system, verified)',
+    'recordEditorOutcome(edit.create ? "CREATE_SCRIPT" : "UPDATE_SCRIPT",',
+]:
+    assert required in java, required
+assert java.count('recordEditorOutcome(') == 8  # helper plus 7 verified editor writes
+assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
+assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
+assert 'MAX_PROJECT_MEMORY = 16' in java
+assert 'prompt.getText().toString()' not in java[java.index('private void recordEditorOutcome('):java.index('private void clearProjectMemory()')]
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
