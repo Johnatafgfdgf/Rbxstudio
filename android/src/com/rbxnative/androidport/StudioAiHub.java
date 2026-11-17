@@ -1344,7 +1344,8 @@ public final class StudioAiHub extends Activity {
 
     /** Distinguish an actual Play MCP session from a functional game test. */
     private static String buildPlaySmokeSummary(boolean startConfirmed, String playState,
-            String output, boolean stopConfirmed, String problem) {
+            boolean serverWorkspace, boolean clientPlayers, String output,
+            boolean stopConfirmed, String problem) {
         boolean playConfirmed = "PLAY_LOCAL_CONFIRMADO".equals(
                 checkedLocalPlayMode(playState));
         boolean logsAvailable = output != null;
@@ -1353,6 +1354,10 @@ public final class StudioAiHub extends Activity {
                 .append(startConfirmed ? "confirmado" : "não confirmado").append("\n")
                 .append("Client/Server durante Play: ")
                 .append(playConfirmed ? "confirmados" : "não confirmados").append("\n")
+                .append("Árvore Server.Workspace: ")
+                .append(serverWorkspace ? "confirmada" : "não confirmada").append("\n")
+                .append("Árvore Client.Players: ")
+                .append(clientPlayers ? "confirmada" : "não confirmada").append("\n")
                 .append("Output durante o teste: ")
                 .append(logsAvailable ? "lido" : "indisponível").append("\n")
                 .append("Retorno ao Edit: ")
@@ -1366,7 +1371,8 @@ public final class StudioAiHub extends Activity {
         }
         if (problem != null && !problem.isEmpty())
             report.append("Limitação registrada: ").append(problem).append("\n");
-        report.append(startConfirmed && playConfirmed && logsAvailable && stopConfirmed
+        report.append(startConfirmed && playConfirmed && serverWorkspace && clientPlayers &&
+                logsAvailable && stopConfirmed
                 ? "PASSOU somente nas verificações de inicialização, leitura e encerramento.\n"
                 : "INCONCLUSIVO: uma ou mais verificações não foram confirmadas.\n");
         report.append("Não verifica controles, GUIs, colisão, scripts individuais ou " +
@@ -1402,6 +1408,32 @@ public final class StudioAiHub extends Activity {
                 .show();
     }
 
+    /** Fixed read-only Play probes, not exposed to provider-generated actions. */
+    private boolean inspectBoundedPlayRoot(String paired, String side, String path)
+            throws Exception {
+        boolean server = "Server".equals(side) && "Workspace".equals(path);
+        boolean client = "Client".equals(side) && "Players".equals(path);
+        if (!server && !client) throw new IOException("Árvore Play fora do escopo fixo");
+        String raw = callMcp(paired, "search_game_tree", new JSONObject()
+                .put("datamodel_type", side).put("path", path)
+                .put("max_depth", 1).put("head_limit", 10));
+        JSONArray tree;
+        try { tree = new JSONArray(raw); }
+        catch (Exception malformed) {
+            throw new IOException("Resposta da árvore Play não é JSON válido", malformed);
+        }
+        if (tree.length() < 1 || tree.length() > 10)
+            throw new IOException("Árvore Play vazia ou acima do limite");
+        for (int i = 0; i < tree.length(); i++) {
+            JSONObject node = tree.optJSONObject(i);
+            if (node != null && path.equals(node.optString("fullPath", "")) &&
+                    path.equals(node.optString("className", "")) &&
+                    path.equals(node.optString("name", "")))
+                return true;
+        }
+        return false;
+    }
+
     private void runLocalPlaySmoke() {
         if (busy || applyingEdit || mcpPairing.isEmpty() ||
                 allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
@@ -1413,6 +1445,7 @@ public final class StudioAiHub extends Activity {
         setBusy(true, "Teste Play local • no máximo um início e um encerramento...");
         requests.execute(() -> {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
+            boolean serverWorkspace = false, clientPlayers = false;
             String playState = "", output = null, problem = "";
             try {
                 String before = readOnlyMcp(paired, "get_studio_state", new JSONObject());
@@ -1428,6 +1461,11 @@ public final class StudioAiHub extends Activity {
                 playState = readOnlyMcp(paired, "get_studio_state", new JSONObject());
                 if (!"PLAY_LOCAL_CONFIRMADO".equals(checkedLocalPlayMode(playState)))
                     throw new IOException("MCP iniciou Play, mas Client/Server não responderam");
+                serverWorkspace = inspectBoundedPlayRoot(paired, "Server", "Workspace");
+                if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
+                clientPlayers = inspectBoundedPlayRoot(paired, "Client", "Players");
+                if (!serverWorkspace || !clientPlayers)
+                    throw new IOException("Serviços fundamentais do Play não confirmados");
                 // Brief bounded observation, not a comprehensive gameplay scenario.
                 Thread.sleep(750);
                 if (epoch != requestEpoch) throw new IOException("Consulta cancelada");
@@ -1455,8 +1493,8 @@ public final class StudioAiHub extends Activity {
                     }
                 }
             }
-            final String report = buildPlaySmokeSummary(startConfirmed, playState, output,
-                    stopConfirmed, problem);
+            final String report = buildPlaySmokeSummary(startConfirmed, playState,
+                    serverWorkspace, clientPlayers, output, stopConfirmed, problem);
             final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
