@@ -964,7 +964,7 @@ for required in [
     'new JSONObject().put("path", "Lighting")',
     'checkedEditReceipt(',
     '"UPDATED_LIGHTING:Lighting"',
-    'return "STALE_LIGHTING" end',
+    'STALE_LIGHTING',
     'recordEditorOutcome("UPDATE_LIGHTING", "Lighting", result);',
     'pendingLighting = includeProject.isChecked()',
 ]:
