@@ -1008,6 +1008,13 @@ for required in [
     assert required in java, required
 style_section = java[java.index('private static boolean allowedPartMaterial('):
                      java.index('private void confirmPendingPartChange()')]
+# Nested Part edits are limited to a direct Workspace Model and retain user approval.
+assert 'private static boolean allowedStylePath(String path)' in java
+assert 'allowedStylePath(path)' in style_section
+assert 'parent:IsA(\\\"Model\\\")' in style_section
+assert 'p.Parent ~= parent' in style_section
+assert 'verifiedEditorObject(paired, parentPath, "Model")' in style_section
+assert 'path.substring(path.lastIndexOf(\'.\') + 1)' in java
 assert 'executeApproved3dCode(paired, fixedPartStyleLuau(style))' in style_section
 assert 'readOnlyMcp(paired,' in style_section
 assert 'checkedEditReceipt(' in style_section
