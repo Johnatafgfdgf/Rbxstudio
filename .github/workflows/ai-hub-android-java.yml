@@ -16,6 +16,7 @@ on:
       - scripts/test_toolbox_source_scanner.py
       - scripts/test_inserted_model_audit_java.py
       - scripts/test_model_dependencies_java.py
+      - scripts/test_ai_lighting_java.py
 
 permissions:
   contents: read
@@ -49,6 +50,8 @@ jobs:
         run: python3 scripts/test_inserted_model_audit_java.py
       - name: Test production Java Model dependency scanner
         run: python3 scripts/test_model_dependencies_java.py
+      - name: Validate real Java Lighting write and MCP receipt
+        run: python3 scripts/test_ai_lighting_java.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
