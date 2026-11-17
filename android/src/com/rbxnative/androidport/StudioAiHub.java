@@ -623,7 +623,7 @@ public final class StudioAiHub extends Activity {
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
     private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke;
-    private TextView playProbeResult;
+    private TextView playProbeResult, playSmokeResult;
     private boolean probingLocalPlay, runningLocalPlaySmoke;
     private EditText modelAuditPath;
     private CheckBox allowLocalModelAudit, shareModelAudit;
@@ -1408,8 +1408,8 @@ public final class StudioAiHub extends Activity {
         final String paired = mcpPairing;
         final long epoch = ++requestEpoch;
         runningLocalPlaySmoke = true;
-        playProbeResult.setVisibility(View.VISIBLE);
-        playProbeResult.setText("Teste local autorizado. Verificando Edit antes de iniciar...");
+        playSmokeResult.setVisibility(View.VISIBLE);
+        playSmokeResult.setText("Teste local autorizado. Verificando Edit antes de iniciar...");
         setBusy(true, "Teste Play local • no máximo um início e um encerramento...");
         requests.execute(() -> {
             boolean startAttempted = false, startConfirmed = false, stopConfirmed = false;
@@ -1457,12 +1457,13 @@ public final class StudioAiHub extends Activity {
             }
             final String report = buildPlaySmokeSummary(startConfirmed, playState, output,
                     stopConfirmed, problem);
+            final boolean stopped = stopConfirmed;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || !runningLocalPlaySmoke || isFinishing()) return;
                 runningLocalPlaySmoke = false;
                 if (allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()) return;
-                playProbeResult.setText(report);
-                setBusy(false, stopConfirmed
+                playSmokeResult.setText(report);
+                setBusy(false, stopped
                         ? "Teste Play encerrado • veja o relatório real."
                         : "Play pode permanecer ativo • confira e encerre no editor.");
             });
@@ -1889,7 +1890,12 @@ public final class StudioAiHub extends Activity {
         add(root, allowLocalPlaySmoke, 4);
         runLocalPlaySmoke = button("Teste rápido Play local • iniciar → ler Output → parar");
         runLocalPlaySmoke.setOnClickListener(v -> confirmLocalPlaySmoke());
-        add(root, runLocalPlaySmoke, 7);
+        add(root, runLocalPlaySmoke, 6);
+        playSmokeResult = text("", 12, false);
+        playSmokeResult.setPadding(dp(11), dp(11), dp(11), dp(11));
+        playSmokeResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        playSmokeResult.setVisibility(View.GONE);
+        add(root, playSmokeResult, 7);
         playProbeResult = text("", 12, false);
         playProbeResult.setPadding(dp(11), dp(11), dp(11), dp(11));
         playProbeResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
@@ -2015,8 +2021,8 @@ public final class StudioAiHub extends Activity {
             abortInFlight();
             if (runningLocalPlaySmoke) {
                 runningLocalPlaySmoke = false;
-                if (playProbeResult != null)
-                    playProbeResult.setText("Teste cancelado. Confira se o Play local foi encerrado.");
+                if (playSmokeResult != null)
+                    playSmokeResult.setText("Teste cancelado. Confira se o Play local foi encerrado.");
             }
             if (probingLocalPlay) {
                 probingLocalPlay = false;
@@ -2113,9 +2119,9 @@ public final class StudioAiHub extends Activity {
                     runningLocalPlaySmoke = false;
                     setBusy(false, "Permissão revogada. Confira se o Play foi encerrado.");
                 }
-                if (playProbeResult != null) {
-                    playProbeResult.setText("");
-                    playProbeResult.setVisibility(View.GONE);
+                if (playSmokeResult != null) {
+                    playSmokeResult.setText("");
+                    playSmokeResult.setVisibility(View.GONE);
                 }
             }
         });
