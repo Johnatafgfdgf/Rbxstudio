@@ -92,6 +92,18 @@ public final class ToolGuiHarness {
                 .put(row(GUI + ".Menu", "Menu", "ScreenGui", "PlayerGui"))
                 .put(row(GUI + ".Menu.Go", "Go", "ImageButton", "Menu"));
         equal(selectToolGuiCandidates(backpack, imageButton, "Alex")[2], GUI + ".Menu.Go");
+        JSONArray spacedBag = new JSONArray().put(row(BAG, "Backpack", "Backpack", "Alex"))
+                .put(row(BAG + ".Magic Sword", "Magic Sword", "Tool", "Backpack"))
+                .put(row(BAG + ".Magic Sword.Handle", "Handle", "Part", "Magic Sword"));
+        JSONArray spacedGui = new JSONArray().put(row(GUI, "PlayerGui", "PlayerGui", "Alex"))
+                .put(row(GUI + ".Main HUD", "Main HUD", "ScreenGui", "PlayerGui"))
+                .put(row(GUI + ".Main HUD.Play Button", "Play Button", "TextButton", "Main HUD"));
+        String[] spaced = selectToolGuiCandidates(spacedBag, spacedGui, "Alex");
+        equal(spaced[0], BAG + ".Magic Sword");
+        equal(spaced[1], GUI + ".Main HUD");
+        equal(spaced[2], GUI + ".Main HUD.Play Button");
+        yes(hasDirectToolHandle(spacedBag, BAG + ".Magic Sword"));
+
 
         JSONObject props = new JSONObject().put("properties",
                 new JSONObject().put("Enabled", true).put("RequiresHandle", false));
