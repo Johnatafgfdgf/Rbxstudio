@@ -9,9 +9,11 @@ A Activity Android `StudioAiHub.java` recebe **Teste rápido Play local • inic
 - uma caixa de confirmação para iniciar e encerrar **somente** Play local por meio de `start_stop_play` com `is_start=true/false`; o próprio aplicativo emite os parâmetros, nunca o provedor de IA;
 - pré-condição rigorosa: `get_studio_state` deve confirmar `Edit`, para **não tomar controle de Play já aberto**;
 - comparação exata dos recibos MCP `Game Started` e `Game Stopped`, sem aceitar textos aproximados;
-- depois do início, segunda leitura `get_studio_state` exige `Play` com DataModels `Client/Server`, pausa limitada de observação e leitura do `get_console_output` do editor;
+- depois do início, segunda leitura `get_studio_state` exige `Play` com DataModels `Client/Server`;
+- consulta **duas árvores reais de execução** com `search_game_tree`: `Server.Workspace` e `Client.Players`, sempre com caminho e DataModel fixos no código, profundidade 1 e no máximo 10 nós por resultado. A resposta é analisada como JSON e exige `fullPath`, `className` e `name` exatos para cada raiz; falhas não são tratadas como sucesso;
+- pausa limitada de observação e leitura do `get_console_output` do editor;
 - no bloco `finally`, o agente **tenta encerrar o Play iniciado** e verifica retorno a `Edit`. Em caso de perda do recibo de início, só envia stop se o MCP indicar Play em andamento, para reduzir o risco de encerrar uma sessão não iniciada pelo teste;
-- resultado independente dos relatórios anteriores: recibo de início, disponibilidade de Client/Server, Output obtido, retorno a Edit e limitações;
+- resultado independente dos relatórios anteriores: recibo de início, disponibilidade de Client/Server, confirmação das árvores Server.Workspace e Client.Players, Output obtido, retorno a Edit e limitações;
 - cancelamento e revogação de autorização, com aviso para confirmar manualmente o encerramento se o canal MCP for interrompido.
 
 A implementação amplia o timeout de **apenas** `start_stop_play(is_start=true)` para 210 segundos, compatível com os até 200 segundos de startup do job do motor nativo. Os demais endpoints mantêm seu timeout anterior.
@@ -22,7 +24,7 @@ A implementação amplia o timeout de **apenas** `start_stop_play(is_start=true)
 - O teste **não altera o fluxo Play do editor** que publica/abre um jogo no app Roblox externo.
 - `Game Started` pode não ocorrer no Android se o motor Rook/MCP local não conseguir iniciar. A interface informa quando não foi possível confirmar a execução; **não simula sucesso**.
 - Durante startup, o usuário pode cancelar e interromper o socket antes de receber o recibo. Nesse caso é possível que o Play tenha iniciado mesmo sem confirmação; a limpeza tenta consultar o estado real, mas, se MCP estiver indisponível, pode exigir parada manual. Um resultado sem retorno confirmado a Edit **não é sucesso**.
-- O Output é observado num único momento e pode conter mensagens anteriores. Sem erros visíveis não prova scripts, Tool, GUI, física, rede nem animações corretos.
+- O Output e as árvores do Client/Server são observados em um único momento e pode conter mensagens anteriores. Sem erros visíveis não prova scripts, Tool, GUI, física, rede nem animações corretos.
 - O fluxo não salva o projeto, não recupera estado da cena e não garante Undo. O próprio usuário deve testar em projeto de teste/backup.
 - Esse é **o primeiro smoke test de Play** da Fase 15, não a implementação integral de testes de gameplay automatizados.
 
