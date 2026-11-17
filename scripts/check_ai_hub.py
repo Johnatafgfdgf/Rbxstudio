@@ -508,6 +508,75 @@ assert java.count('callMcp(paired, "execute_luau", args)') == 1
 assert 'case "execute_luau"' not in java
 assert 'callMcp(mcpPairing, action' not in java
 
+
+# A genuinely interactive item-receiving button creates a bounded 4-service
+# system, not a decorative button, arbitrary model script or Toolbox import.
+for required in [
+    'RECEIVE_TOOL_PROTOCOL',
+    'proposeKits.setChecked(false)',
+    'Permitir propostas de sistema',
+    'final boolean allowKits = agent && codeConsent && proposeKits.isChecked()',
+    'if ("propose_receive_tool_create".equals(action))',
+    'validateReceiveToolProposal(decision,',
+    'private static ReceiveToolProposal validateReceiveToolProposal(',
+    'safeField(input, "system_name", 25, true)',
+    'system.matches("[A-Za-z][A-Za-z0-9_]{0,24}")',
+    'safeField(input, "item_label", 30, true)',
+    'safeField(input, "button_label", 30, false)',
+    'checkedScreenGuiRoot(inspectedText, guiName)',
+    'private static JSONObject checkedKitService(',
+    'children.optInt("childrenCount", -1) != immediate.length()',
+    'private void verifyKitDestinations(',
+    '"StarterGui", "ReplicatedStorage"',
+    '"ServerScriptService", "ServerStorage"',
+    'kit.guiName(), kit.remoteName()',
+    'kit.serverName(), kit.toolName()',
+    'checkedKitService(text, services[i], names[i])',
+    'private static String fixedReceiveToolServerScript(',
+    'remote.OnServerEvent:Connect(function(player)',
+    "player:IsA('Player')",
+    'player:FindFirstChildOfClass(\\'Backpack\\')',
+    'template:Clone()',
+    'item.Parent=bag',
+    'players.PlayerRemoving:Connect(',
+    'private static String fixedReceiveToolClientScript(',
+    'button.Activated:Connect(function()',
+    'remote:FireServer()',
+    'private static String fixedReceiveToolLuau(',
+    "Instance.new('RemoteEvent')",
+    "Instance.new('Tool')",
+    "Instance.new('PointLight')",
+    "Instance.new('Script')",
+    "Instance.new('ScreenGui')",
+    "Instance.new('TextButton')",
+    "Instance.new('LocalScript')",
+    "handle.Name='Handle'",
+    'tool.RequiresHandle=true',
+    'tool.CanBeDropped=false',
+    'luauTextLiteral(fixedReceiveToolServerScript(kit))',
+    'luauTextLiteral(fixedReceiveToolClientScript(kit))',
+    "if not serverOk then error('SERVER_SOURCE_DENIED') end",
+    "if not clientOk then error('CLIENT_SOURCE_DENIED') end",
+    'remote.Parent=rs',
+    'tool.Parent=storage',
+    'serverScript.Parent=server',
+    'screen.Parent=starter',
+    'private void confirmPendingReceiveTool()',
+    '.setPositiveButton("Sim, criar sistema",',
+    'private void applyApprovedReceiveTool(ReceiveToolProposal kit)',
+    'verifyKitDestinations(paired, kit)',
+    'executeApproved3dCode(paired, command)',
+    'pendingKit = includeProject.isChecked() && includeCode.isChecked()',
+]:
+    assert required in java, required
+# No direct arbitrary execution entry point for a model response.
+assert java.count('callMcp(paired, "execute_luau", args)') == 1
+assert 'case "execute_luau"' not in java
+assert 'callMcp(mcpPairing, action' not in java
+assert java.index('verifyKitDestinations(paired, kit)') < java.index(
+    'executeApproved3dCode(paired, command)'
+)
+
 assert 'id("mobile-ai-providers"' not in native_patch  # action uses compact_action
 assert '"mobile-ai-providers"' in native_patch
 assert 'open_ai_hub(&name, &pairing)' in native_patch
