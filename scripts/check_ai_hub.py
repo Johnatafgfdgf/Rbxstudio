@@ -1010,6 +1010,15 @@ style_section = java[java.index('private static boolean allowedPartMaterial('):
                      java.index('private void confirmPendingPartChange()')]
 # Nested Part edits are limited to a direct Workspace Model and retain user approval.
 assert 'private static boolean allowedStylePath(String path)' in java
+assert 'private static boolean allowedStyleClassName(String value)' in java
+assert 'private static JSONObject verifiedStyleTarget(String path, String text)' in java
+assert 'result.has("matches")' in java
+assert 'styleIdentityMatches(freshTarget, style)' in java
+assert 'styleIdentityMatches(afterTarget, style)' in java
+assert 'p.ClassName ~= ' in style_section
+assert 'inspectedTarget.getString("className")' in style_section
+assert 'inspectedTarget.optString("uniqueId", "")' in style_section
+assert 'allowedStyleClassName(style.targetClass)' in style_section
 assert 'allowedStylePath(path)' in style_section
 assert 'parent:IsA(\\\"Model\\\")' in style_section
 assert 'p.Parent ~= parent' in style_section
