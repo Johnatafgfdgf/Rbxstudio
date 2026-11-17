@@ -827,6 +827,313 @@ public final class StudioAiHub extends Activity {
         return report.toString();
     }
 
+
+    /** Only canonical Workspace paths are accepted: no code, commands or wildcards. */
+    private static String checkedModelAuditPath(String path) throws IOException {
+        String value = path == null ? "" : path.trim();
+        if (value.length() > 180 ||
+                !value.matches("Workspace(\\.[\\p{L}\\p{N}_ -]{1,64}){1,6}"))
+            throw new IOException("Informe o caminho real do modelo: Workspace.NomeDoModelo");
+        return value;
+    }
+
+    private static final class AuditScriptPage {
+        final String source;
+        final int lines;
+        AuditScriptPage(String source, int lines) {
+            this.source = source;
+            this.lines = lines;
+        }
+    }
+
+    /**
+     * script_read returns 1-indexed text such as "     1→print('ok')".
+     * A malformed, truncated or nonsequential page cannot count as fully read.
+     */
+    private static AuditScriptPage parseMcpScriptPage(String raw, int startLine)
+            throws IOException {
+        if (raw == null) throw new IOException("Página MCP nula");
+        if (raw.isEmpty()) return new AuditScriptPage("", 0);
+        if (raw.length() >= 12000)
+            throw new IOException("Página MCP no limite de transporte");
+        String[] lines = raw.split("\\n", -1);
+        if (lines.length > 120) throw new IOException("Página de script longa demais");
+        StringBuilder source = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            java.util.regex.Matcher match = Pattern.compile(
+                    "^\\s*([0-9]{1,7})→(.*)$").matcher(lines[i]);
+            if (!match.matches()) throw new IOException("Resposta de script não numerada");
+            int actual;
+            try { actual = Integer.parseInt(match.group(1)); }
+            catch (NumberFormatException error) {
+                throw new IOException("Linha de script fora do limite");
+            }
+            if (actual != startLine + i)
+                throw new IOException("Numeração de script incompleta");
+            if (i != 0) source.append('\n');
+            source.append(match.group(2));
+        }
+        return new AuditScriptPage(source.toString(), lines.length);
+    }
+
+    private static JSONArray parseMcpModelTree(String raw, String expected)
+            throws Exception {
+        if (raw == null || raw.startsWith("Note: Output limited") ||
+                raw.length() >= 12000)
+            throw new IOException("Árvore MCP truncada; cobertura não pode ser garantida");
+        JSONArray rows = new JSONArray(raw);
+        if (rows.length() == 0 || rows.length() > 100)
+            throw new IOException("Árvore MCP incompleta ou acima do limite");
+        JSONObject root = rows.optJSONObject(0);
+        if (root == null || !expected.equals(root.optString("fullPath", "")))
+            throw new IOException("MCP retornou outra raiz de árvore");
+        return rows;
+    }
+
+    private void ensureModelAuditCurrent(long epoch) throws IOException {
+        if (epoch != requestEpoch || !auditingInsertedModel ||
+                allowLocalModelAudit == null || !allowLocalModelAudit.isChecked())
+            throw new IOException("Autorização de auditoria revogada ou cancelada");
+    }
+
+    private void auditProgress(long epoch, String message) {
+        runOnUiThread(() -> {
+            if (epoch == requestEpoch && auditingInsertedModel && !isFinishing())
+                status.setText(message);
+        });
+    }
+
+    /**
+     * Walks bounded, unfiltered Edit datamodel trees and reads nested scripts
+     * locally. Never hands source to AI, executes Luau, imports or mutates.
+     * Truncation, duplicate paths and unvisited descendants fail incomplete.
+     */
+    private String auditModelInEditor(String paired, String target, long epoch)
+            throws Exception {
+        ensureModelAuditCurrent(epoch);
+        String rawRoot = readOnlyMcp(paired, "inspect_instance",
+                new JSONObject().put("path", target));
+        ensureModelAuditCurrent(epoch);
+        JSONObject root = new JSONObject(rawRoot);
+        if (root.has("matches") || !"Model".equals(root.optString("className", "")) ||
+                !target.equals(root.optString("path", "")))
+            throw new IOException("Caminho ambíguo ou objeto não é um Model");
+        JSONObject children = root.optJSONObject("children");
+        int totalDescendants = children == null ? -1 :
+                children.optInt("totalDescendants", -1);
+        if (totalDescendants < 0)
+            throw new IOException("Editor não forneceu contagem de descendentes");
+
+        ArrayDeque<String> pending = new ArrayDeque<>();
+        Set<String> searched = new HashSet<>();
+        Map<String, String> nodes = new LinkedHashMap<>();
+        pending.add(target);
+        int batches = 0;
+        boolean incomplete = false;
+        String why = "";
+        while (!pending.isEmpty()) {
+            ensureModelAuditCurrent(epoch);
+            if (batches == MAX_MODEL_AUDIT_TREES) {
+                incomplete = true;
+                why = "Limite de consultas da árvore atingido";
+                break;
+            }
+            String branch = pending.removeFirst();
+            if (!searched.add(branch)) continue;
+            auditProgress(epoch, "Explorando o modelo • árvore " +
+                    (batches + 1) + "/" + MAX_MODEL_AUDIT_TREES);
+            String rawTree = readOnlyMcp(paired, "search_game_tree",
+                    new JSONObject().put("path", branch).put("max_depth", 4));
+            ensureModelAuditCurrent(epoch);
+            batches++;
+            JSONArray rows;
+            try { rows = parseMcpModelTree(rawTree, branch); }
+            catch (Exception error) {
+                incomplete = true;
+                why = "Árvore truncada, inválida ou maior que o limite";
+                break;
+            }
+            Set<String> sameBatch = new HashSet<>();
+            for (int i = 0; i < rows.length(); i++) {
+                JSONObject row = rows.optJSONObject(i);
+                if (row == null) throw new IOException("Objeto MCP inválido na árvore");
+                String path = row.optString("fullPath", "");
+                String kind = row.optString("className", "");
+                if ((!(path.equals(target) || path.startsWith(target + "."))) ||
+                        path.length() > 180 || kind.length() > 80 ||
+                        !path.equals(checkedModelAuditPath(path)) ||
+                        kind.isEmpty() || !sameBatch.add(path)) {
+                    incomplete = true;
+                    why = "Caminhos duplicados, incompletos ou não suportados";
+                    break;
+                }
+                String old = nodes.putIfAbsent(path, kind);
+                if (old != null && !old.equals(kind)) {
+                    incomplete = true;
+                    why = "Classe de instância mudou durante a inspeção";
+                    break;
+                }
+                if (row.has("childSummary") && !searched.contains(path) &&
+                        !pending.contains(path)) {
+                    pending.addLast(path);
+                }
+            }
+            if (incomplete) break;
+        }
+        if (nodes.size() != totalDescendants + 1) {
+            incomplete = true;
+            if (why.isEmpty())
+                why = "Instâncias listadas não conferem com a contagem do editor";
+        }
+        if (!pending.isEmpty()) incomplete = true;
+
+        int[] counts = new int[3];
+        int[] risks = new int[6];
+        int scriptTotal = 0, inspected = 0, unreadable = 0, partialSources = 0;
+        List<String> samples = new ArrayList<>();
+        for (Map.Entry<String, String> entry : nodes.entrySet()) {
+            String kind = entry.getValue();
+            if (!("Script".equals(kind) || "LocalScript".equals(kind) ||
+                    "ModuleScript".equals(kind))) continue;
+            scriptTotal++;
+            int idx = "Script".equals(kind) ? 0 : "LocalScript".equals(kind) ? 1 : 2;
+            counts[idx]++;
+            if (inspected >= MAX_MODEL_AUDIT_SCRIPTS) {
+                incomplete = true;
+                continue;
+            }
+            ensureModelAuditCurrent(epoch);
+            inspected++;
+            auditProgress(epoch, "Analisando Luau local • script " +
+                    inspected + "/" + Math.min(scriptTotal, MAX_MODEL_AUDIT_SCRIPTS));
+            StringBuilder source = new StringBuilder();
+            boolean allLines = false;
+            boolean failed = false;
+            for (int page = 0; page < MAX_MODEL_AUDIT_PAGES; page++) {
+                ensureModelAuditCurrent(epoch);
+                int start = page * 120 + 1;
+                try {
+                    String chunk = readOnlyMcp(paired, "script_read", new JSONObject()
+                            .put("target_file", entry.getKey()).put("start_line", start));
+                    ensureModelAuditCurrent(epoch);
+                    AuditScriptPage parsed = parseMcpScriptPage(chunk, start);
+                    if (source.length() + parsed.source.length() > 24000) {
+                        failed = true;
+                        break;
+                    }
+                    if (source.length() > 0) source.append('\n');
+                    source.append(parsed.source);
+                    if (parsed.lines < 120) {
+                        allLines = true;
+                        break;
+                    }
+                } catch (IOException error) {
+                    ensureModelAuditCurrent(epoch);
+                    failed = true;
+                    break;
+                }
+            }
+            if (failed) unreadable++;
+            else if (!allLines) partialSources++;
+            int mask = sourceRiskMask(source.toString());
+            for (int i = 0; i < risks.length; i++)
+                if ((mask & (1 << i)) != 0) risks[i]++;
+            if ((mask != 0 || failed || !allLines) && samples.size() < 12) {
+                samples.add(entry.getKey() + ": " +
+                        (failed ? "leitura falhou" : !allLines ? "leitura parcial" :
+                                Integer.bitCount(mask) + " categoria(s) de alerta"));
+            }
+        }
+        boolean complete = !incomplete && unreadable == 0 &&
+                partialSources == 0 && inspected == scriptTotal;
+        String[] labels = {"loadstring", "require(ID) externo", "HTTP/rede",
+                "ambiente dinâmico/ofuscação", "carregamento de assets",
+                "DataStore/Messaging/Teleport"};
+        StringBuilder report = new StringBuilder("AUDITORIA MCP LOCAL • MODELO JÁ INSERIDO\n")
+                .append("Caminho: ").append(target)
+                .append("\nÁrvore: ").append(nodes.size()).append("/")
+                .append(totalDescendants + 1).append(" instâncias")
+                .append(" • ").append(batches).append(" consulta(s)")
+                .append("\nScripts encontrados: ").append(scriptTotal)
+                .append(" • Script ").append(counts[0])
+                .append(" • LocalScript ").append(counts[1])
+                .append(" • ModuleScript ").append(counts[2])
+                .append("\nScripts lidos: ").append(inspected)
+                .append("\nLeituras falhas: ").append(unreadable)
+                .append("\nFontes parciais: ").append(partialSources);
+        int categories = 0;
+        for (int i = 0; i < risks.length; i++) {
+            if (risks[i] != 0) {
+                categories++;
+                report.append("\n⚠ ").append(labels[i]).append(": ")
+                        .append(risks[i]).append(" script(s)");
+            }
+        }
+        for (String sample : samples) report.append("\n• ").append(sample);
+        report.append("\n\nRESULTADO: ");
+        if (!complete) {
+            report.append("INCOMPLETO. Não é possível aprovar a segurança do modelo.");
+            if (!why.isEmpty()) report.append("\nMotivo: ").append(why);
+            if (scriptTotal > inspected) report.append("\nOutros scripts não foram lidos.");
+        } else if (categories != 0) {
+            report.append("Sinais detectados; revise os scripts antes de confiar no modelo.");
+        } else {
+            report.append("Nenhum padrão detectado nos scripts lidos; NÃO garante segurança.");
+        }
+        report.append("\nA inspeção é só de leitura no Edit. Dependências fora do " +
+                "modelo, execução em Play e padrões desconhecidos NÃO foram auditados. " +
+                "Nenhum asset importado, nenhum Luau executado e nenhum código enviado à IA.");
+        return report.toString();
+    }
+
+    private void startInsertedModelAudit() {
+        if (busy || applyingEdit) return;
+        if (mcpPairing.isEmpty()) {
+            status.setText("Ative primeiro o MCP do editor para ler o mapa.");
+            return;
+        }
+        if (allowLocalModelAudit == null || !allowLocalModelAudit.isChecked()) {
+            status.setText("Autorize a leitura LOCAL dos scripts do modelo nesta sessão.");
+            return;
+        }
+        final String path;
+        try { path = checkedModelAuditPath(modelAuditPath.getText().toString()); }
+        catch (Exception error) {
+            status.setText(error.getMessage());
+            return;
+        }
+        if (shareModelAudit != null) shareModelAudit.setChecked(false);
+        localModelAuditSummary = "";
+        modelAuditResult.setText("Iniciando inspeção MCP de " + path);
+        modelAuditResult.setVisibility(View.VISIBLE);
+        final long epoch = ++requestEpoch;
+        final String paired = mcpPairing;
+        auditingInsertedModel = true;
+        setBusy(true, "Consultando árvore e scripts reais do editor...");
+        requests.execute(() -> {
+            String report;
+            try {
+                report = auditModelInEditor(paired, path, epoch);
+            } catch (Exception error) {
+                report = "AUDITORIA MCP RECUSADA OU INCOMPLETA\n" +
+                        "Objeto: " + path + "\nMotivo: " +
+                        (error.getMessage() == null ? "resposta incompatível" :
+                                error.getMessage()) +
+                        "\nNenhuma conclusão de segurança ou alteração foi realizada.";
+            }
+            final String result = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || !auditingInsertedModel || isFinishing())
+                    return;
+                auditingInsertedModel = false;
+                localModelAuditSummary = result.length() > 3600 ?
+                        result.substring(0, 3600) + "\n[Resumo limitado]" : result;
+                modelAuditResult.setText(result);
+                setBusy(false, "Auditoria local encerrada; nenhuma alteração feita.");
+            });
+        });
+    }
+
     private void selectToolboxFile() {
         if (busy || applyingEdit) return;
         Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
