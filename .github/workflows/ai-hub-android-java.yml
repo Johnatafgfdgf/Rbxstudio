@@ -18,6 +18,7 @@ on:
       - scripts/test_model_dependencies_java.py
       - scripts/test_ai_lighting_java.py
       - scripts/test_ai_part_style_java.py
+      - scripts/test_ai_play_probe_java.py
 
 permissions:
   contents: read
@@ -55,6 +56,8 @@ jobs:
         run: python3 scripts/test_ai_lighting_java.py
       - name: Validate real Java Part material and physics editing
         run: python3 scripts/test_ai_part_style_java.py
+      - name: Validate real Java MCP Play state and bounded Output report
+        run: python3 scripts/test_ai_play_probe_java.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
