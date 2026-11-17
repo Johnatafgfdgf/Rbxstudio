@@ -13,7 +13,7 @@ src = (Path(__file__).resolve().parents[1] /
 fragment = src[src.index("    /** Fixed, app-authored Client Luau."):
                src.index("    private void runLocalPlaySmoke()")]
 assert 'private static String boundedLocalEquipLuau(' in fragment
-assert 'private boolean confirmLiveEquippedTool(' in fragment
+assert 'private String confirmLiveEquippedTool(' in fragment
 assert 'private static boolean readBackEquippedTool(' in fragment
 assert 'private boolean verifyLocalEquipParent(' in fragment
 assert 'callMcp(paired, "execute_luau"' in fragment
