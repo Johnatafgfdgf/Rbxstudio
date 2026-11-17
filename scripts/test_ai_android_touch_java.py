@@ -69,7 +69,9 @@ assert "public static boolean hasVerifiedLocalMcpPlayBridge() { return false; }"
 assert hub.count("if (!requireVerifiedAndroidMcpPlay()) return;") == 2
 assert "if (StudioTouchDiagnostics.hasVerifiedLocalMcpPlayBridge()) return true;" in hub
 assert "start_stop_play ainda segue a rota EXTERNA de publicação" in hub
-assert 'StudioTouchDiagnostics.arm(this)' in hub
+assert 'StudioTouchDiagnostics.arm(this, guiPermission' in hub
+assert 'allowRookGuiProbe.setChecked(false)' in hub
+assert 'guiConsent(context, id)' in touch
 assert 'StudioTouchDiagnostics.readSummary(this)' in hub
 assert 'StudioTouchDiagnostics.clear(this)' in hub
 assert 'allowRookTouchProbe.setChecked(false)' in hub
