@@ -1078,6 +1078,12 @@ for required in [
     'private static String buildPlaySmokeSummary(',
     'private void confirmLocalPlaySmoke()',
     'private void runLocalPlaySmoke()',
+    'private boolean inspectBoundedPlayRoot(String paired, String side, String path)',
+    'serverWorkspace = inspectBoundedPlayRoot(paired, "Server", "Workspace")',
+    'clientPlayers = inspectBoundedPlayRoot(paired, "Client", "Players")',
+    'new JSONArray(raw)',
+    'tree.length() > 10',
+    'serverWorkspace && clientPlayers &&',
     'allowLocalPlaySmoke == null || !allowLocalPlaySmoke.isChecked()',
     'new android.app.AlertDialog.Builder(this)',
     '.setPositiveButton("Autorizar iniciar e parar Play"',
@@ -1093,6 +1099,8 @@ for required in [
 ]:
     assert required in smoke_section, required
 assert smoke_section.count('callMcp(paired, "start_stop_play"') == 2
+assert smoke_section.count('callMcp(paired, "search_game_tree"') == 1
+assert 'new JSONObject().put("is_start", false)' in smoke_section
 assert smoke_section.count('new JSONObject().put("is_start", true)') == 1
 assert smoke_section.count('new JSONObject().put("is_start", false)') == 1
 for forbidden in ['requestModelWithFreeFallback(', 'executeApproved3dCode(',
