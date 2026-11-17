@@ -196,13 +196,13 @@ public final class StudioAiHub extends Activity {
         "de scripts e a operação inteira explicitamente.";
 
     private static final String TASK_PLAN_PROTOCOL =
-        "\\nPara um pedido que exige VÁRIAS alterações, você PODE criar um plano após " +
+        "\nPara um pedido que exige VÁRIAS alterações, você PODE criar um plano após " +
         "uma leitura MCP real (search_game_tree, inspect_instance ou get_studio_state). " +
-        "Use JSON {\\\"action\\\":\\\"propose_task_plan\\\",\\\"goal\\\":\\\"Objetivo do jogo\\\"," +
-        "\\\"steps\\\":[{\\\"kind\\\":\\\"PART\\\",\\\"title\\\":\\\"Construir plataforma\\\"," +
-        "\\\"instruction\\\":\\\"Criar plataforma inicial em Workspace\\\"}," +
-        "{\\\"kind\\\":\\\"GUI\\\",\\\"title\\\":\\\"Criar painel\\\"," +
-        "\\\"instruction\\\":\\\"Criar painel informativo de início\\\"}]}. " +
+        "Use JSON {\"action\":\"propose_task_plan\",\"goal\":\"Objetivo do jogo\"," +
+        "\"steps\":[{\"kind\":\"PART\",\"title\":\"Construir plataforma\"," +
+        "\"instruction\":\"Criar plataforma inicial em Workspace\"}," +
+        "{\"kind\":\"GUI\",\"title\":\"Criar painel\"," +
+        "\"instruction\":\"Criar painel informativo de início\"}]}. " +
         "São de 2 a 5 etapas. kind só pode ser SCRIPT, PART, GUI ou ITEM. " +
         "SCRIPT exige autorização de scripts; PART exige peças; GUI exige painéis " +
         "ou etiquetas; ITEM exige autorização de kit. Não inclua publicação, " +
@@ -3352,15 +3352,15 @@ public final class StudioAiHub extends Activity {
         if (!visible) { proposalPreview.setText(""); return; }
         if (pendingTaskPlan != null) {
             applyEdit.setText("Revisar e aprovar PLANO");
-            StringBuilder text = new StringBuilder("PLANO • nenhuma escrita executada\\n")
+            StringBuilder text = new StringBuilder("PLANO • nenhuma escrita executada\n")
                     .append(pendingTaskPlan.goal);
             for (int i = 0; i < pendingTaskPlan.steps.size(); i++) {
                 PlanStep step = pendingTaskPlan.steps.get(i);
-                text.append("\\n\\n").append(i + 1).append(". ")
+                text.append("\n\n").append(i + 1).append(". ")
                         .append(step.title).append(" (").append(step.kind).append(")")
-                        .append("\\n").append(step.instruction);
+                        .append("\n").append(step.instruction);
             }
-            text.append("\\n\\nAprovar não cria objetos. Cada etapa requer " +
+            text.append("\n\nAprovar não cria objetos. Cada etapa requer " +
                     "inspeção, prévia, autorização individual e verificação.");
             proposalPreview.setText(text.toString());
             return;
@@ -3496,22 +3496,22 @@ public final class StudioAiHub extends Activity {
         if (!visible) return;
         StringBuilder details = new StringBuilder("PLANO APROVADO • ")
                 .append(plan.completed).append("/").append(plan.steps.size())
-                .append(" etapa(s) confirmada(s) pelo MCP\\n").append(plan.goal);
+                .append(" etapa(s) confirmada(s) pelo MCP\n").append(plan.goal);
         for (int i = 0; i < plan.steps.size(); i++) {
             PlanStep step = plan.steps.get(i);
-            details.append("\\n").append(i < plan.completed ? "✓ " :
+            details.append("\n").append(i < plan.completed ? "✓ " :
                     i == plan.completed ? "○ " : "· ")
                     .append(i + 1).append(". ").append(step.title)
                     .append(" (").append(step.kind).append(")");
         }
         if (plan.completed == plan.steps.size())
-            details.append("\\nTodas as gravações previstas foram confirmadas no Explorer. " +
+            details.append("\nTodas as gravações previstas foram confirmadas no Explorer. " +
                     "Teste comportamento e Undo separadamente.");
         else if (planStepOutstanding)
-            details.append("\\nEtapa solicitada. Aguarde a proposta e a confirmação de escrita; " +
+            details.append("\nEtapa solicitada. Aguarde a proposta e a confirmação de escrita; " +
                     "nenhum avanço é automático.");
-        else if (planPaused) details.append("\\nPlano pausado nesta sessão.");
-        else details.append("\\nPróxima etapa sob demanda; nova leitura MCP obrigatória.");
+        else if (planPaused) details.append("\nPlano pausado nesta sessão.");
+        else details.append("\nPróxima etapa sob demanda; nova leitura MCP obrigatória.");
         planProgress.setText(details.toString());
         nextPlanStep.setEnabled(!busy && !planPaused && !planStepOutstanding &&
                 plan.completed < plan.steps.size() &&
@@ -3590,9 +3590,9 @@ public final class StudioAiHub extends Activity {
         planStepOutstanding = true;
         renderPlanState();
         prompt.setText("PLANO AUTORIZADO: " + plan.goal +
-                "\\nETAPA " + (plan.completed + 1) + "/" + plan.steps.size() +
+                "\nETAPA " + (plan.completed + 1) + "/" + plan.steps.size() +
                 " (" + step.kind + "): " + step.title + ". " + step.instruction +
-                "\\nFaça uma leitura MCP real ATUAL e gere somente UMA proposta do tipo " +
+                "\nFaça uma leitura MCP real ATUAL e gere somente UMA proposta do tipo " +
                 step.kind + ". Não execute escrita, não crie outro plano, não " +
                 "ignore permissões. Se não for possível, explique e pare.");
         sendMessage();
