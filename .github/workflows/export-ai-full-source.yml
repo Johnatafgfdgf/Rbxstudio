@@ -9,6 +9,10 @@ on:
       - android/src/com/rbxnative/androidport/StudioAiHub.java
       - android/src/com/rbxnative/androidport/StudioAssetInspector.java
       - android/src/com/rbxnative/androidport/StudioVisualReview.java
+      - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
+      - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
+      - scripts/test_ai_polyhaven_catalog_java.py
+      - scripts/test_ai_polyhaven_integrity_java.py
       - android/src/com/rbxnative/androidport/StudioVisualCompare.java
       - android/src/com/rbxnative/androidport/StudioPlayFrameRules.java
       - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
