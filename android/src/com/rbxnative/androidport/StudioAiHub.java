@@ -640,8 +640,11 @@ public final class StudioAiHub extends Activity {
     private EditText decalTargetPath, decalInstanceName;
     private Spinner decalFace;
     private Button inspectDecalTarget, applyDecalToPart;
-    private TextView decalPlacementResult, decalPlayReport;
+    private TextView decalPlacementResult, decalPlayReport, decalVisualReviewResult;
     private CheckBox allowDecalPlayEvidence;
+    private Button reviewVerifiedDecalFrame;
+    private StudioRobloxDecalPlacement.Proposal previewedPlayFrameDecal;
+    private long previewedPlayFrameAt, lastVerifiedPlacedDecalAt;
     private Button inspectDecalPlay;
     private StudioRobloxDecalPlacement.Proposal lastVerifiedPlacedDecal;
     private boolean probingDecalPlay;
@@ -2902,6 +2905,9 @@ public final class StudioAiHub extends Activity {
         confirmedRobloxDecalId = null;
         pendingDecalPlacement = null;
         lastVerifiedPlacedDecal = null;
+        lastVerifiedPlacedDecalAt = 0;
+        previewedPlayFrameDecal = null;
+        previewedPlayFrameAt = 0;
         uploadingRobloxDecal = true;
         setBusy(true, "Revalidando bytes e enviando decal ao Roblox...");
         robloxDecalResult.setText("Conferindo o arquivo; nenhuma operação foi confirmada.");
@@ -3005,6 +3011,9 @@ public final class StudioAiHub extends Activity {
                 if (acceptedId != null && !acceptedId.equals(confirmedRobloxDecalId)) {
                     pendingDecalPlacement = null;
                     lastVerifiedPlacedDecal = null;
+                    lastVerifiedPlacedDecalAt = 0;
+                    previewedPlayFrameDecal = null;
+                    previewedPlayFrameAt = 0;
                     confirmedRobloxDecalId = acceptedId;
                     if (decalPlacementResult != null) {
                         decalPlacementResult.setText(
@@ -3873,7 +3882,26 @@ public final class StudioAiHub extends Activity {
         decalPlayReport.setPadding(dp(11), dp(10), dp(11), dp(10));
         decalPlayReport.setBackground(shape(Color.rgb(26, 42, 65), 12));
         decalPlayReport.setVisibility(View.GONE);
-        add(root, decalPlayReport, 9);
+        add(root, decalPlayReport, 4);
+        add(root, text("Revisão visual do Decal na captura real", 14, true), 4);
+        add(root, text(
+                "Após confirmar o Decal pelo MCP, autorize uma nova captura PixelCopy " +
+                "do Play Rook e importe-a abaixo. Só uma captura feita DEPOIS da " +
+                "confirmação pode ser associada à revisão deste Decal. " +
+                "Ainda será necessário seu consentimento expresso para enviar " +
+                "a miniatura a um modelo de IA, junto apenas do Asset ID, " +
+                "nome do Decal, face e caminho da Part. Não envia Output, scripts " +
+                "nem o original. Mesmo assim, o Decal pode estar fora da câmera.",
+                12, false), 4);
+        reviewVerifiedDecalFrame = button("Avaliar Decal na captura com IA • confirmar");
+        reviewVerifiedDecalFrame.setOnClickListener(v -> confirmDecalVisualReview());
+        reviewVerifiedDecalFrame.setEnabled(false);
+        add(root, reviewVerifiedDecalFrame, 4);
+        decalVisualReviewResult = text("", 12, false);
+        decalVisualReviewResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        decalVisualReviewResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        decalVisualReviewResult.setVisibility(View.GONE);
+        add(root, decalVisualReviewResult, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
@@ -8351,6 +8379,14 @@ public final class StudioAiHub extends Activity {
                     allowDecalPlayEvidence.isChecked() &&
                     !mcpPairing.isEmpty() && lastVerifiedPlacedDecal != null &&
                     lastVerifiedPlacedDecal.assetId.equals(confirmedRobloxDecalId));
+        if (reviewVerifiedDecalFrame != null)
+            reviewVerifiedDecalFrame.setEnabled(!busy && !applyingEdit &&
+                    previewedPlayFrameDecal != null &&
+                    previewedPlayFrameDecal == lastVerifiedPlacedDecal &&
+                    previewedPlayFrameDecal.assetId.equals(confirmedRobloxDecalId) &&
+                    StudioDecalVisualReview.eligible(previewedPlayFrameDecal,
+                            lastVerifiedPlacedDecalAt, previewedPlayFrameAt) &&
+                    visibleVisualBitmap() != null);
     }
 
     /** Read-only MCP inspection, no AI model or user-generated Luau involved. */
@@ -8483,6 +8519,9 @@ public final class StudioAiHub extends Activity {
                     applyingEdit = false;
                     pendingDecalPlacement = null;
                     lastVerifiedPlacedDecal = confirmed ? p : null;
+                    lastVerifiedPlacedDecalAt = confirmed ? System.currentTimeMillis() : 0;
+                    previewedPlayFrameDecal = null;
+                    previewedPlayFrameAt = 0;
                     setBusy(false, readBackNotice(confirmed, p.decalPath()));
                     decalPlacementResult.setText(
                             "MCP respondeu: " + receipt + "\n" +
@@ -8501,6 +8540,9 @@ public final class StudioAiHub extends Activity {
                     applyingEdit = false;
                     pendingDecalPlacement = null;
                     lastVerifiedPlacedDecal = null;
+                    lastVerifiedPlacedDecalAt = 0;
+                    previewedPlayFrameDecal = null;
+                    previewedPlayFrameAt = 0;
                     setBusy(false, "Operação Decal não confirmada.");
                     decalPlacementResult.setText(
                             "A criação do Decal não foi confirmada: " +
