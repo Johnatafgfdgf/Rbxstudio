@@ -384,3 +384,59 @@ O workflow Java também compila as classes junto do AI Hub.
 Ainda não foi feito um teste com um Decal real no aparelho:
 o teste automatizado não comprova renderização, aparência
 nem disponibilidade de assets publicados no Roblox.
+
+
+## Continuação — revisão visual contextualizada do Decal após PixelCopy
+
+Novo módulo Java de produção: `StudioDecalVisualReview.java`.
+
+Após a criação de um Decal na Part (com recibo MCP e uma consulta
+independente que confirmou classe, nome, caminho, textura e Face), o
+aplicativo guarda **somente nesta Activity** a identidade da proposta
+e o instante da confirmação. Ao importar uma captura REAL PixelCopy do
+Play Rook, o app usa `capturedAt` obtido do recibo assinado por
+SHA-256 e conferido por `StudioPlayFrameRules.validReceipt`
+(sem confiar na hora de importação). A captura só é considerada
+**candidata a revisão daquele Decal** quando foi registrada após a
+confirmação MCP, em até duas horas, e o objeto, o ID e o pareamento MCP
+continuam os mesmos. Importar qualquer imagem via seletor SAF
+**desfaz** essa associação; imagens locais arbitrárias não podem
+ser apresentadas como prova da captura Rook.
+
+O usuário pode então tocar **Avaliar Decal na captura com IA • confirmar**.
+A janela informa de forma explícita quais dados serão enviados
+à **IA escolhida**: uma única miniatura JPEG de até **384 px /
+64 KiB**, o nome/caminho da Part/Decal, o Asset ID e a face do
+Decal. A imagem também pode conter nomes e outras informações
+visíveis na cena. **Nenhum script, Output, arquivo original ou
+histórico do projeto é anexado.** A chave de API é lida do
+Keystore somente no instante de envio. Há **UMA solicitação** ao
+provedor selecionado, sem fallback ou retries automáticos.
+
+O pedido visual é escrito pelo próprio aplicativo, não pela IA,
+por meio de `StudioDecalVisualReview.buildRequest`, que reaproveita
+os contratos existentes de OpenAI, Gemini, Claude e OpenRouter.
+O contexto restringe a análise a elementos observáveis:
+posição/recorte/face/textura/legibilidade, com problemas localizados
+e testes de correção verificáveis; também obriga o modelo a
+**reconhecer quando não pode identificar a Part** no screenshot.
+Não cria nem edita objetos e não dispara correções sem a
+autorização específica do editor.
+
+**Limites importantes:** a hora posterior de captura não comprova
+que a câmera estava apontada para a Part, que o mesmo mapa estava
+aberto ou que o asset ficou visível. A imagem é uma evidência
+fotográfica real do Play Rook, não prova da renderização do Decal
+específico. A avaliação da IA pode estar incorreta e a captura
+única não comprova funcionamento de VFX em movimento, física, FPS,
+áudio ou carregamento em todos os dispositivos. A seleção de região
+da imagem, repetição de capturas e eventual automação de correção
+exigem trabalhos separados e novos critérios de aprovação.
+
+**Regressão:** `scripts/test_ai_decal_visual_review_java.py`
+compila os métodos Java reais, rejeita capturas anteriores ou
+não associadas ao Decal e confere os quatro formatos de payload
+para imagens/descrição com prompt restrito. O workflow Java Android
+compila as classes e a Activity. Sem um Play real em um aparelho
+com um Decal publicado, a validação continua limitada ao contrato
+de código, não à percepção visual efetiva.
