@@ -14,6 +14,8 @@ assert "MAX_IMAGE_BYTES = 8 * 1024 * 1024" in actual
 assert "MAX_AUDIO_BYTES = 16 * 1024 * 1024" in actual
 assert "MessageDigest.getInstance(\"SHA-256\")" in actual
 assert "pixelSignals" in actual
+assert "describeWav(audioHeader, audioHeaderLength, size)" in actual
+assert "Duração estimada:" in actual
 for forbidden in ("HttpURLConnection", "android.media.projection",
                   "startActivityForResult(choose, TOOLBOX_XML_PICK_REQUEST);"):
     assert forbidden not in actual
@@ -35,6 +37,26 @@ public final class AssetInspectorContract {
     static StudioAssetInspector.Inspected inspect(byte[] bytes) throws Exception {
         return StudioAssetInspector.inspect(new ByteArrayInputStream(bytes));
     }
+    static void le16(byte[] out, int off, int value) {
+        out[off] = (byte) value;
+        out[off + 1] = (byte) (value >>> 8);
+    }
+    static void le32(byte[] out, int off, long value) {
+        for (int i = 0; i < 4; i++) out[off + i] = (byte) (value >>> (8 * i));
+    }
+    static byte[] pcmWave() throws Exception {
+        // 8000 one-byte mono samples => exactly one second of PCM WAV.
+        byte[] wav = new byte[8044];
+        System.arraycopy("RIFF".getBytes("UTF-8"), 0, wav, 0, 4);
+        le32(wav, 4, wav.length - 8);
+        System.arraycopy("WAVEfmt ".getBytes("UTF-8"), 0, wav, 8, 8);
+        le32(wav, 16, 16); le16(wav, 20, 1); le16(wav, 22, 1);
+        le32(wav, 24, 8000); le32(wav, 28, 8000);
+        le16(wav, 32, 1); le16(wav, 34, 8);
+        System.arraycopy("data".getBytes("UTF-8"), 0, wav, 36, 4);
+        le32(wav, 40, 8000);
+        return wav;
+    }
     static void refused(byte[] bytes) throws Exception {
         try {
             inspect(bytes);
@@ -55,6 +77,29 @@ public final class AssetInspectorContract {
         var audio = inspect(wav);
         yes(audio.audio && !audio.image && audio.imageBytes == null);
         yes("WAV".equals(audio.format));
+        yes(audio.report().contains("não verificável"));
+        byte[] pcm = pcmWave();
+        var cleanAudio = inspect(pcm);
+        yes(cleanAudio.audio && cleanAudio.imageBytes == null);
+        yes(cleanAudio.report().contains("8000 Hz"));
+        yes(cleanAudio.report().contains("Duração estimada: 1.00 s"));
+        var streamed = StudioAssetInspector.inspect(new InputStream() {
+            int p = 0;
+            @Override public int read() {
+                return p < pcm.length ? pcm[p++] & 255 : -1;
+            }
+            @Override public int read(byte[] bytes, int offset, int length) {
+                if (p >= pcm.length) return -1;
+                bytes[offset] = pcm[p++];
+                return 1;
+            }
+        });
+        yes(streamed.report().contains("Duração estimada: 1.00 s"));
+        byte[] invalidRate = Arrays.copyOf(pcm, pcm.length);
+        le32(invalidRate, 28, 0);
+        yes(inspect(invalidRate).report().contains("não verificável"));
+        byte[] truncated = Arrays.copyOf(pcm, 200);
+        yes(inspect(truncated).report().contains("não verificável"));
         refused("<svg><script>evil</script></svg>".getBytes("UTF-8"));
         refused("PK\003\004garbage".getBytes("UTF-8"));
         refused(new byte[1024]);
