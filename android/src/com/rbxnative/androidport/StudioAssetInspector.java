@@ -88,7 +88,11 @@ public final class StudioAssetInspector {
 
     public static Inspected inspect(InputStream source) throws IOException {
         if (source == null) throw new IOException("O arquivo não pôde ser aberto.");
-        ByteArrayOutputStream memory = new ByteArrayOutputStream();
+        // Audio is hashed while streaming: never buffer a multi-megabyte sound.
+        // Only image bytes are kept (up to 8 MiB) for a small local preview.
+        ByteArrayOutputStream imageMemory = new ByteArrayOutputStream();
+        byte[] firstBytes = new byte[16];
+        int firstLength = 0;
         byte[] chunk = new byte[8192];
         final MessageDigest digest;
         try {
@@ -97,34 +101,36 @@ public final class StudioAssetInspector {
             throw new IOException("SHA-256 indisponível", failure);
         }
         int size = 0;
+        String type = null;
         int n;
         while ((n = source.read(chunk)) != -1) {
             if (n == 0) continue;
-            // Never read an arbitrarily large untrusted file into Android memory.
             if (n > MAX_AUDIO_BYTES - size)
                 throw new IOException("Arquivo excede 16 MiB: leitura recusada.");
-            memory.write(chunk, 0, n);
             digest.update(chunk, 0, n);
-            size += n;
-            if (size > MAX_IMAGE_BYTES) {
-                byte[] bytes = memory.toByteArray();
-                String type = format(bytes);
-                if (image(type))
-                    throw new IOException("Imagem excede 8 MiB: leitura recusada.");
+            for (int j = 0; j < n && firstLength < firstBytes.length; j++)
+                firstBytes[firstLength++] = chunk[j];
+            if (type == null && firstLength >= 12) {
+                type = format(firstBytes);
+                if (type.isEmpty())
+                    throw new IOException("Formato não permitido. SVG, HTML, ZIP, vídeo ou executável são recusados.");
             }
+            if (type != null && image(type) && n > MAX_IMAGE_BYTES - size)
+                throw new IOException("Imagem excede 8 MiB: leitura recusada.");
+            // If a provider splits its first bytes across tiny reads, only
+            // buffer this short prefix until we know the content type.
+            if (type == null || image(type)) imageMemory.write(chunk, 0, n);
+            size += n;
         }
-        byte[] bytes = memory.toByteArray();
-        String type = format(bytes);
+        if (type == null) type = format(java.util.Arrays.copyOf(firstBytes, firstLength));
         if (type.isEmpty())
-            throw new IOException("Formato não reconhecido ou não permitido. SVG, HTML, ZIP, vídeos e executáveis não são aceitos.");
+            throw new IOException("Arquivo vazio, incompleto ou de formato não permitido.");
         boolean isImage = image(type);
-        if (isImage && bytes.length > MAX_IMAGE_BYTES)
-            throw new IOException("Imagem excede 8 MiB: leitura recusada.");
         StringBuilder hash = new StringBuilder(64);
         for (byte item : digest.digest())
             hash.append(String.format(Locale.ROOT, "%02x", item & 255));
         return new Inspected(type, isImage, size, hash.toString(),
-                isImage ? bytes : null);
+                isImage ? imageMemory.toByteArray() : null);
     }
 
     /**
