@@ -34,6 +34,8 @@ on:
       - scripts/test_ai_asset_inspector.py
       - scripts/test_ai_polyhaven_catalog_java.py
       - scripts/test_ai_polyhaven_integrity_java.py
+      - scripts/test_ai_roblox_decal_upload_java.py
+      - android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java
       - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
       - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
       - android/src/com/rbxnative/androidport/StudioAssetInspector.java
@@ -106,6 +108,8 @@ jobs:
         run: python3 scripts/test_ai_polyhaven_catalog_java.py
       - name: Verify actual Java user-selected Poly Haven file size and checksums
         run: python3 scripts/test_ai_polyhaven_integrity_java.py
+      - name: Verify actual Java Open Cloud decal upload guards and consent flow
+        run: python3 scripts/test_ai_roblox_decal_upload_java.py
       - name: Validate real multimodal image payloads and opt-in review contract
         run: python3 scripts/test_ai_visual_review_java.py
       - name: Verify real Java before-and-after pixel metrics and consented comparison
@@ -123,6 +127,7 @@ jobs:
             android/src/com/rbxnative/androidport/StudioAssetInspector.java \
             android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java \
             android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java \
+            android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java \
             android/src/com/rbxnative/androidport/StudioVisualReview.java \
             android/src/com/rbxnative/androidport/StudioVisualCompare.java \
             android/src/com/rbxnative/androidport/StudioPlayFrameRules.java \
