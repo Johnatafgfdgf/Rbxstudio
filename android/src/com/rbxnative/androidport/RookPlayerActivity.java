@@ -5,6 +5,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.media.AudioManager;
+import android.graphics.Bitmap;
+import android.view.PixelCopy;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -28,6 +30,9 @@ public final class RookPlayerActivity extends NativeActivity {
     private volatile String stage = "Preparando o Play local…";
     private volatile boolean ready;
     private volatile String touchProbeId;
+    private String playFrameConsentId;
+    private final Handler frameHandler = new Handler(Looper.getMainLooper());
+    private boolean frameCaptureScheduled;
     private int touchDownCount, touchUpCount, touchCancelCount;
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
@@ -53,6 +58,7 @@ public final class RookPlayerActivity extends NativeActivity {
         // NativeActivity can start its winit thread inside super.onCreate.
         // Consume consent first so the native process sees the correct state.
         touchProbeId = StudioTouchDiagnostics.begin(this);
+        playFrameConsentId = StudioPlayFrameEvidence.begin(this);
         super.onCreate(state);
         StudioWindow.configure(this);
         // The loading card owns its surface until the first game frame.
@@ -86,6 +92,61 @@ public final class RookPlayerActivity extends NativeActivity {
             if (!progressPopup.isShowing())
                 progressPopup.showAtLocation(decor, Gravity.TOP | Gravity.START, 0, 0);
         }
+    }
+
+
+    /**
+     * PixelCopy from this actual NativeActivity's Rook window, not from
+     * StudioPlayer preview.png (the latter belongs to the EDITOR).
+     * Only scheduled after the native player reports ready and the loading
+     * PopupWindow has been dismissed. Captures at most once per consent.
+     */
+    private void scheduleOnePlayFrame() {
+        if (playFrameConsentId == null || frameCaptureScheduled) return;
+        frameCaptureScheduled = true;
+        final String requestId = playFrameConsentId;
+        frameHandler.postDelayed(() -> {
+            if (!ready || isFinishing() || isDestroyed()) {
+                StudioPlayFrameEvidence.failed(this, requestId, "player_not_ready");
+                return;
+            }
+            View decor = getWindow().getDecorView();
+            int viewWidth = decor.getWidth();
+            int viewHeight = decor.getHeight();
+            if (decor.getWindowToken() == null || viewWidth < 1 || viewHeight < 1 ||
+                    !decor.hasWindowFocus()) {
+                StudioPlayFrameEvidence.failed(this, requestId, "window_not_focused");
+                return;
+            }
+            final int copyWidth = 420;
+            final int copyHeight = Math.min(512, Math.max(1,
+                    Math.round(viewHeight * (420f / viewWidth))));
+            final Bitmap frame = Bitmap.createBitmap(copyWidth,
+                    copyHeight, Bitmap.Config.ARGB_8888);
+            try {
+                PixelCopy.request(getWindow(), frame, result -> {
+                    try {
+                        if (result == PixelCopy.SUCCESS && ready &&
+                                !isFinishing() && !isDestroyed()) {
+                            StudioPlayFrameEvidence.save(this, requestId,
+                                    frame, result);
+                        } else {
+                            StudioPlayFrameEvidence.failed(this, requestId,
+                                    "pixelcopy_result_" + result);
+                        }
+                    } catch (Exception failure) {
+                        StudioPlayFrameEvidence.failed(this, requestId,
+                                "encode_or_storage_failed");
+                    } finally {
+                        frame.recycle();
+                    }
+                }, frameHandler);
+            } catch (Exception error) {
+                frame.recycle();
+                StudioPlayFrameEvidence.failed(this, requestId,
+                        "pixelcopy_request_failed");
+            }
+        }, 900L);
     }
 
     /** Called by the Rust service bridge; credential bytes never enter a log. */
@@ -130,6 +191,7 @@ public final class RookPlayerActivity extends NativeActivity {
                     StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
                             touchDownCount, touchUpCount, touchCancelCount, false);
                     showControls();
+                    scheduleOnePlayFrame();
                 });
                 return "";
             case "finish": runOnUiThread(this::finish); return "";
@@ -195,6 +257,10 @@ public final class RookPlayerActivity extends NativeActivity {
 
     @Override public void onBackPressed() { finish(); }
     @Override protected void onDestroy() {
+        frameHandler.removeCallbacksAndMessages(null);
+        if (playFrameConsentId != null)
+            StudioPlayFrameEvidence.failed(this, playFrameConsentId,
+                    "player_closed_before_capture");
         StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
                 touchDownCount, touchUpCount, touchCancelCount, true);
         if (progressPopup != null) progressPopup.dismiss();
