@@ -644,6 +644,7 @@ public final class StudioAiHub extends Activity {
     private CheckBox allowDecalPlayEvidence;
     private Button inspectDecalPlay;
     private StudioRobloxDecalPlacement.Proposal lastVerifiedPlacedDecal;
+    private boolean probingDecalPlay;
     private boolean uploadingRobloxDecal;
     private EditText robloxDecalCreator, robloxDecalName, robloxDecalApiKey;
     private Button uploadRobloxDecal, checkRobloxDecal;
@@ -3850,12 +3851,16 @@ public final class StudioAiHub extends Activity {
         allowDecalPlayEvidence.setChecked(false);
         allowDecalPlayEvidence.setOnCheckedChangeListener((v, checked) -> {
             if (!checked) {
-                ++requestEpoch;
                 if (decalPlayReport != null) {
                     decalPlayReport.setText("Permissão de diagnóstico revogada.");
                     decalPlayReport.setVisibility(View.VISIBLE);
                 }
-                abortInFlight();
+                if (probingDecalPlay) {
+                    ++requestEpoch;
+                    probingDecalPlay = false;
+                    abortInFlight();
+                    setBusy(false, "Diagnóstico local cancelado pelo usuário.");
+                }
             }
             refreshDecalPlacementButtons();
         });
@@ -8530,6 +8535,60 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+
+
+    /**
+     * Zero mutation, zero AI data sharing. A named decal must have a
+     * previously verified read-back; the user separately authorizes reading
+     * local Play mode and Output from their own paired editor.
+     */
+    private void inspectPlacedDecalPlay() {
+        if (busy || applyingEdit || lastVerifiedPlacedDecal == null ||
+                allowDecalPlayEvidence == null || !allowDecalPlayEvidence.isChecked() ||
+                mcpPairing.isEmpty()) return;
+        final StudioRobloxDecalPlacement.Proposal p = lastVerifiedPlacedDecal;
+        if (!p.assetId.equals(confirmedRobloxDecalId)) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        probingDecalPlay = true;
+        setBusy(true, "Lendo estado do Play local e erros do Asset ID...");
+        decalPlayReport.setVisibility(View.VISIBLE);
+        decalPlayReport.setText("Buscando evidências reais no MCP. Nenhuma edição executada.");
+        requests.execute(() -> {
+            String result;
+            try {
+                String state = readOnlyMcp(paired, "get_studio_state", new JSONObject());
+                if (epoch != requestEpoch)
+                    throw new IOException("Sessão alterada durante a inspeção.");
+                String mode = checkedLocalPlayMode(state);
+                // Read Output only when the MCP has confirmed an actual Client
+                // session, otherwise the result cannot be linked to Play.
+                String output = "PLAY_LOCAL_CONFIRMADO".equals(mode) ?
+                        readOnlyMcp(paired, "get_console_output", new JSONObject()) : "";
+                if (epoch != requestEpoch)
+                    throw new IOException("Inspeção local cancelada.");
+                StudioDecalPlayEvidence.Result evidence =
+                        StudioDecalPlayEvidence.inspect(
+                                mode, output, p.assetId, p.decalPath());
+                result = evidence.summary;
+            } catch (Exception failure) {
+                result = "DIAGNÓSTICO LOCAL INCOMPLETO\n" +
+                        "Não foi possível confirmar o Play ou ler o Output por MCP. " +
+                        "Nenhuma conclusão sobre a textura. Nenhuma edição executada. " +
+                        "Detalhe: " + limitedExternalText(failure.getMessage(), 160);
+            }
+            final String report = result;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing() || !probingDecalPlay ||
+                        allowDecalPlayEvidence == null ||
+                        !allowDecalPlayEvidence.isChecked()) return;
+                probingDecalPlay = false;
+                setBusy(false, "Diagnóstico somente leitura concluído.");
+                decalPlayReport.setText(report);
+                decalPlayReport.setVisibility(View.VISIBLE);
+            });
+        });
+    }
 
     private void requestClose() {
         if (uploadingRobloxDecal) {
