@@ -678,7 +678,7 @@ for required in [
     'a operação pode já ter sido aplicada.',
 ]:
     assert required in java, required
-assert java.count('readBackNotice(') == 10  # method + approved write and status paths
+assert java.count('readBackNotice(') == 11  # includes approved Decal read-back
 assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
     'verifiedEditorObject(paired, objectPath, "Part")')
 assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < java.index(
@@ -713,7 +713,7 @@ for required in [
     'recordEditorOutcome(edit.create ? "CREATE_SCRIPT" : "UPDATE_SCRIPT",',
 ]:
     assert required in java, required
-assert java.count('recordEditorOutcome(') == 10  # helper plus all verified editor writes
+assert java.count('recordEditorOutcome(') == 11  # includes Decal write record
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
