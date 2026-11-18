@@ -729,8 +729,8 @@ public final class StudioAiHub extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        getWindow().setStatusBarColor(Color.rgb(10, 19, 33));
-        getWindow().setNavigationBarColor(Color.rgb(10, 19, 33));
+        getWindow().setStatusBarColor(StudioAiTheme.GROUND);
+        getWindow().setNavigationBarColor(StudioAiTheme.GROUND);
         project = getIntent().getStringExtra("project_name");
         if (project == null) project = "";
         mcpPairing = getIntent().getStringExtra("mcp_pairing");
@@ -747,10 +747,14 @@ public final class StudioAiHub extends Activity {
     }
 
     private GradientDrawable shape(int fill, int radius) {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(fill);
-        bg.setCornerRadius(dp(radius));
-        return bg;
+        // Migrate the old blue/navy AI cards to the GPUI editor's neutral
+        // Default palette. Preserve the original call sites and semantics.
+        int neutral = (fill == Color.rgb(26, 42, 65) ||
+                fill == Color.rgb(29, 46, 69) ||
+                fill == Color.rgb(22, 37, 59)) ?
+                StudioAiTheme.FIELD : fill;
+        return StudioAiTheme.surface(this, neutral, Math.min(radius, 8),
+                StudioAiTheme.BORDER);
     }
 
     private LinearLayout column() {
@@ -762,8 +766,10 @@ public final class StudioAiHub extends Activity {
     private TextView text(String value, int size, boolean heading) {
         TextView view = new TextView(this);
         view.setText(value);
-        view.setTextColor(Color.rgb(228, 236, 250));
-        view.setTextSize(size);
+        StudioAiTheme.body(view, heading);
+        // Match the pinned GPUI Studio type scale rather than Android title
+        // presets. Never enlarge every informational row to 14sp+.
+        view.setTextSize(heading ? Math.min(size, 15) : Math.min(size, 12));
         if (heading) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         return view;
     }
@@ -771,23 +777,17 @@ public final class StudioAiHub extends Activity {
     private Button button(String label) {
         Button b = new Button(this);
         b.setText(label);
-        b.setAllCaps(false);
-        b.setTextColor(Color.WHITE);
-        b.setTextSize(13);
-        b.setMinHeight(dp(48));
-        b.setBackground(shape(Color.rgb(41, 86, 153), 13));
+        // Every action, including dynamically-created VFX/model buttons,
+        // uses the same Studio token-based flat surface and pressed state.
+        StudioAiTheme.button(this, b, false, false);
         return b;
     }
 
     private EditText field(String hint, boolean secret) {
         EditText result = new EditText(this);
         result.setSingleLine(secret);
-        result.setTextColor(Color.WHITE);
-        result.setHintTextColor(Color.rgb(161, 177, 200));
         result.setHint(hint);
-        result.setTextSize(14);
-        result.setPadding(dp(13), dp(8), dp(13), dp(8));
-        result.setBackground(shape(Color.rgb(29, 46, 69), 12));
+        StudioAiTheme.field(this, result);
         if (secret) {
             result.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         } else {
@@ -801,9 +801,20 @@ public final class StudioAiHub extends Activity {
     }
 
     private void add(LinearLayout layout, View view, int bottomMargin) {
+        // Native Studio controls are compact, never automatic full-width
+        // blue banners. Do not change onClick handlers or omit any option.
+        int width = ViewGroup.LayoutParams.MATCH_PARENT;
+        if (view instanceof Button) width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        if (view instanceof Spinner) {
+            StudioAiTheme.spinner(this, (Spinner)view);
+            int usable = getResources().getDisplayMetrics().widthPixels - dp(40);
+            width = Math.min(dp(320), Math.max(dp(150), usable));
+        }
+        if (view instanceof CheckBox)
+            StudioAiTheme.checkbox(this, (CheckBox)view);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.bottomMargin = dp(bottomMargin);
+                width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(Math.min(bottomMargin, 10));
         layout.addView(view, params);
     }
 
@@ -3602,9 +3613,10 @@ public final class StudioAiHub extends Activity {
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(10, 19, 33));
+        scroll.setBackgroundColor(StudioAiTheme.GROUND);
         LinearLayout root = column();
-        root.setPadding(dp(18), dp(12), dp(18), dp(24));
+        root.setBackgroundColor(StudioAiTheme.DOCK);
+        root.setPadding(dp(16), dp(12), dp(16), dp(22));
         scroll.addView(root);
         setContentView(scroll);
 
@@ -3618,21 +3630,23 @@ public final class StudioAiHub extends Activity {
         header.addView(back);
         add(root, header, 8);
         TextView notice = text("Chat por API real • Agente de leitura e propostas de edição com aprovação", 12, false);
-        notice.setTextColor(Color.rgb(166, 197, 229));
-        add(root, notice, 14);
+        notice.setTextColor(StudioAiTheme.TEXT_MUTED);
+        add(root, notice, 10);
 
         add(root, text("Provedor", 14, true), 5);
         providerPicker = new Spinner(this);
         ArrayAdapter<String> providers = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_dropdown_item, NAMES);
+        providers.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         providerPicker.setAdapter(providers);
-        add(root, providerPicker, 10);
+        add(root, providerPicker, 7);
         status = text("Nenhuma conexão verificada", 12, false);
         add(root, status, 8);
 
         apiKey = field("Cole a API Key (não é guardada como texto simples)", true);
         add(root, apiKey, 7);
         save = button("Salvar chave com segurança");
+        StudioAiTheme.button(this, save, true, false);
         save.setOnClickListener(v -> saveKey());
         add(root, save, 7);
         Button revoke = button("Remover chave deste provedor");
