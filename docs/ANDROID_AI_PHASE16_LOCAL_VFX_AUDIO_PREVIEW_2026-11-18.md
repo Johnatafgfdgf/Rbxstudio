@@ -394,7 +394,7 @@ Após a criação de um Decal na Part (com recibo MCP e uma consulta
 independente que confirmou classe, nome, caminho, textura e Face), o
 aplicativo guarda **somente nesta Activity** a identidade da proposta
 e o instante da confirmação. Ao importar uma captura REAL PixelCopy do
-Play Rook, o app usa `capturedAt` obtido do recibo assinado por
+Play Rook, o app usa `capturedAt` obtido do recibo com integridade conferida por
 SHA-256 e conferido por `StudioPlayFrameRules.validReceipt`
 (sem confiar na hora de importação). A captura só é considerada
 **candidata a revisão daquele Decal** quando foi registrada após a
