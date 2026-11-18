@@ -28,7 +28,7 @@ for required in (
     'checkedEditReceipt(',
     'verifyPlacedRobloxDecal(paired, p)',
     'p.textureUri().equals(props.optString("Texture", ""))',
-    'CREATE_DECAL|',
+    'CREATED_DECAL|',
     'recordEditorOutcome("CREATE_DECAL", p.decalPath(), confirmed)',
 ):
     assert required in hub, required
