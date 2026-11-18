@@ -678,8 +678,10 @@ public final class StudioAiHub extends Activity {
         final int code;
         ApiHttpException(int code, String message) { super(message); this.code = code; }
         boolean canSwitchFreeModel() {
-            return code == 402 || code == 429 || code == 502 || code == 503 ||
-                    code == 504 || code == 529;
+            // A listed model may still return 404 if it was removed or is
+            // unavailable to this account. Try a free backup only with consent.
+            return code == 402 || code == 404 || code == 429 ||
+                    code == 502 || code == 503 || code == 504 || code == 529;
         }
     }
 
