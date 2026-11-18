@@ -625,6 +625,8 @@ public final class StudioAiHub extends Activity {
     private TextView assetPreviewReport;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
+    private Button armPlayFrame, importPlayFrame, clearPlayFrame;
+    private TextView playFrameResult;
     private TextView assetVisualReviewResult, visualComparisonResult;
     private Button rememberVisualBefore, compareVisualLocal, reviewVisualPairWithAi;
     private android.graphics.Bitmap visualBefore;
@@ -2329,6 +2331,127 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+
+    /** Opt-in one-shot capture; does not start Play or send data anywhere. */
+    private void confirmPlayFrameCapture() {
+        if (busy || applyingEdit) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Autorizar uma captura real do Play Rook?")
+                .setMessage("Será capturada UMA imagem da janela do player " +
+                        "Rook LOCAL, usando PixelCopy após o player informar " +
+                        "que está pronto. A autorização é válida por 10 minutos " +
+                        "e só para o próximo Play local.\n\n" +
+                        "A imagem ficará temporariamente em arquivo privado " +
+                        "do aplicativo até você importá-la ou apagá-la. " +
+                        "NÃO captura o Play externo do Roblox, não inicia Play, " +
+                        "não envia dados à IA e não grava vídeo. " +
+                        "A imagem pode mostrar jogadores, nomes e outras " +
+                        "informações visíveis na tela. Antes de enviar " +
+                        "qualquer imagem a uma IA, haverá outra confirmação.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Autorizar esta captura", (dialog, which) -> {
+                    try {
+                        String message = StudioPlayFrameEvidence.arm(this);
+                        playFrameResult.setText(message);
+                        playFrameResult.setVisibility(View.VISIBLE);
+                        status.setText("Abra o Play LOCAL do Rook pelo editor.");
+                    } catch (Exception error) {
+                        playFrameResult.setText(
+                                "Não foi possível preparar a captura local.");
+                        playFrameResult.setVisibility(View.VISIBLE);
+                    }
+                }).show();
+    }
+
+    /**
+     * Import only a receipt-verified real PixelCopy frame. Loading consumes
+     * the private JPEG and never calls the multimodal API automatically.
+     */
+    private void importRealPlayFrame() {
+        if (busy || applyingEdit) return;
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Lendo captura autorizada do Play Rook local...");
+        playFrameResult.setText("Verificando a captura e o registro do Rook...");
+        playFrameResult.setVisibility(View.VISIBLE);
+        requests.execute(() -> {
+            android.graphics.Bitmap image = null;
+            String report;
+            try {
+                StudioPlayFrameEvidence.Evidence captured =
+                        StudioPlayFrameEvidence.takeOnce(this);
+                if (captured == null) throw new IOException(
+                        "Nenhuma captura concluída. Abra o Play local após autorizar, " +
+                        "aguarde a cena carregar e volte aqui.");
+                android.graphics.BitmapFactory.Options options =
+                        new android.graphics.BitmapFactory.Options();
+                options.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888;
+                image = android.graphics.BitmapFactory.decodeByteArray(
+                        captured.jpeg, 0, captured.jpeg.length, options);
+                if (image == null || image.getWidth() != captured.width ||
+                        image.getHeight() != captured.height) {
+                    throw new IOException(
+                            "A imagem não corresponde ao registro confirmado.");
+                }
+                report = captured.summary;
+            } catch (Exception error) {
+                report = "CAPTURA NÃO CONFIRMADA: " +
+                        (error.getMessage() == null ? "imagem indisponível" :
+                                error.getMessage()) +
+                        "\nNenhuma imagem foi inventada ou enviada à IA.";
+                if (image != null) { image.recycle(); image = null; }
+            }
+            final android.graphics.Bitmap frame = image;
+            final String summary = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) {
+                    if (frame != null) frame.recycle();
+                    return;
+                }
+                playFrameResult.setText(summary);
+                assetPreviewImage.setImageDrawable(null);
+                assetPreviewImage.setVisibility(View.GONE);
+                if (assetVisualReviewResult != null) {
+                    assetVisualReviewResult.setText("");
+                    assetVisualReviewResult.setVisibility(View.GONE);
+                }
+                if (visualComparisonResult != null) {
+                    visualComparisonResult.setText("");
+                    visualComparisonResult.setVisibility(View.GONE);
+                }
+                if (frame != null) {
+                    assetPreviewImage.setImageBitmap(frame);
+                    assetPreviewImage.setVisibility(View.VISIBLE);
+                    assetPreviewReport.setText(
+                            "Origem: PixelCopy da janela Rook NativeActivity " +
+                            "após o sinal ready. A imagem privada foi consumida. " +
+                            "Pode marcar como ANTES ou DEPOIS e analisar " +
+                            "visualmente somente após sua autorização.");
+                    assetPreviewReport.setVisibility(View.VISIBLE);
+                    imageSelectionCount++;
+                }
+                setBusy(false, frame != null ?
+                        "Captura real importada; nenhum envio à IA." :
+                        "Captura ausente ou não verificável.");
+            });
+        });
+    }
+
+    private void confirmErasePlayFrame() {
+        if (busy || applyingEdit) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Apagar captura e autorização do Play?")
+                .setMessage("Apaga o pedido de captura, registro de prova " +
+                        "e imagem temporária do Play local ainda armazenados " +
+                        "pelo aplicativo. Não exclui seus projetos nem a " +
+                        "miniatura já importada para esta tela.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Apagar dados do Play", (dialog, which) -> {
+                    StudioPlayFrameEvidence.clear(this);
+                    playFrameResult.setText("Captura e autorização locais apagadas.");
+                    playFrameResult.setVisibility(View.VISIBLE);
+                }).show();
+    }
+
     /** One user-selected file only. Never auto-download or publish resources. */
     private void pickLocalAssetFile() {
         if (busy || applyingEdit) return;
@@ -3025,6 +3148,30 @@ public final class StudioAiHub extends Activity {
         assetPreviewReport.setBackground(shape(Color.rgb(26, 42, 65), 12));
         assetPreviewReport.setVisibility(View.GONE);
         add(root, assetPreviewReport, 5);
+        add(root, text("Captura REAL do Play Rook local", 14, true), 4);
+        TextView playFrameHelp = text(
+                "Autorize UMA captura de tela antes de abrir o Play local " +
+                "do Rook no editor. O player usa PixelCopy na janela real " +
+                "após informar que está pronto. Volte aqui para importar " +
+                "a imagem e compará-la com outra. O arquivo temporário " +
+                "fica privado no aparelho até ser importado ou apagado. " +
+                "Não captura o aplicativo Roblox externo, não envia à IA " +
+                "automaticamente e não grava vídeo.", 12, false);
+        add(root, playFrameHelp, 5);
+        armPlayFrame = button("Autorizar 1 captura no próximo Play Rook");
+        armPlayFrame.setOnClickListener(v -> confirmPlayFrameCapture());
+        add(root, armPlayFrame, 4);
+        importPlayFrame = button("Importar captura REAL do último Play local");
+        importPlayFrame.setOnClickListener(v -> importRealPlayFrame());
+        add(root, importPlayFrame, 4);
+        clearPlayFrame = button("Apagar captura e revogar autorização");
+        clearPlayFrame.setOnClickListener(v -> confirmErasePlayFrame());
+        add(root, clearPlayFrame, 5);
+        playFrameResult = text("", 12, false);
+        playFrameResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        playFrameResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        playFrameResult.setVisibility(View.GONE);
+        add(root, playFrameResult, 9);
         reviewAssetWithAi = button("Analisar a imagem com IA • confirmar envio");
         reviewAssetWithAi.setEnabled(false);
         reviewAssetWithAi.setOnClickListener(v -> confirmVisualReview());
@@ -3543,6 +3690,9 @@ public final class StudioAiHub extends Activity {
         refresh.setEnabled(!waiting);
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (inspectAssetFile != null) inspectAssetFile.setEnabled(!waiting);
+        if (armPlayFrame != null) armPlayFrame.setEnabled(!waiting);
+        if (importPlayFrame != null) importPlayFrame.setEnabled(!waiting);
+        if (clearPlayFrame != null) clearPlayFrame.setEnabled(!waiting);
         if (reviewAssetWithAi != null) {
             boolean hasImage = assetPreviewImage != null &&
                     assetPreviewImage.getDrawable() instanceof
