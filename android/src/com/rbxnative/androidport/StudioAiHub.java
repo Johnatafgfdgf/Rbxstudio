@@ -3014,6 +3014,197 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+
+    private void refreshDecalPlacementButtons() {
+        if (inspectDecalTarget != null)
+            inspectDecalTarget.setEnabled(!busy && !applyingEdit &&
+                    !mcpPairing.isEmpty() && confirmedRobloxDecalId != null);
+        if (applyDecalToPart != null)
+            applyDecalToPart.setEnabled(!busy && !applyingEdit &&
+                    !mcpPairing.isEmpty() && pendingDecalPlacement != null &&
+                    pendingDecalPlacement.assetId.equals(confirmedRobloxDecalId));
+    }
+
+    /** Read-only MCP inspection, no AI model or user-generated Luau involved. */
+    private void inspectDecalPartTarget() {
+        if (busy || applyingEdit || confirmedRobloxDecalId == null ||
+                mcpPairing.isEmpty() || decalTargetPath == null) return;
+        final String path = decalTargetPath.getText().toString().trim();
+        final String name = decalInstanceName.getText().toString().trim();
+        final String face = decalFace.getSelectedItem().toString();
+        final String id = confirmedRobloxDecalId;
+        try {
+            StudioRobloxDecalPlacement.validateAssetId(id);
+            StudioRobloxDecalPlacement.validateTargetPath(path);
+            StudioRobloxDecalPlacement.validateDecalName(name);
+            StudioRobloxDecalPlacement.validateFace(face);
+        } catch (IOException invalid) {
+            decalPlacementResult.setText("Seleção recusada: " + invalid.getMessage());
+            decalPlacementResult.setVisibility(View.VISIBLE);
+            pendingDecalPlacement = null;
+            refreshDecalPlacementButtons();
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        pendingDecalPlacement = null;
+        setBusy(true, "Inspecionando uma Part real pelo MCP • somente leitura...");
+        decalPlacementResult.setText("Inspecionando o alvo: " + path +
+                ". Ainda não foi criado nenhum objeto.");
+        decalPlacementResult.setVisibility(View.VISIBLE);
+        requests.execute(() -> {
+            StudioRobloxDecalPlacement.Proposal proposal = null;
+            String report;
+            try {
+                String actual = readOnlyMcp(mcpPairing, "inspect_instance",
+                        new JSONObject().put("path", path));
+                JSONObject inspected = checkedBillboardTarget(path, actual, name);
+                String uniqueId = inspected.optString("uniqueId", "");
+                proposal = StudioRobloxDecalPlacement.reviewed(
+                        id, path, name, face, uniqueId);
+                report = "PRÉVIA • nenhuma escrita executada\nAlvo: " + path +
+                        "\nNovo objeto: Decal '" + name + "'\nFace: " + face +
+                        "\nTextura: " + proposal.textureUri() +
+                        "\nPart única confirmada e nome não encontrado. " +
+                        "Use o botão Revisar e aplicar para confirmar uma escrita.";
+            } catch (Exception error) {
+                report = "Não foi possível preparar a aplicação: " +
+                        limitedExternalText(error.getMessage(), 180) +
+                        "\nNenhuma Part ou Decal foi modificado.";
+            }
+            final StudioRobloxDecalPlacement.Proposal checked = proposal;
+            final String result = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                if (!id.equals(confirmedRobloxDecalId)) {
+                    pendingDecalPlacement = null;
+                    setBusy(false, "O asset confirmado mudou. Inspecione novamente.");
+                    return;
+                }
+                pendingDecalPlacement = checked;
+                decalPlacementResult.setText(result);
+                decalPlacementResult.setVisibility(View.VISIBLE);
+                setBusy(false, checked == null ?
+                        "Destino recusado; sem alterações." : "Proposta pronta para revisão.");
+            });
+        });
+    }
+
+    private void confirmDecalPlacement() {
+        final StudioRobloxDecalPlacement.Proposal p = pendingDecalPlacement;
+        if (busy || applyingEdit || p == null ||
+                !p.assetId.equals(confirmedRobloxDecalId) ||
+                mcpPairing.isEmpty()) return;
+        if (!p.targetPath.equals(decalTargetPath.getText().toString().trim()) ||
+                !p.decalName.equals(decalInstanceName.getText().toString().trim()) ||
+                !p.face.equals(decalFace.getSelectedItem().toString())) {
+            pendingDecalPlacement = null;
+            decalPlacementResult.setText(
+                    "Os dados mudaram. Inspecione a Part novamente antes de aplicar.");
+            decalPlacementResult.setVisibility(View.VISIBLE);
+            refreshDecalPlacementButtons();
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Criar UM Decal na Part existente?")
+                .setMessage("Alvo: " + p.targetPath + "\nNovo objeto: " +
+                        p.decalName + "\nFace: " + p.face +
+                        "\nAsset ID Roblox: " + p.assetId +
+                        "\n\nO editor será consultado novamente para detectar " +
+                        "Part substituída ou objeto com o mesmo nome. Somente " +
+                        "depois será enviado UM comando Luau FIXO ao MCP. " +
+                        "A operação altera o projeto local e pode exigir " +
+                        "autorização adicional do editor. Não publica o mapa. " +
+                        "Se a escrita ocorrer e a leitura de confirmação falhar, " +
+                        "confira o Explorer antes de repetir.")
+                .setNegativeButton("Não alterar", null)
+                .setPositiveButton("Sim, criar 1 Decal", (dialog, which) ->
+                        applyApprovedRobloxDecal(p))
+                .show();
+    }
+
+    /**
+     * Read / compare immutable Part identity / single write / independent read.
+     * Never claim an edit succeeded based only on a server transport receipt.
+     */
+    private void applyApprovedRobloxDecal(StudioRobloxDecalPlacement.Proposal p) {
+        if (busy || applyingEdit || pendingDecalPlacement != p ||
+                !p.assetId.equals(confirmedRobloxDecalId) || mcpPairing.isEmpty())
+            return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Reinspecionando a Part e aplicando somente o Decal aprovado...");
+        requests.execute(() -> {
+            try {
+                String fresh = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", p.targetPath));
+                JSONObject latest = checkedBillboardTarget(
+                        p.targetPath, fresh, p.decalName);
+                if (!p.originalUniqueId.equals(latest.optString("uniqueId", "")))
+                    throw new IOException("A Part mudou desde a prévia. Reinspecione.");
+                if (epoch != requestEpoch)
+                    throw new IOException("A sessão mudou antes da escrita.");
+                String receipt = checkedEditReceipt(
+                        executeApproved3dCode(paired,
+                                StudioRobloxDecalPlacement.fixedLuau(p)),
+                        p.receipt());
+                boolean verified = verifyPlacedRobloxDecal(paired, p);
+                final boolean confirmed = verified;
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingDecalPlacement = null;
+                    setBusy(false, readBackNotice(confirmed, p.decalPath()));
+                    decalPlacementResult.setText(
+                            "MCP respondeu: " + receipt + "\n" +
+                            (confirmed
+                                    ? "Leitura MCP confirmou a classe Decal, a face e o Asset ID."
+                                    : "A leitura MCP NÃO confirmou classe, face e textura. " +
+                                      "Verifique Explorer/Output antes de repetir.") +
+                            "\nCaminho: " + p.decalPath() +
+                            "\nO jogo NÃO foi publicado.");
+                    decalPlacementResult.setVisibility(View.VISIBLE);
+                    recordEditorOutcome("CREATE_DECAL", p.decalPath(), confirmed);
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (epoch != requestEpoch || isFinishing()) return;
+                    applyingEdit = false;
+                    pendingDecalPlacement = null;
+                    setBusy(false, "Operação Decal não confirmada.");
+                    decalPlacementResult.setText(
+                            "A criação do Decal não foi confirmada: " +
+                            limitedExternalText(error.getMessage(), 170) +
+                            "\nSe uma escrita foi enviada antes do erro, confira " +
+                            "Explorer e Output para evitar criar um objeto duplicado.");
+                    decalPlacementResult.setVisibility(View.VISIBLE);
+                });
+            }
+        });
+    }
+
+    /** Independent second MCP read must prove the actual Decal properties. */
+    private boolean verifyPlacedRobloxDecal(String paired,
+            StudioRobloxDecalPlacement.Proposal p) {
+        try {
+            String evidence = readOnlyMcp(paired, "inspect_instance",
+                    new JSONObject().put("path", p.decalPath()));
+            JSONObject instance = new JSONObject(evidence);
+            if (!p.decalPath().equals(instance.optString("path", "")) ||
+                    !p.decalName.equals(instance.optString("name", "")) ||
+                    !"Decal".equals(instance.optString("className", "")) ||
+                    instance.optJSONArray("matches") != null)
+                return false;
+            JSONObject props = instance.optJSONObject("properties");
+            if (props == null) return false;
+            String face = props.optString("Face", "");
+            return p.textureUri().equals(props.optString("Texture", "")) &&
+                    (p.face.equals(face) || ("Enum.NormalId." + p.face).equals(face));
+        } catch (Exception incomplete) {
+            return false;
+        }
+    }
+
     /** One user-selected file only. Never auto-download or publish resources. */
     private void pickLocalAssetFile() {
         if (busy || applyingEdit) return;
@@ -6133,7 +6324,7 @@ public final class StudioAiHub extends Activity {
             throws IOException {
         if (expected == null || !expected.matches(
                 "(CREATED|UPDATED|CREATED_MODEL|CREATED_BILLBOARD|" +
-                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|UPDATED_LIGHTING|UPDATED_STYLE):" +
+                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|CREATED_DECAL|UPDATED_LIGHTING|UPDATED_STYLE):" +
                 "[A-Za-z][A-Za-z0-9_]{0,39}")) {
             throw new IOException("Identificador de confirmação inválido");
         }
