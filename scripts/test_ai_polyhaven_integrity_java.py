@@ -15,7 +15,6 @@ for text in (
     "collectPolyHavenCandidates(files, slug, \"\", candidates,",
     "StudioPolyHavenIntegrity.verify(candidate, input)",
     "beginPolyHavenVerification(candidate)",
-    "candidate.expectedSize",
     "candidate.variant",
     "getContentResolver().openInputStream(selected)",
     "Intent.ACTION_OPEN_DOCUMENT",
@@ -23,6 +22,8 @@ for text in (
     "pendingPolyHavenCandidate = null",
 ):
     assert text in hub, text
+
+assert "candidate.expectedSize" in source
 
 for disallowed in ("HttpURLConnection", "java.net.URL", "openConnection(",
                    "getOutputStream", "writeFile(", "publish_animation",
