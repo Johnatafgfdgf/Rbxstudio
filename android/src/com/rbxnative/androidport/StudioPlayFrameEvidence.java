@@ -21,6 +21,7 @@ import org.json.JSONObject;
 public final class StudioPlayFrameEvidence {
     private static final String REQUEST = "rook-frame-request.json";
     private static final String ACTIVE = "rook-frame-active.json";
+    private static final String AUTHORIZATION = "rook-frame-authorization.json";
     private static final String REPORT = "rook-frame-report.json";
     private static final String IMAGE = "rook-frame-evidence.jpg";
     private static final int MAX_JSON_BYTES = 2048;
@@ -58,6 +59,7 @@ public final class StudioPlayFrameEvidence {
     private static void clearFiles(Context c) {
         remove(file(c, REQUEST));
         remove(file(c, ACTIVE));
+        remove(file(c, AUTHORIZATION));
         remove(file(c, REPORT));
         remove(file(c, IMAGE));
     }
@@ -67,9 +69,14 @@ public final class StudioPlayFrameEvidence {
         clearFiles(c);
         long now = System.currentTimeMillis();
         String id = UUID.randomUUID().toString();
-        write(file(c, REQUEST), new JSONObject().put("id", id)
+        JSONObject grant = new JSONObject().put("id", id)
                 .put("armedAt", now)
-                .put("expiresAt", now + StudioPlayFrameRules.WINDOW_MS));
+                .put("expiresAt", now + StudioPlayFrameRules.WINDOW_MS);
+        // Retain an independent consent record even after begin() consumes
+        // the one-shot REQUEST. This binds the later PixelCopy receipt to
+        // what the user actually authorized, including revocations.
+        write(file(c, AUTHORIZATION), grant);
+        write(file(c, REQUEST), grant);
         return "Captura de UMA imagem do próximo Play Rook local autorizada " +
                 "por até 10 minutos. Abra o Play local pelo editor e volte " +
                 "à central de IA para importar. A imagem real será obtida " +
@@ -87,7 +94,12 @@ public final class StudioPlayFrameEvidence {
             String id = data.optString("id", "");
             long armedAt = data.optLong("armedAt", 0);
             long expiresAt = data.optLong("expiresAt", 0);
+            JSONObject original = read(file(c, AUTHORIZATION));
             if (!id.matches("[a-f0-9-]{36}") ||
+                    original == null ||
+                    !id.equals(original.optString("id", "")) ||
+                    armedAt != original.optLong("armedAt", -1) ||
+                    expiresAt != original.optLong("expiresAt", -1) ||
                     !StudioPlayFrameRules.validTime(
                             armedAt, expiresAt, System.currentTimeMillis()))
                 return null;
@@ -104,7 +116,14 @@ public final class StudioPlayFrameEvidence {
     private static JSONObject active(Context c, String id) throws Exception {
         if (id == null || !id.matches("[a-f0-9-]{36}")) return null;
         JSONObject data = read(file(c, ACTIVE));
-        if (data == null || !id.equals(data.optString("id", "")) ||
+        JSONObject authorization = read(file(c, AUTHORIZATION));
+        if (data == null || authorization == null ||
+                !id.equals(data.optString("id", "")) ||
+                !id.equals(authorization.optString("id", "")) ||
+                data.optLong("armedAt", -1) !=
+                        authorization.optLong("armedAt", -2) ||
+                data.optLong("expiresAt", -1) !=
+                        authorization.optLong("expiresAt", -2) ||
                 !StudioPlayFrameRules.validTime(
                         data.optLong("armedAt", 0), data.optLong("expiresAt", 0),
                         System.currentTimeMillis())) return null;
@@ -216,9 +235,19 @@ public final class StudioPlayFrameEvidence {
                     image.length() > StudioPlayFrameRules.MAX_JPEG_BYTES)
                 throw new IOException("Captura ausente ou tamanho inválido.");
             byte[] bytes = Files.readAllBytes(image.toPath());
+            JSONObject authorization = read(file(c, AUTHORIZATION));
+            if (authorization == null ||
+                    !authorization.optString("id", "").equals(
+                            report.optString("id", "")) ||
+                    authorization.optLong("armedAt", -1) !=
+                            report.optLong("armedAt", -2) ||
+                    authorization.optLong("expiresAt", -1) !=
+                            report.optLong("expiresAt", -2))
+                throw new IOException("Captura sem autorização original correspondente.");
             long now = System.currentTimeMillis();
             if (!StudioPlayFrameRules.validReceipt(
-                    report.optString("id", ""), report.optString("id", ""),
+                    authorization.optString("id", ""),
+                    report.optString("id", ""),
                     report.optString("source", ""),
                     report.optBoolean("playerReady", false),
                     report.optInt("pixelCopyResult", -1),
