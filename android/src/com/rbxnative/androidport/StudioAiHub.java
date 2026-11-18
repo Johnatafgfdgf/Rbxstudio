@@ -2802,7 +2802,7 @@ public final class StudioAiHub extends Activity {
             } catch (Exception failure) {
                 message = "VERIFICAÇÃO RECUSADA: " +
                         limitedExternalText(failure.getMessage(), 180) +
-                        "\\nNenhuma correspondência foi confirmada. " +
+                        "\nNenhuma correspondência foi confirmada. " +
                         "Nenhum arquivo foi importado ou enviado.";
             }
             final String result = message;
