@@ -272,3 +272,68 @@ https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44248216224.
 Esse teste **não faz um upload real nem prova a autenticação,
 moderação ou a execução no Android físico**, que ainda precisam
 ser verificados por quem tenha uma conta e chave autorizadas.
+
+
+## Continuação — Decal confirmado aplicado a uma Part via MCP
+
+Novo módulo de produção: StudioRobloxDecalPlacement.java.
+
+O ID do decal não é digitado livremente para esta operação: o AI Hub
+só aceita o assetId numérico obtido de uma operação da própria
+Roblox Open Cloud após done=true, com resposta de tipo ASSET_TYPE_DECAL.
+O usuário pode então preparar separadamente uma aplicação a uma
+Part por MCP, sem publicar o mapa.
+
+A interface móvel acrescenta um campo para um destino exato
+Workspace.Parede ou Workspace.Casa.Parede, um nome de Decal simples,
+o seletor de Face (Front, Back, Top, Bottom, Left, Right)
+e dois botões distintos para inspecionar e aplicar.
+Não usa scripts ou texto Luau da IA nem URLs escolhidas pelo modelo.
+
+Fluxo técnico de segurança:
+
+1. O usuário pressiona Inspecionar Part e preparar aplicação.
+   Uma chamada real inspect_instance via MCP deve retornar uma única
+   instância Part, no caminho correto e com lista completa dos filhos.
+   A inspeção rejeita objeto homônimo e exige uniqueId não vazio.
+2. O aplicativo mostra uma prévia textual do caminho, nome, Face e
+   rbxassetid://ID, ainda sem escrever no editor.
+3. Ao tocar Revisar e aplicar, o app confere que os dados
+   continuam iguais aos previamente inspecionados e
+   pede aprovação explícita num diálogo independente.
+4. Após aprovação, o app lê inspect_instance novamente.
+   Se a Part foi substituída (uniqueId diferente), ou já
+   existe um objeto homônimo, recusa a operação.
+5. Um gerador Java fixo cria o comando Luau de Instance.new("Decal"),
+   define nome, imagem e face e o insere somente na Part aprovada.
+   O comando passa pelo MCP local execute_luau com DataModel Edit;
+   o retorno precisa ser exatamente CREATED_DECAL:Nome, sem
+   aceitar sucesso genérico ou retorno de colisão como prova.
+6. Outra consulta MCP, independente, só considera o resultado
+   verificado quando o novo objeto corresponde ao caminho, nome,
+   classe Decal, Face e URI da textura esperados. Caso a leitura
+   falhe, o relatório informa que a alteração ficou incerta,
+   orientando a verificar o Explorer/Output e evitando reenvio
+   automático do comando.
+
+Compatibilidade: a implementação inicial usa a propriedade legada
+Decal.Texture, para compatibilidade com o editor existente.
+O Roblox atualmente prioriza Decal.ColorMapContent, enquanto
+Texture está depreciada:
+https://create.roblox.com/docs/reference/engine/classes/Decal
+Uma migração futura depende de confirmar como o MCP e o
+engine local lêem a propriedade do tipo Content.
+
+Limitações: a API remota pode confirmar um ID que ainda
+não esteja disponível em todos os jogos, por permissão ou moderação.
+A criação pelo MCP não prova que a imagem foi renderizada no Play.
+Não há publicação do jogo, alteração de scripts, nem undo
+automático. A opção Desfazer do editor continua relevante.
+
+Teste novo scripts/test_ai_roblox_decal_placement_java.py compila
+a classe Java de produção, exerce Face, caminhos, Asset IDs e
+validação de nomes, confirma que só gera Luau de Decal
+com escopo fechado e que a UI exige inspeção, confirmação
+e leitura MCP pós-escrita. O workflow Java compila essa classe
+junto do AI Hub Android e executa o teste. Testes no aparelho
+físico com uma Part real e permissão MCP ainda pendem.
