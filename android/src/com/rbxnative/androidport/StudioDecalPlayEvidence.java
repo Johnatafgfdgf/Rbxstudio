@@ -77,7 +77,9 @@ public final class StudioDecalPlayEvidence {
                     normalized.contains("permission denied") ||
                     normalized.contains("asset is unavailable") ||
                     normalized.contains("content blocked") ||
-                    normalized.contains("moderation");
+                    (normalized.contains("moderation") &&
+                     (normalized.contains("denied") || normalized.contains("blocked") ||
+                      normalized.contains("rejected")));
             if (suspect) failures++;
             if (relevant.size() < MAX_MATCHING_LINES) {
                 String safe = line.replaceAll("[\\x00-\\x1f\\x7f]", " ").trim();
