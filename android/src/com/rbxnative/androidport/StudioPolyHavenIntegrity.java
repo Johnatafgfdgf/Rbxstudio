@@ -94,6 +94,36 @@ public final class StudioPolyHavenIntegrity {
         }
     }
 
+    /**
+     * Materialize at most one preapproved image into RAM for an explicitly
+     * confirmed Open Cloud upload. Never trusts a previous verification alone:
+     * every byte is read again and both published MD5 and size must match.
+     */
+    public static byte[] readVerifiedBytes(Candidate file, InputStream source)
+            throws IOException {
+        if (file == null || source == null)
+            throw new IOException("Candidato ou arquivo ausente.");
+        java.io.ByteArrayOutputStream out =
+                new java.io.ByteArrayOutputStream(Math.min(65536, file.expectedSize));
+        byte[] chunk = new byte[8192];
+        int n, noProgress = 0;
+        while ((n = source.read(chunk)) != -1) {
+            if (n == 0) {
+                if (++noProgress > 8) throw new IOException("Leitura interrompida.");
+                continue;
+            }
+            noProgress = 0;
+            if (n > file.expectedSize - out.size())
+                throw new IOException("Arquivo alterado ou maior que o tamanho oficial.");
+            out.write(chunk, 0, n);
+        }
+        byte[] bytes = out.toByteArray();
+        Verification actual = verify(file, new java.io.ByteArrayInputStream(bytes));
+        if (!actual.matches)
+            throw new IOException("Tamanho ou MD5 não corresponde à versão selecionada.");
+        return bytes;
+    }
+
     public static Verification verify(Candidate file, InputStream source)
             throws IOException {
         if (file == null || source == null)
