@@ -2611,9 +2611,8 @@ public final class StudioAiHub extends Activity {
         requests.execute(() -> {
             String report;
             try {
-                JSONObject infoEnvelope = new JSONObject(StudioPolyHavenCatalog.fetchInfo(slug));
-                JSONObject info = infoEnvelope.optJSONObject("data");
-                if (info == null)
+                JSONObject info = new JSONObject(StudioPolyHavenCatalog.fetchInfo(slug));
+                if (!info.has("name") || !info.has("type"))
                     throw new IOException("Metadados de identidade indisponíveis.");
                 String name = limitedExternalText(info.optString("name", slug), 100);
                 String category = limitedExternalText(info.optString("category", ""), 140);
@@ -2627,11 +2626,10 @@ public final class StudioAiHub extends Activity {
                     filesState = "O item ainda não foi publicado; arquivos não consultados.";
                 } else {
                     try {
-                        JSONObject filesEnvelope = new JSONObject(
+                        JSONObject files = new JSONObject(
                                 StudioPolyHavenCatalog.fetchFiles(slug));
-                        JSONObject files = filesEnvelope.optJSONObject("data");
-                        if (files == null)
-                            throw new IOException("Lista de arquivos ausente.");
+                        if (files.length() == 0)
+                            throw new IOException("Lista de arquivos vazia.");
                         collectPolyHavenFormats(files, formats, 0, new int[]{2000});
                         filesState = formats.isEmpty()
                                 ? "A API retornou dados, mas nenhum formato conhecido foi confirmado."
