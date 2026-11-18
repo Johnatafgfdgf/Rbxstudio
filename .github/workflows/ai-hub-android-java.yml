@@ -42,6 +42,8 @@ on:
       - android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java
       - android/src/com/rbxnative/androidport/StudioDecalVisualReview.java
       - android/src/com/rbxnative/androidport/StudioAiTheme.java
+      - android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java
+      - scripts/test_ai_decal_face_correction_java.py
       - scripts/test_ai_decal_visual_review_java.py
       - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
       - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
@@ -123,6 +125,8 @@ jobs:
         run: python3 scripts/test_ai_decal_play_evidence_java.py
       - name: Validate production Decal PixelCopy context and consented visual review
         run: python3 scripts/test_ai_decal_visual_review_java.py
+      - name: Run real Phase17 visual suggestion and bounded Face correction regressions
+        run: python3 scripts/test_ai_decal_face_correction_java.py
       - name: Validate real multimodal image payloads and opt-in review contract
         run: python3 scripts/test_ai_visual_review_java.py
       - name: Verify real Java before-and-after pixel metrics and consented comparison
@@ -145,6 +149,7 @@ jobs:
             android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java \
             android/src/com/rbxnative/androidport/StudioDecalVisualReview.java \
             android/src/com/rbxnative/androidport/StudioAiTheme.java \
+            android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java \
             android/src/com/rbxnative/androidport/StudioVisualReview.java \
             android/src/com/rbxnative/androidport/StudioVisualCompare.java \
             android/src/com/rbxnative/androidport/StudioPlayFrameRules.java \
