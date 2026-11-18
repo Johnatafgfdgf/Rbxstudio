@@ -46,10 +46,13 @@ public final class StudioDecalPlayEvidence {
     public static Result inspect(String mode, String output, String assetId,
             String decalPath) throws IOException {
         StudioRobloxDecalPlacement.validateAssetId(assetId);
+        int finalDot = decalPath == null ? -1 : decalPath.lastIndexOf('.');
+        if (finalDot < 1 || finalDot == decalPath.length() - 1)
+            throw new IOException("Caminho do decal inválido.");
         StudioRobloxDecalPlacement.validateTargetPath(
-                decalPath == null ? null :
-                        decalPath.substring(0, decalPath.lastIndexOf('.') > 0
-                                ? decalPath.lastIndexOf('.') : decalPath.length()));
+                decalPath.substring(0, finalDot));
+        StudioRobloxDecalPlacement.validateDecalName(
+                decalPath.substring(finalDot + 1));
         String prefix = "DECAL • EVIDÊNCIA LOCAL DO OUTPUT\n" +
                 "Objeto: " + decalPath + "\nAsset ID: " + assetId + "\n";
         if (!"PLAY_LOCAL_CONFIRMADO".equals(mode)) {
