@@ -15,8 +15,8 @@ assert "setInstanceFollowRedirects(false)" in catalog
 assert 'setRequestProperty("User-Agent", USER_AGENT)' in catalog
 assert "MAX_RESPONSE_BYTES = 256 * 1024" in catalog
 assert "MAX_DETAILS_BYTES = 512 * 1024" in catalog
-assert "https://api.polyhaven.com/v2/info/" in catalog
-assert "https://api.polyhaven.com/v2/files/" in catalog
+assert "https://api.polyhaven.com/info/" in catalog
+assert "https://api.polyhaven.com/files/" in catalog
 assert "return fetchJson(buildInfoUrl(slug), MAX_DETAILS_BYTES)" in catalog
 assert "return fetchJson(buildFilesUrl(slug), MAX_DETAILS_BYTES)" in catalog
 assert "getResponseCode()" in catalog
@@ -37,8 +37,8 @@ assert "Powered by Poly Haven" in hub
 assert "detailsButton.setOnClickListener(v -> inspectPolyHavenAsset(slug, type))" in hub
 assert "StudioPolyHavenCatalog.fetchInfo(slug)" in hub
 assert "StudioPolyHavenCatalog.fetchFiles(slug)" in hub
-assert 'infoEnvelope.optJSONObject("data")' in hub
-assert 'filesEnvelope.optJSONObject("data")' in hub
+assert 'JSONObject info = new JSONObject(StudioPolyHavenCatalog.fetchInfo(slug))' in hub
+assert 'JSONObject files = new JSONObject(' in hub
 assert 'collectPolyHavenFormats(files, formats, 0, new int[]{2000})' in hub
 assert "Nenhum asset baixado, importado, enviado à IA ou publicado." in hub
 assert "setBusy(true, \"Lendo formatos do catálogo, sem baixar arquivos...\")" in hub
@@ -81,9 +81,9 @@ public final class PolyHavenContract {
         failAsset(null);
         failAsset("item?redirect=true");
         yes(StudioPolyHavenCatalog.buildInfoUrl("concrete_floor_01")
-            .equals("https://api.polyhaven.com/v2/info/concrete_floor_01"));
+            .equals("https://api.polyhaven.com/info/concrete_floor_01"));
         yes(StudioPolyHavenCatalog.buildFilesUrl("concrete_floor_01")
-            .equals("https://api.polyhaven.com/v2/files/concrete_floor_01"));
+            .equals("https://api.polyhaven.com/files/concrete_floor_01"));
         yes("PNG".equals(StudioPolyHavenCatalog.knownFormat("png")));
         yes("JPG".equals(StudioPolyHavenCatalog.knownFormat("jpeg")));
         yes("GLTF".equals(StudioPolyHavenCatalog.knownFormat("gltf")));
