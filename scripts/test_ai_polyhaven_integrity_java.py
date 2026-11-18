@@ -23,7 +23,7 @@ for text in (
 ):
     assert text in hub, text
 
-assert "candidate.expectedSize" in source
+assert "file.expectedSize" in source
 
 for disallowed in ("HttpURLConnection", "java.net.URL", "openConnection(",
                    "getOutputStream", "writeFile(", "publish_animation",
