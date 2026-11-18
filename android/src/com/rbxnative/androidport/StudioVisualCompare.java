@@ -11,6 +11,45 @@ public final class StudioVisualCompare {
     private static final int CHANGE_THRESHOLD = 30;
     private StudioVisualCompare() {}
 
+    /**
+     * Honest 160x160 diagnostic color map, NOT a screenshot and NOT
+     * an aesthetic grade. Dark monochrome = no threshold change;
+     * yellow/orange/red = increasing RGB channel difference.
+     *
+     * Reuses exactly the threshold used by describe(). Pixel arrays
+     * must be opaque composited samples from comparePixelSample().
+     */
+    public static int[] differenceHeatmap(int[] before, int[] after,
+            int width, int height) {
+        if (before == null || after == null || width < 1 || height < 1 ||
+                (long) width * height > SAMPLE_SIZE * SAMPLE_SIZE ||
+                before.length != (long) width * height ||
+                after.length != (long) width * height)
+            throw new IllegalArgumentException("Amostra de diferença inválida.");
+        int[] result = new int[before.length];
+        for (int i = 0; i < result.length; i++) {
+            int p = before[i], q = after[i];
+            if ((p >>> 24) != 255 || (q >>> 24) != 255)
+                throw new IllegalArgumentException("Pixels precisam ser opacos.");
+            int deltaR = Math.abs(((p >>> 16) & 255) - ((q >>> 16) & 255));
+            int deltaG = Math.abs(((p >>> 8) & 255) - ((q >>> 8) & 255));
+            int deltaB = Math.abs((p & 255) - (q & 255));
+            int delta = Math.max(deltaR, Math.max(deltaG, deltaB));
+            if (delta >= 180) {
+                result[i] = 0xffff5549; // very large difference: coral red
+            } else if (delta >= 100) {
+                result[i] = 0xffffa33b; // large difference: orange
+            } else if (delta >= CHANGE_THRESHOLD) {
+                result[i] = 0xfff8d56a; // detectable difference: yellow
+            } else {
+                int r = (q >>> 16) & 255, g = (q >>> 8) & 255, b = q & 255;
+                int gray = Math.max(20, (77 * r + 150 * g + 29 * b) / 384);
+                result[i] = 0xff000000 | gray << 16 | gray << 8 | gray;
+            }
+        }
+        return result;
+    }
+
     public static String describe(int[] before, int[] after, int width, int height) {
         if (before == null || after == null || width < 1 || height < 1 ||
                 (long) width * height > SAMPLE_SIZE * SAMPLE_SIZE ||
