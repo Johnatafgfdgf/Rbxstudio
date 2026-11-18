@@ -7715,7 +7715,7 @@ index 0000000..0000000 100644
 +}
 +
 +/// Reads the real replicated client Workspace, not Lua print output.
-+fn touch_probe_part_transparency(session: &mut Session, index: usize) -> Option<f64> {
++fn touch_probe_part_transparency(session: &mut Session, index: usize) -> Option<f32> {
 +    let client = session.client_mut(index)?;
 +    let world = client.runtime().world();
 +    let workspace = world.dom.find_service("Workspace")?;
