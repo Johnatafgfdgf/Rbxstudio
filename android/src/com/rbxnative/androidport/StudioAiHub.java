@@ -2833,6 +2833,166 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+
+    private void refreshRobloxDecalButtons() {
+        if (uploadRobloxDecal != null) uploadRobloxDecal.setEnabled(
+                !busy && !applyingEdit && verifiedPolyHavenCandidate != null &&
+                verifiedPolyHavenUri != null && pendingRobloxDecalOperation == null);
+        if (checkRobloxDecal != null) checkRobloxDecal.setEnabled(
+                !busy && !applyingEdit && pendingRobloxDecalOperation != null);
+    }
+
+    /** An explicit SECOND authorization, distinct from local file verification. */
+    private void confirmRobloxDecalUpload() {
+        if (busy || applyingEdit || verifiedPolyHavenCandidate == null ||
+                verifiedPolyHavenUri == null || pendingRobloxDecalOperation != null)
+            return;
+        final String creator = robloxDecalCreator.getText().toString().trim();
+        final String name = robloxDecalName.getText().toString().trim();
+        final String key = robloxDecalApiKey.getText().toString();
+        try {
+            StudioRobloxImageUpload.requireCreator(creator);
+            StudioRobloxImageUpload.requireName(name);
+            StudioRobloxImageUpload.requireKey(key);
+        } catch (IOException invalid) {
+            robloxDecalResult.setText("Confira os dados: " +
+                    limitedExternalText(invalid.getMessage(), 160));
+            robloxDecalResult.setVisibility(View.VISIBLE);
+            return;
+        }
+        final StudioPolyHavenIntegrity.Candidate file = verifiedPolyHavenCandidate;
+        final android.net.Uri uri = verifiedPolyHavenUri;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Enviar UM decal para sua conta Roblox?")
+                .setMessage("Textura: " + file.slug + " / " + file.variant +
+                        "\nNome do decal: " + name + "\nID do criador: " + creator +
+                        "\n\nO arquivo será relido e revalidado antes de qualquer envio. " +
+                        "Somente o Roblox Open Cloud receberá a imagem e a chave, " +
+                        "que não será salva nem enviada à IA. O upload pode consumir " +
+                        "quota, exigir moderação ou ser cobrado conforme a plataforma. " +
+                        "Não cria objetos no mapa e nunca será repetido automaticamente. " +
+                        "Deseja solicitar a criação deste único decal?")
+                .setNegativeButton("Não enviar", null)
+                .setPositiveButton("Enviar 1 decal", (dialog, which) ->
+                        submitRobloxDecal(file, uri, creator, name, key))
+                .show();
+    }
+
+    /** Bound to an already verified document; read-back just before the POST. */
+    private void submitRobloxDecal(StudioPolyHavenIntegrity.Candidate file,
+            android.net.Uri uri, String creator, String name, String key) {
+        if (busy || applyingEdit || pendingRobloxDecalOperation != null ||
+                verifiedPolyHavenCandidate != file ||
+                verifiedPolyHavenUri == null || !verifiedPolyHavenUri.equals(uri))
+            return;
+        final long epoch = ++requestEpoch;
+        verifiedPolyHavenCandidate = null;
+        verifiedPolyHavenUri = null;
+        uploadingRobloxDecal = true;
+        setBusy(true, "Revalidando bytes e enviando decal ao Roblox...");
+        robloxDecalResult.setText("Conferindo o arquivo; nenhuma operação foi confirmada.");
+        robloxDecalResult.setVisibility(View.VISIBLE);
+        requests.execute(() -> {
+            String report;
+            String operationPath = null;
+            try (InputStream input = getContentResolver().openInputStream(uri)) {
+                byte[] bytes = StudioPolyHavenIntegrity.readVerifiedBytes(file, input);
+                android.graphics.BitmapFactory.Options options =
+                        new android.graphics.BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                android.graphics.BitmapFactory.decodeByteArray(
+                        bytes, 0, bytes.length, options);
+                if (options.outWidth < 1 || options.outHeight < 1 ||
+                        options.outWidth >= 8000 || options.outHeight >= 8000)
+                    throw new IOException("Imagem ilegível ou fora do limite Roblox.");
+                String raw = StudioRobloxImageUpload.uploadDecal(
+                        key, creator, name, file.format, bytes);
+                JSONObject accepted = new JSONObject(raw);
+                operationPath = accepted.optString("path", "");
+                StudioRobloxImageUpload.operationUrl(operationPath);
+                report = "O Roblox aceitou a solicitação: " + operationPath +
+                        "\nO Asset ID ainda NÃO foi confirmado. " +
+                        "Use o botão Consultar operação. A criação pode " +
+                        "depender da moderação da plataforma.";
+            } catch (Exception failure) {
+                // A read timeout might follow a successful remote POST. No retry.
+                report = "Upload NÃO CONFIRMADO. Se a conexão caiu, o Roblox " +
+                        "pode ter recebido a imagem. Confira o Creator Dashboard " +
+                        "antes de enviar novamente. Erro: " +
+                        limitedExternalText(failure.getMessage(), 140);
+            }
+            final String result = report, operation = operationPath;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                pendingRobloxDecalOperation = operation;
+                uploadingRobloxDecal = false;
+                setBusy(false, "Solicitação de upload concluída ou incerta.");
+                robloxDecalResult.setText(result);
+                robloxDecalResult.setVisibility(View.VISIBLE);
+                refreshRobloxDecalButtons();
+            });
+        });
+    }
+
+    /** A pending operation is NOT an asset. The ID must come from Roblox. */
+    private void checkRobloxDecalOperation() {
+        if (busy || applyingEdit || pendingRobloxDecalOperation == null) return;
+        final String path = pendingRobloxDecalOperation;
+        final String key = robloxDecalApiKey.getText().toString();
+        try {
+            StudioRobloxImageUpload.requireKey(key);
+            StudioRobloxImageUpload.operationUrl(path);
+        } catch (IOException failure) {
+            robloxDecalResult.setText("Informe uma chave Open Cloud válida para consultar.");
+            robloxDecalResult.setVisibility(View.VISIBLE);
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Consultando o status da operação no Roblox...");
+        requests.execute(() -> {
+            String message;
+            try {
+                JSONObject operation = new JSONObject(
+                        StudioRobloxImageUpload.getOperation(key, path));
+                if (!path.equals(operation.optString("path", "")))
+                    throw new IOException("Operação diferente da solicitada.");
+                if (!operation.optBoolean("done", false)) {
+                    message = "Roblox ainda processa " + path +
+                            ". Ainda não existe Asset ID confirmado.";
+                } else {
+                    JSONObject response = operation.optJSONObject("response");
+                    String id = response == null ? "" : response.optString("assetId", "");
+                    String type = response == null ? "" : response.optString("assetType", "");
+                    if (!id.matches("[1-9][0-9]{0,18}") ||
+                            !"ASSET_TYPE_DECAL".equals(type)) {
+                        message = "O Roblox encerrou a operação sem confirmar " +
+                                "um decal utilizável. Confira o Creator Dashboard.";
+                    } else {
+                        JSONObject mod = response.optJSONObject("moderationResult");
+                        String state = mod == null ? "NÃO INFORMADO" :
+                                limitedExternalText(
+                                        mod.optString("moderationState", "NÃO INFORMADO"), 80);
+                        message = "Asset ID confirmado pela Open Cloud: " + id +
+                                "\nReferência: rbxassetid://" + id +
+                                "\nModeração: " + state +
+                                "\nA publicação NÃO inseriu o decal no seu mapa. " +
+                                "Sua disponibilidade dependerá das permissões e moderação.";
+                    }
+                }
+            } catch (Exception error) {
+                message = "Não foi possível confirmar a operação " + path + ": " +
+                        limitedExternalText(error.getMessage(), 140);
+            }
+            final String result = message;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                setBusy(false, "Consulta Open Cloud concluída ou recusada.");
+                robloxDecalResult.setText(result);
+                robloxDecalResult.setVisibility(View.VISIBLE);
+            });
+        });
+    }
+
     /** One user-selected file only. Never auto-download or publish resources. */
     private void pickLocalAssetFile() {
         if (busy || applyingEdit) return;
