@@ -2659,13 +2659,13 @@ public final class StudioAiHub extends Activity {
                             "Nenhuma conversão ou publicação foi executada.";
                 }
                 report = "FICHA REAL DO ASSET — " + slug +
-                        "\\nNome: " + name +
-                        (category.isEmpty() ? "" : "\\nCategoria: " + category) +
-                        (description.isEmpty() ? "" : "\\nDescrição: " + description) +
-                        "\\nFonte: Poly Haven • CC0, conforme catálogo público." +
-                        "\\n" + filesState +
-                        "\\nPreparação para RBX Studio: " + prep +
-                        "\\nNenhum asset baixado, importado, enviado à IA ou publicado. " +
+                        "\nNome: " + name +
+                        (category.isEmpty() ? "" : "\nCategoria: " + category) +
+                        (description.isEmpty() ? "" : "\nDescrição: " + description) +
+                        "\nFonte: Poly Haven • CC0, conforme catálogo público." +
+                        "\n" + filesState +
+                        "\nPreparação para RBX Studio: " + prep +
+                        "\nNenhum asset baixado, importado, enviado à IA ou publicado. " +
                         "Verifique as condições antes de reutilizar arquivos.";
             } catch (Exception failure) {
                 report = "Não foi possível confirmar os metadados do asset: " +
