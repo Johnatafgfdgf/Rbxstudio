@@ -117,13 +117,23 @@ public final class StudioPlayFrameEvidence {
         JSONObject current = active(c, id);
         if (current == null || pixelCopyResult != PixelCopy.SUCCESS ||
                 frame == null || frame.isRecycled()) return;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        if (!frame.compress(Bitmap.CompressFormat.JPEG, 75, out))
-            throw new IOException("Could not encode copied window");
-        byte[] bytes = out.toByteArray();
-        if (!StudioPlayFrameRules.validImage(bytes,
-                frame.getWidth(), frame.getHeight()))
-            throw new IOException("Invalid or oversize Rook frame");
+        byte[] bytes = null;
+        // Dense scenes can exceed the app-private frame budget at 75%.
+        // Reduce quality before refusing instead of silently dropping a
+        // valid, user-authorized real capture.
+        for (int quality : new int[]{75, 60, 45, 30}) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            if (!frame.compress(Bitmap.CompressFormat.JPEG, quality, out))
+                continue;
+            byte[] attempt = out.toByteArray();
+            if (StudioPlayFrameRules.validImage(attempt,
+                    frame.getWidth(), frame.getHeight())) {
+                bytes = attempt;
+                break;
+            }
+        }
+        if (bytes == null)
+            throw new IOException("Frame exceeds the bounded JPEG budget");
         // Only the app's own :rook process receives this one-use active ID.
         if (active(c, id) == null) return;
         File image = file(c, IMAGE);
@@ -131,6 +141,13 @@ public final class StudioPlayFrameEvidence {
         Files.write(tmp.toPath(), bytes);
         Files.move(tmp.toPath(), image.toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
+        // This can race an explicit revocation from the separate UI process.
+        // Recheck before writing the success receipt, and delete any stale
+        // image if the authorization has been removed during compression.
+        if (active(c, id) == null) {
+            remove(image);
+            return;
+        }
         long captured = System.currentTimeMillis();
         write(file(c, REPORT), new JSONObject()
                 .put("status", "captured")
