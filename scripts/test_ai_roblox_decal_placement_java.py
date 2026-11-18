@@ -34,7 +34,7 @@ for required in (
     assert required in hub, required
 
 assert 'getSharedPreferences' not in actual
-assert 'execute_luau' not in actual
+assert 'executeApproved3dCode(' not in actual
 assert 'callMcp(' not in actual
 
 java = r"""package com.rbxnative.androidport;
