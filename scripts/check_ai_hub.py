@@ -636,7 +636,12 @@ for required in [
     '"CREATED:" + part.name',
 ]:
     assert required in java, required
-assert java.count('checkedEditReceipt(') == 9
+# A separately consented Decal edit also requires the same exact MCP receipt.
+assert java.count('checkedEditReceipt(') == 10
+assert 'p.receipt()' in java
+assert 'verifyPlacedRobloxDecal(paired, p)' in java
+assert 'p.textureUri().equals(props.optString("Texture", ""))' in java
+assert 'p.originalUniqueId.equals(latest.optString("uniqueId", ""))' in java
 for required in [
     'Testar conexão com editor (MCP local)',
     'private void diagnoseLocalEditor()',
