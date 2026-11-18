@@ -21,8 +21,8 @@ public final class StudioPolyHavenCatalog {
     public static final int MAX_DETAILS_BYTES = 512 * 1024;
     private static final String API = "https://api.polyhaven.com/search";
     private static final String ASSET_PAGE = "https://polyhaven.com/a/";
-    private static final String INFO_ENDPOINT = "https://api.polyhaven.com/v2/info/";
-    private static final String FILES_ENDPOINT = "https://api.polyhaven.com/v2/files/";
+    private static final String INFO_ENDPOINT = "https://api.polyhaven.com/info/";
+    private static final String FILES_ENDPOINT = "https://api.polyhaven.com/files/";
     // Poly Haven API ToS asks API clients to identify themselves and show credit.
     private static final String USER_AGENT = "RBXStudioAndroid-PolyHavenBrowser/0.6.11";
     private StudioPolyHavenCatalog() {}
