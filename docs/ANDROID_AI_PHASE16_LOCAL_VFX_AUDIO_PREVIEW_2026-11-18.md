@@ -63,3 +63,25 @@ streaming até o limite; apenas o hash/tamanho ficam na estrutura de resultado.
 As imagens ainda podem ser armazenadas temporariamente até 8 MiB para produzir
 miniatura, sem enviar bytes à rede. O workflow de exportação foi ajustado para
 incluir mudanças futuras neste inspetor e gerar um ZIP do commit exato.
+
+
+## Continuação incremental — detalhes técnicos reais de WAV
+
+A inspeção local agora usa até **64 KiB do cabeçalho**, enquanto calcula o
+SHA-256 de todo o áudio por streaming (máximo original de 16 MiB).
+Para arquivos RIFF/WAVE PCM ou IEEE float coerentes, lê de verdade os chunks
+`fmt ` e `data`, validando limites RIFF, canal, frequência, taxa de bytes,
+alinhamento e bits por amostra. Exibe canais, Hz, bits e **duração estimada**
+a partir do tamanho declarado de `data` e da taxa de bytes. Dados
+truncados, taxas inconsistentes e codecs desconhecidos **não** produzem
+uma duração inventada; o relatório informa a limitação.
+
+O caminho do seletor Android, a prévia de imagem, as permissões, a rede e o
+Play permanecem intactos. O arquivo de áudio não é decodificado, reproduzido,
+armazenado, publicado, nem transmitido para a IA.
+
+Regressão em `scripts/test_ai_asset_inspector.py`: WAV PCM mono de um
+segundo, leitura em blocos de um único byte, formato incompleto, RIFF
+truncado e taxa de bytes inconsistente. O workflow Java existente executa
+o teste e compila a classe de produção. Aprovação na CI **não substitui**
+a inspeção em dispositivo Android real.
