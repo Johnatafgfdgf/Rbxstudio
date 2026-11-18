@@ -14,6 +14,8 @@ on:
       - android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java
       - android/src/com/rbxnative/androidport/StudioRobloxDecalPlacement.java
       - android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java
+      - android/src/com/rbxnative/androidport/StudioDecalVisualReview.java
+      - scripts/test_ai_decal_visual_review_java.py
       - scripts/test_ai_decal_play_evidence_java.py
       - scripts/test_ai_roblox_decal_placement_java.py
       - scripts/test_ai_roblox_decal_upload_java.py
