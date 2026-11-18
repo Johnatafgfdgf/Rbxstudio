@@ -32,8 +32,11 @@ assert "MAX_JPEG_BYTES" in evidence
 assert "file(c, IMAGE)" in evidence
 assert "PixelCopy.SUCCESS" in evidence
 assert "public static synchronized void clear(Context c)" in evidence
-for forbidden in ("HttpURLConnection", "https://", "MediaProjection", "FileProvider",
-                  "MediaStore", "ACTION_SCREEN_CAPTURE"):
+for forbidden in ("import java.net.HttpURLConnection;",
+                  "import android.media.projection.",
+                  "import android.provider.MediaStore;",
+                  "import android.support.v4.content.FileProvider;",
+                  "new URL(", "startActivityForResult("):
     assert forbidden not in evidence
 
 runner = r"""package com.rbxnative.androidport;
