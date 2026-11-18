@@ -2399,6 +2399,10 @@ public final class StudioAiHub extends Activity {
      */
     private void importRealPlayFrame() {
         if (busy || applyingEdit) return;
+        final StudioRobloxDecalPlacement.Proposal decalAtImport =
+                lastVerifiedPlacedDecal;
+        final long decalVerifiedAt = lastVerifiedPlacedDecalAt;
+        final String pairingAtImport = mcpPairing;
         final long epoch = ++requestEpoch;
         setBusy(true, "Lendo captura autorizada do Play Rook local...");
         playFrameResult.setText("Verificando a captura e o registro do Rook...");
@@ -2406,6 +2410,7 @@ public final class StudioAiHub extends Activity {
         requests.execute(() -> {
             android.graphics.Bitmap image = null;
             String report;
+            long screenshotTime = 0;
             try {
                 StudioPlayFrameEvidence.Evidence captured =
                         StudioPlayFrameEvidence.takeOnce(this);
@@ -2422,6 +2427,7 @@ public final class StudioAiHub extends Activity {
                     throw new IOException(
                             "A imagem não corresponde ao registro confirmado.");
                 }
+                screenshotTime = captured.capturedAtMillis;
                 // A real copied frame can still be blank or show a loading
                 // layer. Report observable pixel signals, not gameplay success.
                 int width = image.getWidth();
@@ -2441,6 +2447,7 @@ public final class StudioAiHub extends Activity {
             }
             final android.graphics.Bitmap frame = image;
             final String summary = report;
+            final long trustedCaptureAt = screenshotTime;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || isFinishing()) {
                     if (frame != null) frame.recycle();
@@ -2463,11 +2470,25 @@ public final class StudioAiHub extends Activity {
                     }
                     assetPreviewImage.setImageBitmap(frame);
                     assetPreviewImage.setVisibility(View.VISIBLE);
+                    boolean linked = decalAtImport != null &&
+                            decalAtImport == lastVerifiedPlacedDecal &&
+                            decalVerifiedAt == lastVerifiedPlacedDecalAt &&
+                            pairingAtImport.equals(mcpPairing) &&
+                            decalAtImport.assetId.equals(confirmedRobloxDecalId) &&
+                            StudioDecalVisualReview.eligible(decalAtImport,
+                                    decalVerifiedAt, trustedCaptureAt);
+                    previewedPlayFrameDecal = linked ? decalAtImport : null;
+                    previewedPlayFrameAt = linked ? trustedCaptureAt : 0;
                     assetPreviewReport.setText(
                             "Origem: PixelCopy da janela Rook NativeActivity " +
                             "após o sinal ready. A imagem privada foi consumida. " +
                             "Pode marcar como ANTES ou DEPOIS e analisar " +
-                            "visualmente somente após sua autorização.");
+                            "visualmente somente após sua autorização." +
+                            (linked ? "\nCaptura feita após a confirmação MCP do Decal " +
+                                    decalAtImport.decalPath() +
+                                    ". A câmera PODE não mostrar esse objeto." :
+                                    "\nEsta captura NÃO foi vinculada a um Decal " +
+                                    "confirmado após a edição; use a revisão geral."));
                     assetPreviewReport.setVisibility(View.VISIBLE);
                     imageSelectionCount++;
                 }
@@ -3052,6 +3073,8 @@ public final class StudioAiHub extends Activity {
         final long epoch = ++requestEpoch;
         assetPreviewReport.setVisibility(View.VISIBLE);
         assetPreviewReport.setText("Inspecionando o arquivo local, sem enviá-lo à IA...");
+        previewedPlayFrameDecal = null;
+        previewedPlayFrameAt = 0;
         clearVisualHeatmap();
         assetPreviewImage.setImageDrawable(null);
         assetPreviewImage.setVisibility(View.GONE);
