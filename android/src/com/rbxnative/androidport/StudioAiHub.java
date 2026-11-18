@@ -642,7 +642,9 @@ public final class StudioAiHub extends Activity {
     private Button inspectDecalTarget, applyDecalToPart;
     private TextView decalPlacementResult, decalPlayReport, decalVisualReviewResult;
     private CheckBox allowDecalPlayEvidence;
-    private Button reviewVerifiedDecalFrame;
+    private Button reviewVerifiedDecalFrame, approveDecalFaceFix;
+    private StudioDecalFaceCorrection.Suggestion proposedDecalFaceFix;
+    private StudioRobloxDecalPlacement.Proposal proposedDecalFaceOriginal;
     private StudioRobloxDecalPlacement.Proposal previewedPlayFrameDecal;
     private long previewedPlayFrameAt, lastVerifiedPlacedDecalAt;
     private Button inspectDecalPlay;
@@ -3086,6 +3088,8 @@ public final class StudioAiHub extends Activity {
         assetPreviewReport.setText("Inspecionando o arquivo local, sem enviá-lo à IA...");
         previewedPlayFrameDecal = null;
         previewedPlayFrameAt = 0;
+        proposedDecalFaceFix = null;
+        proposedDecalFaceOriginal = null;
         clearVisualHeatmap();
         assetPreviewImage.setImageDrawable(null);
         assetPreviewImage.setVisibility(View.GONE);
@@ -3957,7 +3961,18 @@ public final class StudioAiHub extends Activity {
         decalVisualReviewResult.setPadding(dp(11), dp(10), dp(11), dp(10));
         decalVisualReviewResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         decalVisualReviewResult.setVisibility(View.GONE);
-        add(root, decalVisualReviewResult, 9);
+        add(root, decalVisualReviewResult, 4);
+        add(root, text("Fase 17 • proposta de correção da face", 13, true), 3);
+        add(root, text(
+                "Se a IA apontar uma face errada com uma justificativa visível, " +
+                "prepare uma alteração limitada ao Decal existente. O app fará " +
+                "novas inspeções MCP e exigirá sua autorização. Nenhum texto " +
+                "ou script da IA será executado diretamente.",
+                12, false), 4);
+        approveDecalFaceFix = button("Inspecionar e revisar correção sugerida");
+        approveDecalFaceFix.setOnClickListener(v -> prepareApprovedDecalFaceCorrection());
+        approveDecalFaceFix.setEnabled(false);
+        add(root, approveDecalFaceFix, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
@@ -8435,6 +8450,12 @@ public final class StudioAiHub extends Activity {
                     allowDecalPlayEvidence.isChecked() &&
                     !mcpPairing.isEmpty() && lastVerifiedPlacedDecal != null &&
                     lastVerifiedPlacedDecal.assetId.equals(confirmedRobloxDecalId));
+        if (approveDecalFaceFix != null)
+            approveDecalFaceFix.setEnabled(!busy && !applyingEdit &&
+                    !mcpPairing.isEmpty() && proposedDecalFaceFix != null &&
+                    proposedDecalFaceOriginal != null &&
+                    proposedDecalFaceOriginal == lastVerifiedPlacedDecal &&
+                    proposedDecalFaceOriginal.assetId.equals(confirmedRobloxDecalId));
         if (reviewVerifiedDecalFrame != null)
             reviewVerifiedDecalFrame.setEnabled(!busy && !applyingEdit &&
                     previewedPlayFrameDecal != null &&
@@ -8766,12 +8787,15 @@ public final class StudioAiHub extends Activity {
             screenshot.recycle();
             return;
         }
+        proposedDecalFaceFix = null;
+        proposedDecalFaceOriginal = null;
         final long epoch = ++requestEpoch;
         setBusy(true, "Enviando miniatura consentida para revisão visual do Decal...");
         decalVisualReviewResult.setText("Preparando somente a miniatura autorizada...");
         decalVisualReviewResult.setVisibility(View.VISIBLE);
         requests.execute(() -> {
             String report;
+            StudioDecalFaceCorrection.Suggestion suggestion = null;
             try {
                 if (epoch != requestEpoch) throw new IOException("Revisão cancelada.");
                 byte[] jpeg = jpegForReview(screenshot);
@@ -8790,13 +8814,27 @@ public final class StudioAiHub extends Activity {
                 if (answer.length() > 12000)
                     answer = answer.substring(0, 12000) +
                             "\n[Resposta truncada para leitura no Android]";
+                String proposalNote = "\n\nNenhuma sugestão executável foi autorizada.";
+                try {
+                    suggestion = StudioDecalFaceCorrection.fromVisualReply(
+                            answer, decal.face);
+                    if (suggestion != null) {
+                        proposalNote = "\n\nPROPOSTA LIMITADA: face " + decal.face +
+                                " → " + suggestion.face + "\nMotivo: " +
+                                suggestion.reason + "\nSomente após revisão e nova " +
+                                "autorização o editor poderá aplicar a mudança.";
+                    }
+                } catch (IOException rejected) {
+                    proposalNote = "\n\nSugestão de Face descartada por " +
+                            "ambiguidades ou formato inválido. Nenhuma edição.";
+                }
                 report = "REVISÃO VISUAL DO DECAL • " + decal.decalPath() +
                         " • " + NAMES[chosenProvider] + " • " + model +
                         "\n\n" + answer +
                         "\n\nA captura foi feita após a confirmação da edição, " +
                         "mas pode não mostrar a Part. IA não comprova " +
                         "carregamento, scripts, moderação, FPS, animação ou som. " +
-                        "Nenhum ajuste foi aplicado ao mapa.";
+                        "Nenhum ajuste foi aplicado ao mapa." + proposalNote;
             } catch (Exception error) {
                 report = "Revisão visual não confirmada: " +
                         (error instanceof ApiHttpException ? error.getMessage() :
@@ -8807,8 +8845,14 @@ public final class StudioAiHub extends Activity {
                 screenshot.recycle();
             }
             final String visible = report;
+            final StudioDecalFaceCorrection.Suggestion proposed = suggestion;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || isFinishing()) return;
+                if (decal == lastVerifiedPlacedDecal &&
+                        decal.assetId.equals(confirmedRobloxDecalId)) {
+                    proposedDecalFaceFix = proposed;
+                    proposedDecalFaceOriginal = proposed == null ? null : decal;
+                }
                 decalVisualReviewResult.setText(visible);
                 decalVisualReviewResult.setVisibility(View.VISIBLE);
                 setBusy(false, "Revisão visual encerrada, sem alterações.");
