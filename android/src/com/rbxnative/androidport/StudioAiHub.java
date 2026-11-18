@@ -623,6 +623,11 @@ public final class StudioAiHub extends Activity {
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private TextView assetPreviewReport;
+    private EditText polyHavenQuery;
+    private Spinner polyHavenType;
+    private Button searchPolyHaven;
+    private LinearLayout polyHavenResults;
+    private TextView polyHavenStatus;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
     private Button armPlayFrame, importPlayFrame, clearPlayFrame;
@@ -2465,6 +2470,90 @@ public final class StudioAiHub extends Activity {
                 }).show();
     }
 
+
+    /**
+     * User-initiated API search. Sends only typed search text/category, NOT
+     * credentials, chat history, Explorer paths, scripts or any local files.
+     * Results are untrusted metadata, never LLM instructions or asset IDs.
+     */
+    private void searchPolyHavenAssets() {
+        if (busy || applyingEdit || polyHavenQuery == null || polyHavenType == null)
+            return;
+        final String query = polyHavenQuery.getText().toString();
+        final String[] types = {"textures", "models", "hdris"};
+        int selected = polyHavenType.getSelectedItemPosition();
+        if (selected < 0 || selected >= types.length) return;
+        final String type = types[selected];
+        try {
+            StudioPolyHavenCatalog.buildSearchUrl(query, type);
+        } catch (IOException invalid) {
+            polyHavenStatus.setText(invalid.getMessage());
+            polyHavenStatus.setVisibility(View.VISIBLE);
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        polyHavenResults.removeAllViews();
+        polyHavenStatus.setText("Consultando a API oficial da Poly Haven...");
+        polyHavenStatus.setVisibility(View.VISIBLE);
+        setBusy(true, "Buscando recursos reais na Poly Haven...");
+        requests.execute(() -> {
+            final ArrayList<String> slugs = new ArrayList<>();
+            String summary;
+            try {
+                JSONObject response = new JSONObject(StudioPolyHavenCatalog.search(query, type));
+                JSONArray results = response.optJSONArray("results");
+                if (results == null)
+                    throw new IOException("A API retornou um formato inesperado.");
+                for (int i = 0; i < results.length() &&
+                        slugs.size() < StudioPolyHavenCatalog.MAX_RESULTS; i++) {
+                    JSONObject result = results.optJSONObject(i);
+                    if (result == null) continue;
+                    String slug = result.optString("slug", "");
+                    // Slugs alone are used. We do not trust external links or code.
+                    if (StudioPolyHavenCatalog.validSlug(slug) &&
+                            !slugs.contains(slug)) slugs.add(slug);
+                }
+                summary = slugs.isEmpty()
+                        ? "Nenhum recurso confirmado para essa pesquisa."
+                        : "Resultados reais retornados pela Poly Haven: " +
+                        slugs.size() + ". Toque em um item para abrir a página oficial.";
+            } catch (Exception failure) {
+                summary = "Falha na busca externa: " +
+                        (failure.getMessage() == null ? "erro de rede" :
+                        failure.getMessage()) +
+                        ". Nenhum resultado foi inventado.";
+                slugs.clear();
+            }
+            final String report = summary;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                polyHavenStatus.setText(report);
+                polyHavenStatus.setVisibility(View.VISIBLE);
+                polyHavenResults.removeAllViews();
+                for (String slug : slugs) {
+                    String label = slug.replace('_', ' ').replace('-', ' ');
+                    Button resultButton = button("Abrir fonte: " + label);
+                    resultButton.setContentDescription(
+                            "Abrir a página original do recurso " + label +
+                            " na Poly Haven, fora do editor");
+                    resultButton.setOnClickListener(v -> {
+                        try {
+                            String page = StudioPolyHavenCatalog.assetPage(slug);
+                            Intent browser = new Intent(Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(page));
+                            startActivity(browser);
+                        } catch (Exception unavailable) {
+                            polyHavenStatus.setText(
+                                    "Não foi possível abrir a página original do recurso.");
+                        }
+                    });
+                    add(polyHavenResults, resultButton, 4);
+                }
+                setBusy(false, "Busca externa concluída; nenhum asset foi importado.");
+            });
+        });
+    }
+
     /** One user-selected file only. Never auto-download or publish resources. */
     private void pickLocalAssetFile() {
         if (busy || applyingEdit) return;
@@ -3165,12 +3254,39 @@ public final class StudioAiHub extends Activity {
         toolboxScanResult.setBackground(shape(Color.rgb(26, 42, 65), 13));
         toolboxScanResult.setVisibility(View.GONE);
         add(root, toolboxScanResult, 9);
+        add(root, text("Busca externa de assets • Powered by Poly Haven", 14, true), 5);
+        add(root, text(
+                "Pesquisa REAL por descrição na API pública da Poly Haven (CC0). " +
+                "Somente o texto digitado e o tipo escolhido são enviados à Poly Haven. " +
+                "Não envia chaves, scripts, dados do jogo ou arquivos. " +
+                "Abra a página original, confira o formato e a licença, e selecione " +
+                "arquivos manualmente na prévia abaixo. Não há importação ou publicação " +
+                "automática. Modelos 3D/HDRI externos NÃO são importados nesta etapa.",
+                12, false), 5);
+        polyHavenQuery = field("Ex.: vento, piso de madeira, floresta", false);
+        polyHavenQuery.setSingleLine(true);
+        polyHavenQuery.setMaxLines(1);
+        add(root, polyHavenQuery, 5);
+        polyHavenType = new Spinner(this);
+        polyHavenType.setAdapter(new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Texturas", "Modelos 3D", "Ambientes HDRI"}));
+        add(root, polyHavenType, 5);
+        searchPolyHaven = button("Buscar agora na Poly Haven");
+        searchPolyHaven.setOnClickListener(v -> searchPolyHavenAssets());
+        add(root, searchPolyHaven, 4);
+        polyHavenStatus = text("", 12, false);
+        polyHavenStatus.setVisibility(View.GONE);
+        add(root, polyHavenStatus, 4);
+        polyHavenResults = column();
+        add(root, polyHavenResults, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
                 "reais e receber indicadores técnicos. Também aceita WAV, OGG, MP3 e FLAC " +
                 "para verificar tipo e tamanho, sem reproduzir o áudio. " +
-                "A prévia é LOCAL; não busca repositórios, não avalia a cena por IA " +
+                "A prévia é LOCAL; a busca externa acima é independente, " +
+                "não avalia automaticamente a cena por IA " +
                 "nem publica decals/sons. Origem, licença e autorização " +
                 "devem ser verificadas antes de qualquer publicação.", 12, false);
         add(root, previewHelp, 5);
@@ -3736,6 +3852,7 @@ public final class StudioAiHub extends Activity {
         refresh.setEnabled(!waiting);
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (inspectAssetFile != null) inspectAssetFile.setEnabled(!waiting);
+        if (searchPolyHaven != null) searchPolyHaven.setEnabled(!waiting);
         if (armPlayFrame != null) armPlayFrame.setEnabled(!waiting);
         if (importPlayFrame != null) importPlayFrame.setEnabled(!waiting);
         if (clearPlayFrame != null) clearPlayFrame.setEnabled(!waiting);
