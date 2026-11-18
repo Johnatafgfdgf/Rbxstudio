@@ -15,8 +15,8 @@ for required in (
     'https://apis.roblox.com/assets/v1/assets',
     'x-api-key',
     'multipart/form-data; boundary=',
-    'name=\"request\"',
-    'name=\"fileContent\"',
+    r'name=\"request\"',
+    r'name=\"fileContent\"',
     'setInstanceFollowRedirects(false)',
     'setFixedLengthStreamingMode(',
     'MAX_RESPONSE_BYTES = 64 * 1024',
@@ -34,10 +34,10 @@ for required in (
     'StudioPolyHavenIntegrity.readVerifiedBytes(file, input)',
     'StudioRobloxImageUpload.uploadDecal(',
     'StudioRobloxImageUpload.getOperation(key, path)',
-    'option', 'inJustDecodeBounds = true',
+    'inJustDecodeBounds = true',
     'verifiedPolyHavenCandidate = verified ? candidate : null',
     'pendingRobloxDecalOperation = operation',
-    'Nenhuma operação foi confirmada.' if False else 'a operação',
+    'nenhuma operação foi confirmada.',
 ):
     # Check the real source flow, not an illustrative mock.
     assert required.lower() in hub.lower(), required
