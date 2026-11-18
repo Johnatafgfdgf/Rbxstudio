@@ -625,7 +625,10 @@ public final class StudioAiHub extends Activity {
     private TextView assetPreviewReport;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
-    private TextView assetVisualReviewResult;
+    private TextView assetVisualReviewResult, visualComparisonResult;
+    private Button rememberVisualBefore, compareVisualLocal, reviewVisualPairWithAi;
+    private android.graphics.Bitmap visualBefore;
+    private long imageSelectionCount, beforeSelectionCount;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
     private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe, allowRookGuiProbe;
     private TextView playProbeResult, playSmokeResult, rookTouchResult;
@@ -2355,6 +2358,10 @@ public final class StudioAiHub extends Activity {
             assetVisualReviewResult.setText("");
             assetVisualReviewResult.setVisibility(View.GONE);
         }
+        if (visualComparisonResult != null) {
+            visualComparisonResult.setText("");
+            visualComparisonResult.setVisibility(View.GONE);
+        }
         setBusy(true, "Lendo imagem/VFX ou som selecionado...");
         requests.execute(() -> {
             String message;
@@ -2407,10 +2414,10 @@ public final class StudioAiHub extends Activity {
                 if (image != null) {
                     assetPreviewImage.setImageBitmap(image);
                     assetPreviewImage.setVisibility(View.VISIBLE);
+                    imageSelectionCount++;
                 }
                 setBusy(false, "Prévia local concluída; nenhum asset publicado.");
-                if (reviewAssetWithAi != null)
-                    reviewAssetWithAi.setEnabled(image != null);
+                updateVisualCompareButtons();
             });
         });
     }
@@ -2534,6 +2541,11 @@ public final class StudioAiHub extends Activity {
     /** Encode a single downsampled JPEG and enforce the existing 128-KiB API cap. */
     private static byte[] jpegForReview(android.graphics.Bitmap src)
             throws IOException {
+        return jpegForReview(src, StudioVisualReview.MAX_JPEG_BYTES);
+    }
+
+    private static byte[] jpegForReview(android.graphics.Bitmap src, int byteLimit)
+            throws IOException {
         if (src == null || src.isRecycled() || src.getWidth() < 1 ||
                 src.getHeight() < 1 || src.getWidth() > 8192 ||
                 src.getHeight() > 8192) throw new IOException("Imagem inválida.");
@@ -2554,7 +2566,7 @@ public final class StudioAiHub extends Activity {
                 if (!flat.compress(android.graphics.Bitmap.CompressFormat.JPEG,
                         quality, out)) continue;
                 byte[] bytes = out.toByteArray();
-                if (bytes.length <= StudioVisualReview.MAX_JPEG_BYTES)
+                if (bytes.length <= byteLimit)
                     return bytes;
             }
             throw new IOException("Não foi possível limitar a miniatura a 64 KiB.");
@@ -2818,7 +2830,32 @@ public final class StudioAiHub extends Activity {
         assetVisualReviewResult.setPadding(dp(11), dp(10), dp(11), dp(10));
         assetVisualReviewResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         assetVisualReviewResult.setVisibility(View.GONE);
-        add(root, assetVisualReviewResult, 10);
+        add(root, assetVisualReviewResult, 6);
+        add(root, text("Comparar imagens • ANTES / DEPOIS", 14, true), 4);
+        TextView compareHelp = text(
+                "1. Selecione a imagem ANTES; 2. guarde-a; 3. selecione a " +
+                "imagem DEPOIS no botão de arquivo acima; 4. compare pixels " +
+                "localmente ou autorize a IA a receber as DUAS miniaturas. " +
+                "Prefira a mesma câmera, proporção e momento da animação. " +
+                "A comparação de pixels é técnica, não uma nota de beleza.", 12, false);
+        add(root, compareHelp, 5);
+        rememberVisualBefore = button("Guardar imagem atual como ANTES");
+        rememberVisualBefore.setEnabled(false);
+        rememberVisualBefore.setOnClickListener(v -> rememberVisualBefore());
+        add(root, rememberVisualBefore, 4);
+        compareVisualLocal = button("Comparar ANTES e DEPOIS • sem enviar");
+        compareVisualLocal.setEnabled(false);
+        compareVisualLocal.setOnClickListener(v -> compareVisualLocal());
+        add(root, compareVisualLocal, 4);
+        reviewVisualPairWithAi = button("Comparar com IA • confirmar 2 imagens");
+        reviewVisualPairWithAi.setEnabled(false);
+        reviewVisualPairWithAi.setOnClickListener(v -> confirmVisualComparison());
+        add(root, reviewVisualPairWithAi, 4);
+        visualComparisonResult = text("", 12, false);
+        visualComparisonResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        visualComparisonResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        visualComparisonResult.setVisibility(View.GONE);
+        add(root, visualComparisonResult, 10);
         add(root, text("Auditoria de modelo JÁ INSERIDO (MCP local)", 14, true), 4);
         TextView auditHelp = text("Digite o caminho exato do Model no Explorer. " +
                 "O app percorre árvores reais do Workspace e lê trechos de Luau " +
@@ -3300,6 +3337,7 @@ public final class StudioAiHub extends Activity {
                             android.graphics.drawable.BitmapDrawable;
             reviewAssetWithAi.setEnabled(!waiting && hasImage);
         }
+        updateVisualCompareButtons();
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
@@ -7196,6 +7234,10 @@ public final class StudioAiHub extends Activity {
         requestEpoch++;
         abortInFlight();
         requests.shutdownNow();
+        if (visualBefore != null && !visualBefore.isRecycled()) {
+            visualBefore.recycle();
+            visualBefore = null;
+        }
         super.onDestroy();
     }
 }
