@@ -637,9 +637,13 @@ for required in [
 ]:
     assert required in java, required
 # A separately consented Decal edit also requires the same exact MCP receipt.
-assert java.count('checkedEditReceipt(') == 10
+assert java.count('checkedEditReceipt(') == 11  # Phase17 user-approved Decal face change
 assert 'p.receipt()' in java
 assert 'verifyPlacedRobloxDecal(paired, p)' in java
+assert 'StudioDecalFaceCorrection.fixedLuau(prepared)' in java
+assert 'checkedDecalFaceState(old, before, old.face, prepared.decalUniqueId)' in java
+assert 'checkedDecalFaceState(old, after, prepared.newFace,' in java
+assert 'setPositiveButton("Aprovar mudança da Face"' in java
 assert 'p.textureUri().equals(props.optString("Texture", ""))' in java
 assert 'p.originalUniqueId.equals(latest.optString("uniqueId", ""))' in java
 for required in [
@@ -678,7 +682,7 @@ for required in [
     'a operação pode já ter sido aplicada.',
 ]:
     assert required in java, required
-assert java.count('readBackNotice(') == 11  # includes approved Decal read-back
+assert java.count('readBackNotice(') == 12  # includes approved Decal Face correction read-back
 assert java.index('runApprovedPartCommand(paired, part, null)') < java.index(
     'verifiedEditorObject(paired, objectPath, "Part")')
 assert java.index('String outcome = callMcp(paired, "multi_edit", args);') < java.index(
@@ -713,7 +717,7 @@ for required in [
     'recordEditorOutcome(edit.create ? "CREATE_SCRIPT" : "UPDATE_SCRIPT",',
 ]:
     assert required in java, required
-assert java.count('recordEditorOutcome(') == 11  # includes Decal write record
+assert java.count('recordEditorOutcome(') == 12  # includes correction write audit
 assert java.count('saveProjectMemory(') == 2  # helper + metadata-only recorder
 assert java.index('if (!verified || rememberVerified == null || !rememberVerified.isChecked()) return;') < java.index('saveProjectMemory(events);')
 assert 'MAX_PROJECT_MEMORY = 16' in java
