@@ -130,8 +130,14 @@ Depois da busca por descrição na Poly Haven, cada item encontrado oferece
 **Ver dados e formatos**. O usuário precisa tocar nesse botão. O aplicativo
 consulta diretamente os endpoints oficiais, com slug validado:
 
-- `GET /v2/info/{slug}` — nome, descrição, categoria e publicação;
-- `GET /v2/files/{slug}` — formatos informados para um asset publicado.
+- `GET /info/{slug}` — nome, descrição, categoria e publicação;
+- `GET /files/{slug}` — formatos informados para um asset publicado.
+
+**Correção de integração:** os caminhos `/v2/...` e o campo de resposta
+`data` empregados na primeira versão eram incompatíveis com o contrato
+oficial. A implementação foi corrigida para esses dois endpoints
+e objetos JSON diretos (sem envelope `data`). Referência:
+https://github.com/Poly-Haven/Public-API/blob/master/swagger.yml.
 
 Os dois pedidos são HTTPS GET para `api.polyhaven.com`, com cabeçalhos
 fixos, sem seguir redirecionamentos, timeout e máximo de 512 KiB cada.
@@ -166,3 +172,43 @@ internet real; escolha de arquivos individuais com hash/limite e
 licenças; conversor de formato realmente compatível; importação em
 cenário de teste, leitura de volta via MCP, revisão visual e, separadamente,
 publicação mediante confirmação e ID real retornado.
+
+
+## Continuação — comparação de bytes de arquivos selecionados pelo usuário
+
+Para texturas encontradas na Poly Haven, depois de clicar em
+**Ver dados e formatos**, a Activity lê a árvore real de `/files/{slug}`
+sem seguir URLs. São extraídos apenas candidatos PNG/JPG de até
+**8 MiB**, com URL de origem permitida, identificador válido, tamanho
+positivo e hash MD5 publicado na ficha. O painel apresenta até seis
+variantes, ordenadas por menor tamanho para reduzir impacto no celular.
+
+Ao tocar em **Conferir localmente**, um diálogo explica o que será lido e
+o usuário seleciona, usando o seletor de documentos oficial do Android,
+um arquivo já salvo no aparelho. O código de produção
+`StudioPolyHavenIntegrity.java` lê esse arquivo em streaming, sem
+manter sua cópia. Ele confirma a assinatura inicial PNG/JPG,
+o tamanho exato, compara o MD5 com o valor publicado no catálogo e
+calcula o SHA-256 do arquivo local para identificação.
+Falhas de tamanho, formato, hash ou arquivo ausente não são tratadas
+como verificações bem-sucedidas.
+
+**Limitação de confiança:** MD5 não é resistente a colisões, portanto
+a correspondência é uma verificação de integridade simples contra
+o catálogo recebido, e não prova criptográfica forte da autoria ou
+ausência de conteúdo malicioso. Também não significa que a textura
+seja bonita, decodificável no Roblox ou funcional no jogo. A
+inspeção **não importa assets, não cria IDs, não publica, não envia
+arquivos à IA e não altera o mapa**. Não há download automático.
+
+O teste `scripts/test_ai_polyhaven_integrity_java.py` exercita
+diretamente os métodos Java de produção com arquivos em memória,
+leituras em segmentos de um byte, arquivos alterados, truncados,
+excedentes, assinaturas incorretas e origens suspeitas.
+O workflow de testes compila a nova classe com o AI Hub
+no Android SDK 35. A verificação em Android físico com arquivos reais
+ainda é pendente; nenhum resultado será anunciado sem evidências.
+
+Próxima integração: autorização de importação de arquivo cuja
+compatibilidade esteja comprovada, inserção real no projeto e
+read-back do editor, com rollback local e publicação separada.
