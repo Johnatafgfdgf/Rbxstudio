@@ -85,3 +85,39 @@ segundo, leitura em blocos de um único byte, formato incompleto, RIFF
 truncado e taxa de bytes inconsistente. O workflow Java existente executa
 o teste e compila a classe de produção. Aprovação na CI **não substitui**
 a inspeção em dispositivo Android real.
+
+## Continuação — catálogo pesquisável de recursos externos (Poly Haven)
+
+O AI Hub oferece agora busca **real**, iniciada por toque, na API pública
+da [Poly Haven](https://polyhaven.com/our-api). O usuário digita a descrição
+e escolhe entre texturas, modelos 3D ou ambientes HDRI. A classe
+`StudioPolyHavenCatalog.java` chama o endpoint oficial
+`https://api.polyhaven.com/search` com a consulta codificada na URL, limite
+de oito resultados, timeout de 7/9 segundos, máximo de 256 KiB de resposta,
+sem redirects e com User-Agent identificável. Em caso de erro, não inventa
+resultados. O aplicativo só recebe slugs da API e só permite abrir páginas
+`https://polyhaven.com/a/<slug>` após toque; links externos recebidos da
+rede não são executados. O usuário pode inspecionar formatos e licença na
+página original e selecionar manualmente uma imagem/áudio na prévia existente.
+
+Atribuição `Powered by Poly Haven` aparece no app, conforme os termos da
+API. Os assets do catálogo Poly Haven são anunciados como CC0 pelo
+fornecedor, mas o app **não** certifica a licença de arquivos de terceiros
+escolhidos manualmente. Somente o texto digitado e o tipo selecionado são
+enviados à API: nenhuma chave de IA, script, arquivo local, nome de projeto,
+ou conteúdo do Explorer/MCP é transmitido. O sistema não baixa, insere,
+executa ou publica assets nem declara modelos HDRI compatíveis com Roblox.
+
+A automação não faz buscas invisíveis de fundo; o usuário precisa tocar
+**Buscar agora na Poly Haven**. A busca não oferece SFX/animações e não
+converte/instala formatos 3D, já que essa biblioteca trabalha com texturas,
+modelos e HDRIs. Próximas integrações deverão verificar arquivos e formatos
+com provas antes de inserir e publicar, sempre com consentimento.
+
+Teste adicionado: `scripts/test_ai_polyhaven_catalog_java.py` compila
+a classe Java de produção e exercita encoding UTF-8, categorias,
+rejeição de caracteres de controle, slugs e prevenção de links arbitrários.
+Também verifica a conexão do botão à busca real e a seleção segura do
+resultado. A compilação Android Java do workflow agora inclui a nova
+classe. Esses testes não equivalem a validar rede, layout e navegador
+no celular físico.
