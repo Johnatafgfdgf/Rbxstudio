@@ -27,6 +27,13 @@ assert "assetPreviewImage.setImageBitmap(frame)" in hub
 assert "imageSelectionCount++" in hub
 assert "report.optBoolean(\"playerReady\", false)" in evidence
 assert "StudioPlayFrameRules.validReceipt(" in evidence
+assert 'private static final String AUTHORIZATION' in evidence
+assert 'write(file(c, AUTHORIZATION), grant)' in evidence
+assert 'remove(file(c, AUTHORIZATION));' in evidence
+assert evidence.count('read(file(c, AUTHORIZATION))') >= 3
+assert 'authorization.optString("id", ""),\n                    report.optString("id", "")' in evidence
+assert 'report.optString("id", ""), report.optString("id", "")' not in evidence
+assert 'Captura sem autorização original correspondente.' in evidence
 assert '"rook_native_window_pixelcopy"' in evidence
 assert "MAX_JPEG_BYTES" in evidence
 assert "file(c, IMAGE)" in evidence
