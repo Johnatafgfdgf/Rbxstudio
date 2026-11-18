@@ -206,11 +206,16 @@ public final class StudioPlayFrameEvidence {
         public final byte[] jpeg;
         public final int width;
         public final int height;
+        public final long capturedAtMillis;
+        public final String sha256;
         public final String summary;
-        Evidence(byte[] jpeg, int width, int height, String summary) {
+        Evidence(byte[] jpeg, int width, int height, long capturedAtMillis,
+                String sha256, String summary) {
             this.jpeg = jpeg;
             this.width = width;
             this.height = height;
+            this.capturedAtMillis = capturedAtMillis;
+            this.sha256 = sha256;
             this.summary = summary;
         }
     }
@@ -259,6 +264,7 @@ public final class StudioPlayFrameEvidence {
             if (report.optInt("bytes", -1) != bytes.length)
                 throw new IOException("Tamanho não corresponde ao registro.");
             return new Evidence(bytes, report.getInt("width"), report.getInt("height"),
+                    report.getLong("capturedAt"), report.getString("sha256"),
                     "Captura REAL da janela do player Rook local via PixelCopy " +
                     "após o sinal ready; " + report.getInt("width") + " × " +
                     report.getInt("height") + " pixels. Integridade SHA-256 " +
