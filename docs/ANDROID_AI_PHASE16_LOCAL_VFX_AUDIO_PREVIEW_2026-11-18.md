@@ -337,3 +337,50 @@ com escopo fechado e que a UI exige inspeção, confirmação
 e leitura MCP pós-escrita. O workflow Java compila essa classe
 junto do AI Hub Android e executa o teste. Testes no aparelho
 físico com uma Part real e permissão MCP ainda pendem.
+
+
+## Continuação — diagnóstico de carregamento do Decal no Play local
+
+Foi acrescentada uma etapa opcional e exclusivamente **somente leitura**,
+que aproveita o próprio MCP do editor para avaliar mensagens reais
+relacionadas ao **Asset ID do Decal que acabou de ser aplicado**.
+Classes de produção: `StudioDecalPlayEvidence.java` e `StudioAiHub.java`.
+
+- O botão **Conferir erros do Decal no Play local** fica desativado
+  até que a criação do Decal tenha uma confirmação MCP do objeto,
+  classe, Face e URI de textura. É necessária uma autorização
+  adicional: **Autorizo ler o estado/Output local para ESTE diagnóstico**,
+  inicialmente desativada.
+- O usuário abre o Play **manualmente** no editor. O aplicativo consulta
+  `get_studio_state`. Somente se a sessão real **Client/Server**
+  for identificada pelo contrato MCP, consulta `get_console_output`.
+  Não inicia ou interrompe Play, não executa Luau, não chama
+  qualquer IA, não captura imagens e não modifica o mapa.
+- O analisador Java examina no máximo **12.000 caracteres** do Output,
+  associa linhas apenas quando aparece o **Asset ID numérico exato**
+  (evitando confusão com IDs que têm o mesmo prefixo/sufixo)
+  e mostra no máximo quatro trechos de 180 caracteres.
+  Mensagens como `Failed to load`, `permission denied` e
+  `content blocked` são destacadas como **possíveis** falhas.
+  Uma menção a *moderation approved* não deve disparar falso alerta.
+- Sem Play confirmado, sem linhas para o ID ou sem resposta do MCP,
+  o resultado é **inconclusivo**. Mesmo com ausência de erros,
+  não há alegação de que a textura apareceu ou está correta.
+  A imagem ainda deve ser conferida com a captura PixelCopy
+  do **Play Rook local**, mediante autorização separada,
+  e revisão visual real; PixelCopy sozinho também pode copiar
+  um frame em carregamento. A detecção não confunde o
+  editor local com o aplicativo Roblox externo.
+- Se a autorização é revogada durante este diagnóstico,
+  somente a leitura atual é cancelada; a revogação não cancela
+  uploads ou edições independentes. Não se armazena o Output
+  persistente nem se envia o Output ao provedor de IA.
+
+**Teste:** `scripts/test_ai_decal_play_evidence_java.py` compila
+e executa os métodos Java reais em cenários com Play/Edit,
+falsos positivos por outros IDs, mensagens de carregamento,
+moderação aprovada, limites de tamanho e resultado inconclusivo.
+O workflow Java também compila as classes junto do AI Hub.
+Ainda não foi feito um teste com um Decal real no aparelho:
+o teste automatizado não comprova renderização, aparência
+nem disponibilidade de assets publicados no Roblox.
