@@ -25,15 +25,18 @@ public final class StudioAssetInspector {
         public final String sha256;
         // Only keep image bytes for a bounded, downsampled local thumbnail.
         public final byte[] imageBytes;
+        // Audio metadata is extracted locally from a bounded header, never decoded or uploaded.
+        public final String audioDetails;
 
         private Inspected(String format, boolean image, int byteCount,
-                String sha256, byte[] imageBytes) {
+                String sha256, byte[] imageBytes, String audioDetails) {
             this.format = format;
             this.image = image;
             this.audio = !image;
             this.byteCount = byteCount;
             this.sha256 = sha256;
             this.imageBytes = imageBytes;
+            this.audioDetails = audioDetails;
         }
 
         public String report() {
@@ -44,6 +47,7 @@ public final class StudioAssetInspector {
                     "SHA-256: " + sha256 + "\n" +
                     (format.equals("GIF")
                         ? "GIF: a prévia mostra só um quadro; não valida a animação.\n" : "") +
+                    (audioDetails.isEmpty() ? "" : audioDetails + "\n") +
                     "Origem e licença NÃO verificadas. Antes de republicar é preciso " +
                     "comprovar os direitos e pedir sua autorização.\n" +
                     "Nenhum arquivo foi enviado à IA, inserido no jogo ou publicado no Roblox.";
@@ -92,6 +96,9 @@ public final class StudioAssetInspector {
         // Only image bytes are kept (up to 8 MiB) for a small local preview.
         ByteArrayOutputStream imageMemory = new ByteArrayOutputStream();
         byte[] firstBytes = new byte[16];
+        // Keep at most 64 KiB for WAV chunk-header inspection, even for large audio.
+        byte[] audioHeader = new byte[64 * 1024];
+        int audioHeaderLength = 0;
         int firstLength = 0;
         byte[] chunk = new byte[8192];
         final MessageDigest digest;
@@ -108,6 +115,11 @@ public final class StudioAssetInspector {
             if (n > MAX_AUDIO_BYTES - size)
                 throw new IOException("Arquivo excede 16 MiB: leitura recusada.");
             digest.update(chunk, 0, n);
+            if (audioHeaderLength < audioHeader.length) {
+                int take = Math.min(n, audioHeader.length - audioHeaderLength);
+                System.arraycopy(chunk, 0, audioHeader, audioHeaderLength, take);
+                audioHeaderLength += take;
+            }
             for (int j = 0; j < n && firstLength < firstBytes.length; j++)
                 firstBytes[firstLength++] = chunk[j];
             if (type == null && firstLength >= 12) {
@@ -129,8 +141,73 @@ public final class StudioAssetInspector {
         StringBuilder hash = new StringBuilder(64);
         for (byte item : digest.digest())
             hash.append(String.format(Locale.ROOT, "%02x", item & 255));
+        String audioDetails = type.equals("WAV")
+                ? describeWav(audioHeader, audioHeaderLength, size) : "";
         return new Inspected(type, isImage, size, hash.toString(),
-                isImage ? imageMemory.toByteArray() : null);
+                isImage ? imageMemory.toByteArray() : null, audioDetails);
+    }
+
+
+    private static int le16(byte[] bytes, int at) {
+        return (bytes[at] & 255) | ((bytes[at + 1] & 255) << 8);
+    }
+
+    private static long le32(byte[] bytes, int at) {
+        return (bytes[at] & 255L) | ((bytes[at + 1] & 255L) << 8) |
+                ((bytes[at + 2] & 255L) << 16) | ((bytes[at + 3] & 255L) << 24);
+    }
+
+    /**
+     * Read-only WAV PCM/IEEE-float header inspection. Duration is derived
+     * from the declared data chunk, with RIFF bounds validated against the
+     * actual streamed length; compressed/unknown codecs are not guessed.
+     * Never reads or buffers more than the first 64 KiB of sound.
+     */
+    private static String describeWav(byte[] header, int length, int fileLength) {
+        final String unavailable = "WAV: duração não verificável (cabeçalho incompleto ou inconsistente).";
+        if (length < 12 || fileLength < 44 ||
+                !ascii(header, 0, "RIFF") || !ascii(header, 8, "WAVE"))
+            return unavailable;
+        long riffEnd = le32(header, 4) + 8L;
+        if (riffEnd < 44 || riffEnd > fileLength) return unavailable;
+        int codec = -1, channels = 0, sampleRate = 0, bits = 0;
+        long byteRate = 0, blockAlign = 0, dataLength = -1;
+        long pos = 12;
+        while (pos + 8 <= length && pos + 8 <= riffEnd) {
+            int at = (int) pos;
+            long chunkSize = le32(header, at + 4);
+            long start = pos + 8, end = start + chunkSize;
+            if (end > riffEnd || end > fileLength) return unavailable;
+            if (ascii(header, at, "fmt ") && chunkSize >= 16 &&
+                    start + 16 <= length) {
+                int p = (int) start;
+                codec = le16(header, p);
+                channels = le16(header, p + 2);
+                long rate = le32(header, p + 4);
+                sampleRate = rate > Integer.MAX_VALUE ? 0 : (int) rate;
+                byteRate = le32(header, p + 8);
+                blockAlign = le16(header, p + 12);
+                bits = le16(header, p + 14);
+            } else if (ascii(header, at, "data")) {
+                dataLength = chunkSize;
+            }
+            long next = end + (chunkSize & 1L);
+            if (next <= pos || next > length || next > riffEnd) break;
+            pos = next;
+        }
+        if (codec != 1 && codec != 3)
+            return "WAV: codec não PCM/float ou não identificado; duração não calculada.";
+        if (channels < 1 || channels > 16 || sampleRate < 1000 ||
+                sampleRate > 384000 || bits < 8 || bits > 64 ||
+                (bits % 8) != 0 || dataLength < 0 || byteRate == 0 ||
+                blockAlign != channels * (bits / 8L) ||
+                byteRate != sampleRate * blockAlign ||
+                (codec == 3 && bits != 32 && bits != 64))
+            return unavailable;
+        return String.format(Locale.ROOT,
+                "WAV: %d canal(is), %d Hz, %d bits por amostra. " +
+                "Duração estimada: %.2f s (pelo bloco de dados; som não reproduzido).",
+                channels, sampleRate, bits, dataLength / (double) byteRate);
     }
 
     /**
