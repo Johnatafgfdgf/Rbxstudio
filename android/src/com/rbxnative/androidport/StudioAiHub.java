@@ -8359,12 +8359,20 @@ public final class StudioAiHub extends Activity {
             }
             int code = conn.getResponseCode();
             if (code < 200 || code >= 300) {
+                if (code == 400) throw new ApiHttpException(code,
+                        "HTTP 400: pedido rejeitado; verifique se o modelo aceita esta API e formato de mensagem.");
                 if (code == 401 || code == 403) throw new ApiHttpException(code, "HTTP " +
                         code + ": autenticação recusada; verifique a chave e as permissões.");
                 if (code == 402) throw new ApiHttpException(code,
                         "HTTP 402: sem créditos; não é permitido trocar para uma IA paga automaticamente.");
+                if (code == 404) throw new ApiHttpException(code,
+                        "HTTP 404: modelo ou endpoint não encontrado; atualize a lista e escolha outro modelo.");
+                if (code == 408 || code == 504) throw new ApiHttpException(code,
+                        "HTTP " + code + ": o provedor demorou demais para responder.");
                 if (code == 429) throw new ApiHttpException(code,
                         "HTTP 429: limite de requisições atingido, inclusive cotas gratuitas.");
+                if (code >= 500) throw new ApiHttpException(code,
+                        "HTTP " + code + ": falha temporária no servidor da IA; tente novamente.");
                 throw new ApiHttpException(code,
                         "HTTP " + code + ": o provedor recusou a solicitação.");
             }
@@ -8394,12 +8402,36 @@ public final class StudioAiHub extends Activity {
         }
     }
 
+    /** Diagnose failures without exposing credentials, private prompts, or URLs. */
     private static String safeError(Exception e) {
+        if (e instanceof ApiHttpException) return e.getMessage();
+        if (e instanceof java.net.UnknownHostException)
+            return "Não foi possível encontrar o servidor da IA (DNS). Verifique a conexão ou DNS privado.";
+        if (e instanceof java.net.SocketTimeoutException)
+            return "Tempo esgotado ao conectar ou receber resposta da IA. Tente novamente.";
+        if (e instanceof javax.net.ssl.SSLException)
+            return "Falha na conexão segura (TLS). Verifique data, hora, rede e certificados do Android.";
+        if (e instanceof java.net.ConnectException)
+            return "Conexão recusada pelo servidor da IA. Verifique a rede ou tente mais tarde.";
+        if (e instanceof java.net.SocketException)
+            return "Conexão interrompida durante a comunicação com a IA.";
+        if (e instanceof org.json.JSONException)
+            return "O servidor respondeu, mas retornou JSON incompatível com o aplicativo.";
+        if (e instanceof SecurityException)
+            return "O Android bloqueou a conexão. Verifique as permissões de rede do APK.";
         if (e instanceof IOException) {
             String message = e.getMessage();
             if (message != null && message.startsWith("HTTP ")) return message;
+            if ("Catálogo sem lista de modelos".equals(message))
+                return "O provedor respondeu, mas não enviou uma lista de modelos reconhecida.";
+            if ("Cancelado".equals(message)) return "Solicitação cancelada.";
+            if ("Resposta muito grande.".equals(message))
+                return "A resposta da IA ultrapassou o limite do aplicativo.";
+            return "Erro de comunicação (" + e.getClass().getSimpleName() +
+                    "). Verifique a conexão e tente consultar os modelos novamente.";
         }
-        return "Falha de rede ou resposta incompatível. Confira a conexão e o modelo.";
+        return "Erro inesperado ao consultar a IA (" + e.getClass().getSimpleName() +
+                "). Nenhuma credencial foi exibida.";
     }
 
     private void refreshDecalPlacementButtons() {
