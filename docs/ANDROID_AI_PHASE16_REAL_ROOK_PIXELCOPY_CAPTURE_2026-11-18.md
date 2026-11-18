@@ -56,3 +56,14 @@ scripts/test_ai_play_frame_java.py compila e executa os guardas reais
 de prazo, formato JPEG, SHA-256, sessão, PixelCopy, ready e fonte,
 incluindo rejeições explícitas de prévia do editor e de arquivos
 modificados. O workflow Java compila as classes Android pelo SDK 35.
+
+## Vinculação independente da autorização
+
+O recibo da imagem é agora vinculado a um registro **separado** de
+autorização, criado no momento em que o usuário consente. A janela Rook
+confere esse registro quando consome a solicitação e quando grava a
+captura. A importação exige correspondência exata do ID e dos prazos
+no registro original e no recibo. A revogação apaga também o registro,
+impedindo a leitura posterior mesmo que uma operação entre processos
+termine tarde. A checagem SHA-256 continua verificando integridade
+dos bytes, não qualidade da cena.

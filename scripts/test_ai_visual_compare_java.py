@@ -13,6 +13,10 @@ assert 'buildComparisonRequest(' in review
 assert 'COMPARISON_PROMPT' in review
 assert '120 * 1024' in review
 assert 'StudioVisualCompare.describe(' in hub
+assert 'StudioVisualCompare.differenceHeatmap(' in hub
+assert 'visualDifferenceImage.setImageBitmap(differenceHeatmapBitmap)' in hub
+assert 'private void clearVisualHeatmap()' in hub
+assert 'clearVisualHeatmap();' in hub
 assert 'setPositiveButton("Enviar as duas miniaturas"' in hub
 assert 'setNegativeButton("Não enviar"' in hub
 assert 'StudioVisualReview.buildComparisonRequest(' in hub
@@ -39,11 +43,26 @@ public class CompareContract {
     yes(different.contains("Diferença RGB média"));
     yes(different.contains("NÃO comprova"));
     yes(!different.contains("0.0%"));
+    int[] map = StudioVisualCompare.differenceHeatmap(a,b,160,160);
+    yes(map.length==n);
+    yes(map[0]==0xffff5549);
+    yes((map[159*160+159]>>>24)==255);
+    yes(map[159*160+159]!=0xffff5549);
+    int[] sameMap=StudioVisualCompare.differenceHeatmap(a,a,160,160);
+    yes(sameMap[0]==sameMap[159*160+159]);
     bad(null,b,160,160); bad(a,new int[5],160,160);
     bad(a,b,1000,1000);
+    try {
+      StudioVisualCompare.differenceHeatmap(null,b,160,160);
+      throw new AssertionError("heatmap accepted null");
+    } catch(IllegalArgumentException expected) {}
     b[0]=0x44222222;
     bad(a,b,160,160);
-    System.out.println("Real Java before/after comparison: passed");
+    try {
+      StudioVisualCompare.differenceHeatmap(a,b,160,160);
+      throw new AssertionError("heatmap accepted transparency");
+    } catch(IllegalArgumentException expected) {}
+    System.out.println("Real Java before/after text and heatmap comparison: passed");
   }
 }
 """

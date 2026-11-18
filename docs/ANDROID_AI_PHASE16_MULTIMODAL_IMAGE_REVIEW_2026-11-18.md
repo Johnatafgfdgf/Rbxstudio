@@ -87,3 +87,19 @@ provedores inválidos e de JPEGs fora do limite, e guardas da Activity.
 O workflow ai-hub-android-java.yml também compila a Activity e
 a classe nova usando Android SDK 35. O APK ARM64 é compilado
 separadamente na workflow experimental-arm64-apk.yml.
+
+## Mapa de diferenças visual (diagnóstico local)
+
+A comparação local agora mostra, além de percentuais, um **mapa de diferenças
+160×160 criado dos pixels reais das duas prévias**. O mapa conserva uma base
+cinza para pixels que não cruzaram o limiar de 30/255 e marca em
+amarelo/laranja/vermelho alterações de magnitude crescente. O mapa
+não é uma terceira captura, não substitui as imagens reais e não mede
+beleza, performance, execução de scripts, animações ou som.
+
+Ao escolher um novo arquivo ou importar outra captura do Rook,
+o mapa anterior é ocultado e o Bitmap antigo é liberado, evitando
+que uma comparação antiga pareça pertencer à imagem atual. O botão
+**Guardar imagem como ANTES** também descarta o mapa obsoleto.
+Os testes Java de produção verificam regiões alteradas, cores do mapa,
+regiões inalteradas, pixels transparentes e tamanhos inválidos.
