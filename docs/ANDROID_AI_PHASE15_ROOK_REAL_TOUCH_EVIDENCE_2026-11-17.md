@@ -230,3 +230,18 @@ com logs incluídos no artifact de regressão.
 A entrada no teste é programática e serve para detectar regressões:
 **não representa um dedo físico, uma GPU Android ou a experiência
 visual no aparelho.** O teste Android real continua necessário.
+
+## Continuação — efeito retardado no mundo e isolamento cliente/servidor
+
+A regressão no próprio motor agora verifica uma consequência real
+além do botão: o `LocalScript` responde ao toque válido, muda
+`TextButton.Text` imediatamente, aguarda `task.wait(0.15)` e altera
+a propriedade `Workspace.TouchProbePart.Transparency` para `0.625`
+**no DOM do cliente**. O teste deve demonstrar que o valor permanece
+inalterado antes da retomada e muda depois, enquanto a propriedade no
+servidor continua independente (0.0). Um toque cancelado aguarda
+0.4 s e não pode produzir nem a alteração imediata nem a tardia.
+
+São novas provas automatizadas do resultado no modelo do jogo e do
+`task.wait`, mas a entrada desses testes ainda é programática e
+a fidelidade do Play no touchscreen físico precisa de validação externa.

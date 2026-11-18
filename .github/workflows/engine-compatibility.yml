@@ -38,6 +38,8 @@ jobs:
           set -o pipefail
           cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_activation_updates_visible_gui_state -- --nocapture 2>&1 | tee logs/rook-touch-activation.log
           cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_cancel_does_not_activate_or_change_gui_state -- --nocapture 2>&1 | tee logs/rook-touch-cancel.log
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_activation_updates_client_workspace_after_yield -- --nocapture 2>&1 | tee logs/rook-touch-delayed-workspace.log
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_cancel_never_resumes_delayed_gameplay_change -- --nocapture 2>&1 | tee logs/rook-touch-cancel-delayed.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

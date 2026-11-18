@@ -7660,12 +7660,16 @@ diff --git a/crates/rook-engine/src/tests/gui.rs b/crates/rook-engine/src/tests/
 index 0000000..0000000 100644
 --- a/crates/rook-engine/src/tests/gui.rs
 +++ b/crates/rook-engine/src/tests/gui.rs
-@@ -281,0 +282,74 @@
+@@ -281,0 +282,133 @@
 +/// Headless regression: a real Rook GUI hit calls the existing Luau
 +/// LocalScript, and the script mutates the actual client DOM. This uses
 +/// injected test input only in CI; it is NOT proof of physical Android touch.
 +fn touch_gui_fixture() -> (Session, usize) {
 +    let mut server = Server::new(&Options::default()).unwrap();
++    let workspace = service(&server, "Workspace");
++    let probe = add_under(&server, workspace, "Part", "TouchProbePart", "");
++    server.runtime().world_mut().dom
++        .set_property_by_name(probe, "Anchored", Value::Bool(true)).unwrap();
 +    let starter = service(&server, "StarterGui");
 +    let screen = add_under(&server, starter, "ScreenGui", "TouchFixture", "");
 +    let button = add_under(&server, screen, "TextButton", "Action", "");
@@ -7676,11 +7680,14 @@ index 0000000..0000000 100644
 +        "TouchAction",
 +        r#"
 +        local button = script.Parent
++        local probe = workspace:WaitForChild("TouchProbePart")
 +        button.Size = UDim2.fromScale(1, 1)
 +        button.Active = true
 +        button.Text = "PRONTO"
 +        button.Activated:Connect(function()
 +            button.Text = "TOQUE_CONFIRMADO"
++            task.wait(0.15)
++            probe.Transparency = 0.625
 +        end)
 +        "#,
 +    );
@@ -7705,6 +7712,15 @@ index 0000000..0000000 100644
 +    let screen = dom.find_first_child(gui, "TouchFixture", false)?;
 +    let button = dom.find_first_child(screen, "Action", false)?;
 +    dom.property_by_name(button, "Text")
++}
++
++/// Reads the real replicated client Workspace, not Lua print output.
++fn touch_probe_part_transparency(session: &mut Session, index: usize) -> Option<f64> {
++    let client = session.client_mut(index)?;
++    let world = client.runtime().world();
++    let workspace = world.dom.find_service("Workspace")?;
++    let part = world.dom.find_first_child(workspace, "TouchProbePart", false)?;
++    world.dom.float_property(part, "Transparency")
 +}
 +
 +#[test]
@@ -7734,4 +7750,47 @@ index 0000000..0000000 100644
 +    });
 +    session.run_for(0.1);
 +    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++}
++
++#[test]
++fn touch_activation_updates_client_workspace_after_yield() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
++    session.input(index, InputEvent::Touch {
++        id: 73, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 73, phase: TouchPhase::End, x: 400.0, y: 300.0,
++    });
++    // Activation changes Text immediately, but Workspace remains untouched
++    // until Luau resumes this callback after task.wait(0.15).
++    session.run_for(0.05);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("TOQUE_CONFIRMADO".into())));
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
++    session.run_for(0.25);
++    let observed = touch_probe_part_transparency(&mut session, index)
++        .expect("the real client Workspace must contain the test Part");
++    assert!((observed - 0.625).abs() < 0.001, "unexpected Transparency {observed}");
++    // LocalScript changes are client-local and must not mutate the server.
++    let server_world = session.server().runtime().world();
++    let ws = server_world.dom.find_service("Workspace").unwrap();
++    let part = server_world.dom.find_first_child(ws, "TouchProbePart", false).unwrap();
++    assert_eq!(server_world.dom.float_property(part, "Transparency"), Some(0.0));
++}
++
++#[test]
++fn touch_cancel_never_resumes_delayed_gameplay_change() {
++    let (mut session, index) = touch_gui_fixture();
++    session.input(index, InputEvent::Touch {
++        id: 74, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 74, phase: TouchPhase::Cancel, x: 400.0, y: 300.0,
++    });
++    // Wait longer than the async callback would have taken if fired.
++    session.run_for(0.4);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("PRONTO".into())));
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
 +}

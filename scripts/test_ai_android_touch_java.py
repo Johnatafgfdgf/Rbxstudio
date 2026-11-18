@@ -71,6 +71,10 @@ assert "crate::signal_probe::finished(outcome, dom_changes)" in rook_patch
 assert "thread.status() == ThreadStatus::Finished" in rook_patch
 assert "touch_activation_updates_visible_gui_state" in rook_patch
 assert "touch_cancel_does_not_activate_or_change_gui_state" in rook_patch
+assert "touch_activation_updates_client_workspace_after_yield" in rook_patch
+assert "touch_cancel_never_resumes_delayed_gameplay_change" in rook_patch
+assert 'probe.Transparency = 0.625' in rook_patch
+assert 'task.wait(0.15)' in rook_patch
 assert "TOQUE_CONFIRMADO" in rook_patch
 assert "TouchPhase::Cancel" in rook_patch
 
