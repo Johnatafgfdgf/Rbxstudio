@@ -3,9 +3,57 @@ name: Export complete RBX Studio 0.6.11 AI source with dependencies
 on:
   workflow_dispatch:
   push:
-    branches: [verify/android-menus]
+    branches: [verify/android-menus, work/ai-autonomous-read-v1]
     paths:
       - .github/workflows/export-ai-full-source.yml
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - android/src/com/rbxnative/androidport/StudioAssetInspector.java
+      - android/src/com/rbxnative/androidport/StudioVisualReview.java
+      - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
+      - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
+      - android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java
+      - android/src/com/rbxnative/androidport/StudioRobloxDecalPlacement.java
+      - android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java
+      - android/src/com/rbxnative/androidport/StudioDecalVisualReview.java
+      - android/src/com/rbxnative/androidport/StudioAiTheme.java
+      - android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java
+      - scripts/test_ai_decal_face_correction_java.py
+      - scripts/test_ai_decal_visual_review_java.py
+      - scripts/test_ai_decal_play_evidence_java.py
+      - scripts/test_ai_roblox_decal_placement_java.py
+      - scripts/test_ai_roblox_decal_upload_java.py
+      - scripts/test_ai_polyhaven_catalog_java.py
+      - scripts/test_ai_polyhaven_integrity_java.py
+      - android/src/com/rbxnative/androidport/StudioVisualCompare.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameRules.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
+      - android/src/com/rbxnative/androidport/RookPlayerActivity.java
+      - scripts/test_ai_play_frame_java.py
+      - docs/ANDROID_AI_PHASE16_REAL_ROOK_PIXELCOPY_CAPTURE_2026-11-18.md
+      - scripts/test_ai_asset_inspector.py
+      - scripts/test_ai_visual_review_java.py
+      - scripts/test_ai_visual_compare_java.py
+      - docs/ANDROID_AI_PHASE16_LOCAL_VFX_AUDIO_PREVIEW_2026-11-18.md
+      - docs/ANDROID_AI_PHASE16_MULTIMODAL_IMAGE_REVIEW_2026-11-18.md
+      - android/src/com/rbxnative/androidport/StudioAssetInspector.java
+      - scripts/test_ai_asset_inspector.py
+      - docs/ANDROID_AI_PHASE16_LOCAL_VFX_AUDIO_PREVIEW_2026-11-18.md
+      - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
+      - android/src/com/rbxnative/androidport/RookPlayerActivity.java
+      - player/src/lib.rs
+      - player/src/platform.rs
+      - patches/rook--android-port.patch
+      - scripts/test_ai_android_touch_java.py
+      - docs/ANDROID_AI_PHASE15_ROOK_REAL_TOUCH_EVIDENCE_2026-11-17.md
+      - scripts/check_ai_hub.py
+      - core/tests/ai_receive_tool.rs
+      - .github/workflows/engine-compatibility.yml
+      - docs/ANDROID_AI_PHASE2_READ_AGENT_2026-11-16.md
+
+# New commits supersede older builds of this same workflow/branch.
+concurrency:
+  group: rbxstudio-source-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -59,7 +107,7 @@ jobs:
                   count+=1
               archive.writestr("RBX-Studio-0.6.11/SOURCE_BUILD_INFO.json",
                   json.dumps({"commit":os.environ["GITHUB_SHA"],
-                              "branch":"verify/android-menus",
+                              "branch":os.environ["GITHUB_REF_NAME"],
                               "files":count,"patched_sources":True,
                               "build_instructions":"README.md"},indent=2))
           digest=hashlib.sha256(destination.read_bytes()).hexdigest()

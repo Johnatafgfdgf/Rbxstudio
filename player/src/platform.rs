@@ -41,6 +41,29 @@ pub fn session() -> anyhow::Result<PathBuf> { call("session", "").map(PathBuf::f
 pub fn asset_key() -> anyhow::Result<String> { call("asset-key", "") }
 pub fn loading_stage(stage: &str) { let _ = call("loading-stage", stage); }
 pub fn ready() -> anyhow::Result<()> { call("ready", "").map(|_| ()) }
+
+// Only the one-use Activity authorization enables passive native phase totals.
+// The host receives aggregate counters, never pointer IDs or coordinates.
+pub fn touch_probe_active() -> bool {
+    matches!(call("touch-probe-enabled", ""), Ok(value) if value == "1")
+}
+pub fn gui_probe_active() -> bool {
+    matches!(call("touch-gui-enabled", ""), Ok(value) if value == "1")
+}
+pub fn report_touch_gui_activated(path: &str, queued: u32, attempted: u32,
+        completed: u32, unresolved: u32, failed: u32, errors: u32,
+        journal_changes: u32, handler_dom_changes: u32,
+        handlers_with_changes: u32) {
+    let data = serde_json::json!({"path":path,"queued":queued,"attempted":attempted,
+        "completed":completed,"unresolved":unresolved,"failed":failed,"errors":errors,
+        "journalChanges":journal_changes,"handlerDomChanges":handler_dom_changes,
+        "handlersWithChanges":handlers_with_changes});
+    let _ = call("native-gui-activated", &data.to_string());
+}
+pub fn report_native_touch_counts(down: u32, up: u32, cancel: u32) {
+    let report = serde_json::json!({"down":down,"up":up,"cancel":cancel});
+    let _ = call("native-touch-counts", &report.to_string());
+}
 pub fn finish() -> anyhow::Result<()> { call("finish", "").map(|_| ()) }
 
 #[derive(Debug)]
