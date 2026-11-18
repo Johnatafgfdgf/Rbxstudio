@@ -16,6 +16,8 @@ on:
       - android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java
       - android/src/com/rbxnative/androidport/StudioDecalVisualReview.java
       - android/src/com/rbxnative/androidport/StudioAiTheme.java
+      - android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java
+      - scripts/test_ai_decal_face_correction_java.py
       - scripts/test_ai_decal_visual_review_java.py
       - scripts/test_ai_decal_play_evidence_java.py
       - scripts/test_ai_roblox_decal_placement_java.py
