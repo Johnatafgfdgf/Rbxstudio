@@ -632,6 +632,13 @@ public final class StudioAiHub extends Activity {
     private TextView polyHavenDetails, polyHavenVerification;
     private LinearLayout polyHavenVariants;
     private StudioPolyHavenIntegrity.Candidate pendingPolyHavenCandidate;
+    private StudioPolyHavenIntegrity.Candidate verifiedPolyHavenCandidate;
+    private android.net.Uri verifiedPolyHavenUri;
+    private String pendingRobloxDecalOperation;
+    private boolean uploadingRobloxDecal;
+    private EditText robloxDecalCreator, robloxDecalName, robloxDecalApiKey;
+    private Button uploadRobloxDecal, checkRobloxDecal;
+    private TextView robloxDecalResult;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
     private Button armPlayFrame, importPlayFrame, clearPlayFrame;
@@ -2498,6 +2505,8 @@ public final class StudioAiHub extends Activity {
         final long epoch = ++requestEpoch;
         polyHavenResults.removeAllViews();
         pendingPolyHavenCandidate = null;
+        verifiedPolyHavenCandidate = null;
+        verifiedPolyHavenUri = null;
         if (polyHavenVariants != null) polyHavenVariants.removeAllViews();
         if (polyHavenVerification != null) {
             polyHavenVerification.setText("");
@@ -2620,6 +2629,8 @@ public final class StudioAiHub extends Activity {
             polyHavenVerification.setText("");
             polyHavenVerification.setVisibility(View.GONE);
         }
+        verifiedPolyHavenCandidate = null;
+        verifiedPolyHavenUri = null;
         polyHavenDetails.setText("Consultando metadados oficiais de " + slug + "...");
         polyHavenDetails.setVisibility(View.VISIBLE);
         setBusy(true, "Lendo formatos do catálogo, sem baixar arquivos...");
@@ -2790,14 +2801,18 @@ public final class StudioAiHub extends Activity {
             StudioPolyHavenIntegrity.Candidate candidate) {
         if (selected == null || candidate == null || busy) return;
         final long epoch = ++requestEpoch;
+        verifiedPolyHavenCandidate = null;
+        verifiedPolyHavenUri = null;
         polyHavenVerification.setText("Conferindo bytes da imagem selecionada...");
         polyHavenVerification.setVisibility(View.VISIBLE);
         setBusy(true, "Comparando arquivo local com a ficha oficial...");
         requests.execute(() -> {
             String message;
+            boolean match = false;
             try (InputStream input = getContentResolver().openInputStream(selected)) {
                 StudioPolyHavenIntegrity.Verification checked =
                         StudioPolyHavenIntegrity.verify(candidate, input);
+                match = checked.matches;
                 message = checked.report(candidate);
             } catch (Exception failure) {
                 message = "VERIFICAÇÃO RECUSADA: " +
@@ -2806,8 +2821,11 @@ public final class StudioAiHub extends Activity {
                         "Nenhum arquivo foi importado ou enviado.";
             }
             final String result = message;
+            final boolean verified = match;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || isFinishing()) return;
+                verifiedPolyHavenCandidate = verified ? candidate : null;
+                verifiedPolyHavenUri = verified ? selected : null;
                 polyHavenVerification.setText(result);
                 polyHavenVerification.setVisibility(View.VISIBLE);
                 setBusy(false, "Verificação local concluída ou recusada.");
@@ -3565,7 +3583,37 @@ public final class StudioAiHub extends Activity {
         polyHavenVerification.setPadding(dp(11), dp(10), dp(11), dp(10));
         polyHavenVerification.setBackground(shape(Color.rgb(26, 42, 65), 12));
         polyHavenVerification.setVisibility(View.GONE);
-        add(root, polyHavenVerification, 9);
+        add(root, polyHavenVerification, 5);
+        add(root, text("Decal Roblox • publicação com aprovação separada", 14, true), 4);
+        add(root, text(
+                "Após verificar uma imagem PNG/JPG, você pode enviá-la pela " +
+                "API oficial Roblox Open Cloud. Precisa de chave autorizada " +
+                "para assets e ID da sua conta. A chave não é salva nem enviada " +
+                "à IA. O envio pode consumir quota e depende da moderação. " +
+                "A publicação de um decal NÃO modifica seu jogo.",
+                12, false), 5);
+        robloxDecalCreator = field("Seu ID numérico de usuário Roblox", false);
+        robloxDecalCreator.setSingleLine(true);
+        robloxDecalCreator.setInputType(InputType.TYPE_CLASS_NUMBER);
+        add(root, robloxDecalCreator, 4);
+        robloxDecalName = field("Nome do novo decal, ex.: TexturaVento01", false);
+        robloxDecalName.setSingleLine(true);
+        add(root, robloxDecalName, 4);
+        robloxDecalApiKey = field("Chave Open Cloud Roblox • não armazenada", true);
+        add(root, robloxDecalApiKey, 4);
+        uploadRobloxDecal = button("Enviar 1 decal ao Roblox • confirmar");
+        uploadRobloxDecal.setOnClickListener(v -> confirmRobloxDecalUpload());
+        uploadRobloxDecal.setEnabled(false);
+        add(root, uploadRobloxDecal, 4);
+        checkRobloxDecal = button("Consultar operação e Asset ID real");
+        checkRobloxDecal.setOnClickListener(v -> checkRobloxDecalOperation());
+        checkRobloxDecal.setEnabled(false);
+        add(root, checkRobloxDecal, 4);
+        robloxDecalResult = text("", 12, false);
+        robloxDecalResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        robloxDecalResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        robloxDecalResult.setVisibility(View.GONE);
+        add(root, robloxDecalResult, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
@@ -4139,6 +4187,7 @@ public final class StudioAiHub extends Activity {
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (inspectAssetFile != null) inspectAssetFile.setEnabled(!waiting);
         if (searchPolyHaven != null) searchPolyHaven.setEnabled(!waiting);
+        refreshRobloxDecalButtons();
         if (armPlayFrame != null) armPlayFrame.setEnabled(!waiting);
         if (importPlayFrame != null) importPlayFrame.setEnabled(!waiting);
         if (clearPlayFrame != null) clearPlayFrame.setEnabled(!waiting);
@@ -8029,6 +8078,17 @@ public final class StudioAiHub extends Activity {
     }
 
     private void requestClose() {
+        if (uploadingRobloxDecal) {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Upload externo em andamento")
+                    .setMessage("A solicitação pode ter chegado ao Roblox. " +
+                            "Se sair, talvez perca a referência da operação. " +
+                            "Consulte suas criações antes de tentar novamente.")
+                    .setNegativeButton("Permanecer", null)
+                    .setPositiveButton("Sair mesmo assim", (dialog, which) -> finish())
+                    .show();
+            return;
+        }
         if (!applyingEdit) { finish(); return; }
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Operação MCP em andamento")
