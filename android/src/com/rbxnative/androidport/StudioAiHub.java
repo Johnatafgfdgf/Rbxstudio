@@ -6278,7 +6278,7 @@ public final class StudioAiHub extends Activity {
             throws IOException {
         if (expected == null || !expected.matches(
                 "(CREATED|UPDATED|CREATED_MODEL|CREATED_BILLBOARD|" +
-                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|CREATED_DECAL|UPDATED_LIGHTING|UPDATED_STYLE):" +
+                "CREATED_SCREEN_GUI|CREATED_RECEIVE_TOOL|CREATED_DECAL|UPDATED_DECAL|UPDATED_LIGHTING|UPDATED_STYLE):" +
                 "[A-Za-z][A-Za-z0-9_]{0,39}")) {
             throw new IOException("Identificador de confirmação inválido");
         }
@@ -8880,6 +8880,174 @@ public final class StudioAiHub extends Activity {
                 .setNegativeButton("Continuar nesta tela", null)
                 .setPositiveButton("Sair e verificar no editor", (dialog, which) -> finish())
                 .show();
+    }
+
+
+    /** Inspect an existing, exact Decal and prove its current Texture/Face. */
+    private static String checkedDecalFaceState(
+            StudioRobloxDecalPlacement.Proposal p, String raw,
+            String expectedFace, String uniqueId) throws Exception {
+        if (p == null || raw == null || raw.length() > 24000)
+            throw new IOException("MCP não retornou uma ficha limitada do Decal.");
+        JSONObject object = new JSONObject(raw);
+        if (!p.decalPath().equals(object.optString("path", "")) ||
+                !p.decalName.equals(object.optString("name", "")) ||
+                !"Decal".equals(object.optString("className", "")) ||
+                object.optJSONArray("matches") != null)
+            throw new IOException("Decal inexistente ou ambíguo no editor.");
+        String id = object.optString("uniqueId", "");
+        if (id.isEmpty() || id.length() > 160 ||
+                (uniqueId != null && !uniqueId.equals(id)))
+            throw new IOException("Identidade do Decal alterada ou não verificável.");
+        JSONObject props = object.optJSONObject("properties");
+        if (props == null || !p.textureUri().equals(props.optString("Texture", "")))
+            throw new IOException("A textura do Decal mudou desde a confirmação.");
+        String current = props.optString("Face", "");
+        if (!(expectedFace.equals(current) ||
+                ("Enum.NormalId." + expectedFace).equals(current)))
+            throw new IOException("A face do Decal mudou desde a proposta.");
+        return id;
+    }
+
+    /** The AI offers only six enum values. Human confirms after a real MCP read. */
+    private void prepareApprovedDecalFaceCorrection() {
+        final StudioRobloxDecalPlacement.Proposal original = proposedDecalFaceOriginal;
+        final StudioDecalFaceCorrection.Suggestion suggestion = proposedDecalFaceFix;
+        if (busy || applyingEdit || original == null || suggestion == null ||
+                original != lastVerifiedPlacedDecal ||
+                !original.assetId.equals(confirmedRobloxDecalId) ||
+                mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Inspecionando o Decal original; nenhuma escrita...");
+        requests.execute(() -> {
+            StudioDecalFaceCorrection.Prepared prepared = null;
+            String problem = null;
+            try {
+                String raw = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", original.decalPath()));
+                String unique = checkedDecalFaceState(
+                        original, raw, original.face, null);
+                if (epoch != requestEpoch)
+                    throw new IOException("A solicitação mudou.");
+                prepared = StudioDecalFaceCorrection.prepare(
+                        original, suggestion, unique);
+            } catch (Exception invalid) {
+                problem = "Correção recusada: " +
+                        limitedExternalText(invalid.getMessage(), 175) +
+                        "\nNenhum Decal foi modificado.";
+            }
+            final StudioDecalFaceCorrection.Prepared ready = prepared;
+            final String error = problem;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                setBusy(false, "Inspeção do Decal concluída.");
+                if (ready == null || original != lastVerifiedPlacedDecal ||
+                        original != proposedDecalFaceOriginal ||
+                        suggestion != proposedDecalFaceFix ||
+                        !paired.equals(mcpPairing)) {
+                    decalVisualReviewResult.setText(error == null
+                            ? "Proposta não é mais válida; revise novamente." : error);
+                    return;
+                }
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle("Aplicar UMA correção de face neste Decal?")
+                        .setMessage("Objeto: " + original.decalPath() +
+                                "\nAsset ID mantido: " + original.assetId +
+                                "\nFace atual: " + original.face +
+                                "\nFace proposta: " + ready.newFace +
+                                "\nJustificativa da IA (NÃO verificada): " +
+                                suggestion.reason +
+                                "\n\nO app vai ler novamente o MCP para conferir " +
+                                "identidade, face e textura, executar UM comando " +
+                                "Luau fixo que altera somente Decal.Face e depois " +
+                                "ler o objeto novamente. Isso modifica o mapa local. " +
+                                "Não publica o jogo e não executa instruções da IA. " +
+                                "Se a confirmação falhar, confira o Explorer " +
+                                "antes de tentar outra vez.")
+                        .setNegativeButton("Não alterar", null)
+                        .setPositiveButton("Aprovar mudança da Face", (d, w) ->
+                                applyApprovedDecalFaceCorrection(ready))
+                        .show();
+            });
+        });
+    }
+
+    private void applyApprovedDecalFaceCorrection(
+            StudioDecalFaceCorrection.Prepared prepared) {
+        if (busy || applyingEdit || prepared == null ||
+                prepared.original != lastVerifiedPlacedDecal ||
+                prepared.original != proposedDecalFaceOriginal ||
+                !prepared.original.assetId.equals(confirmedRobloxDecalId) ||
+                mcpPairing.isEmpty()) return;
+        final String paired = mcpPairing;
+        final long epoch = ++requestEpoch;
+        applyingEdit = true;
+        setBusy(true, "Conferindo estado atual e alterando a Face autorizada...");
+        requests.execute(() -> {
+            boolean confirmed = false;
+            String report;
+            try {
+                StudioRobloxDecalPlacement.Proposal old = prepared.original;
+                String before = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", old.decalPath()));
+                checkedDecalFaceState(old, before, old.face, prepared.decalUniqueId);
+                if (epoch != requestEpoch)
+                    throw new IOException("A sessão mudou antes da escrita.");
+                String receipt = checkedEditReceipt(
+                        executeApproved3dCode(paired,
+                                StudioDecalFaceCorrection.fixedLuau(prepared)),
+                        prepared.expectedReceipt());
+                String after = readOnlyMcp(paired, "inspect_instance",
+                        new JSONObject().put("path", old.decalPath()));
+                checkedDecalFaceState(old, after, prepared.newFace,
+                        prepared.decalUniqueId);
+                confirmed = true;
+                report = "CORREÇÃO CONFERIDA PELO MCP\n" + receipt +
+                        "\nObjeto: " + old.decalPath() +
+                        "\nFace: " + old.face + " → " + prepared.newFace +
+                        "\nTextura/Asset ID mantidos. Faça nova captura do Play " +
+                        "para verificar a aparência. O jogo não foi publicado.";
+            } catch (Exception invalid) {
+                report = "CORREÇÃO NÃO CONFIRMADA\n" +
+                        limitedExternalText(invalid.getMessage(), 180) +
+                        "\nUma escrita pode ter ocorrido antes da falha. " +
+                        "Inspecione Explorer/Output antes de repetir; " +
+                        "o aplicativo NÃO repetiu nem reverteu o comando.";
+            }
+            final boolean checked = confirmed;
+            final String result = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                applyingEdit = false;
+                StudioRobloxDecalPlacement.Proposal original = prepared.original;
+                if (checked) {
+                    try {
+                        lastVerifiedPlacedDecal = StudioRobloxDecalPlacement.reviewed(
+                                original.assetId, original.targetPath,
+                                original.decalName, prepared.newFace,
+                                original.originalUniqueId);
+                        lastVerifiedPlacedDecalAt = System.currentTimeMillis();
+                    } catch (IOException unexpected) {
+                        lastVerifiedPlacedDecal = null;
+                        lastVerifiedPlacedDecalAt = 0;
+                    }
+                } else {
+                    lastVerifiedPlacedDecal = null;
+                    lastVerifiedPlacedDecalAt = 0;
+                }
+                // Old image evidence predates this edit and can never be
+                // presented as the new rendering proof.
+                previewedPlayFrameDecal = null;
+                previewedPlayFrameAt = 0;
+                proposedDecalFaceFix = null;
+                proposedDecalFaceOriginal = null;
+                setBusy(false, readBackNotice(checked, original.decalPath()));
+                decalVisualReviewResult.setText(result);
+                decalVisualReviewResult.setVisibility(View.VISIBLE);
+                recordEditorOutcome("UPDATE_DECAL_FACE", original.decalPath(), checked);
+            });
+        });
     }
 
     @Override public void onBackPressed() { requestClose(); }
