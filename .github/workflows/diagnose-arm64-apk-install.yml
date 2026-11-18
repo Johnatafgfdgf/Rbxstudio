@@ -1,0 +1,75 @@
+name: Diagnose existing ARM64 Studio APK on Android PackageManager
+
+on:
+  push:
+    branches: [work/ai-autonomous-read-v1]
+    paths:
+      - .github/workflows/diagnose-arm64-apk-install.yml
+      - scripts/diagnose_apk_install.py
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: Completed ARM64 APK build run ID
+        required: false
+        default: '44253625236'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  install-existing-apk:
+    name: Test actual installer (Android 15 emulator)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve untouched APK from completed ARM64 build
+        uses: actions/download-artifact@v4
+        with:
+          name: rbxstudio-0.6.11-arm64-v8a-separate-install
+          run-id: ${{ inputs.source_run || '44253625236' }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Confirm exact binary signature and manifest before device test
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          p=rbx-studio-android-0.6.11-arm64-v8a-experimental-debug.apk
+          test -s "$p"
+          sha256sum --check "$p.sha256"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$p"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 36 --max-sdk-version 36 --verbose "$p"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$p" | head -40
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Reproduce OS package install with Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 3072M
+          ram-size: 2048M
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -partition-size 3072
+          disable-animations: true
+          script: python3 scripts/diagnose_apk_install.py
+      - name: Keep evidence even when installation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbxstudio-apk-install-diagnosis
+          path: dist/apk-install-diagnostics/report.txt
+          if-no-files-found: warn
+          retention-days: 14
