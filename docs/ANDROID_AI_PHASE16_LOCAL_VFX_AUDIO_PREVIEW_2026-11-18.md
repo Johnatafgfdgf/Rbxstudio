@@ -121,3 +121,48 @@ Também verifica a conexão do botão à busca real e a seleção segura do
 resultado. A compilação Android Java do workflow agora inclui a nova
 classe. Esses testes não equivalem a validar rede, layout e navegador
 no celular físico.
+
+
+
+## Continuação da fase 16 — ficha verificada de preparação de assets
+
+Depois da busca por descrição na Poly Haven, cada item encontrado oferece
+**Ver dados e formatos**. O usuário precisa tocar nesse botão. O aplicativo
+consulta diretamente os endpoints oficiais, com slug validado:
+
+- `GET /v2/info/{slug}` — nome, descrição, categoria e publicação;
+- `GET /v2/files/{slug}` — formatos informados para um asset publicado.
+
+Os dois pedidos são HTTPS GET para `api.polyhaven.com`, com cabeçalhos
+fixos, sem seguir redirecionamentos, timeout e máximo de 512 KiB cada.
+URLs de arquivos contidas no JSON são tratadas como **dados**, não são
+seguidas nem abertas. A tela mostra apenas formatos conhecidos que
+apareçam em entradas de arquivo com metadados de URL e tamanho, limitando
+a inspeção da árvore JSON. Se a lista de arquivos falha, a ficha deixa
+isso explícito e preserva apenas os dados que a API confirmou.
+
+O resultado informa quais passos de compatibilidade ainda seriam
+necessários. PNG/JPG de texturas são **candidatos** para uma futura
+importação, nunca prova de que um asset Roblox já existe. Modelos 3D
+externos e HDRIs ainda carecem de conversão, validação no editor e
+publicação autorizada. O botão não baixa bytes dos arquivos, não cria
+instâncias, não transforma formatos, não envia dados ao modelo de IA e
+não inventa Asset IDs. Nenhuma chave de API ou dado do projeto acompanha
+a consulta.
+
+**Validação automatizada:** o teste de produção
+`scripts/test_ai_polyhaven_catalog_java.py` inclui URLs fixas de detalhes,
+validação de slug, enumeração de formatos permitidos e contratos
+estáticos da interface Android. O workflow
+`ai-hub-android-java.yml` também compila a classe e a Activity Android
+com o SDK 35. Aprovado no workflow
+https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44245178637
+para o commit `3418285f9b38a9ee1fb602fbcad5eaab41c25786`.
+Os testes não fazem requisições ao serviço em um celular real e não
+comprovam download/importação/publicação/qualidade visual no jogo.
+
+**Trabalho pendente:** validação no Android físico da busca e ficha com
+internet real; escolha de arquivos individuais com hash/limite e
+licenças; conversor de formato realmente compatível; importação em
+cenário de teste, leitura de volta via MCP, revisão visual e, separadamente,
+publicação mediante confirmação e ID real retornado.
