@@ -624,7 +624,8 @@ public final class StudioAiHub extends Activity {
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
     private TextView assetPreviewReport;
     private ImageView assetPreviewImage;
-    private Button inspectAssetFile;
+    private Button inspectAssetFile, reviewAssetWithAi;
+    private TextView assetVisualReviewResult;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
     private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe, allowRookGuiProbe;
     private TextView playProbeResult, playSmokeResult, rookTouchResult;
@@ -2349,6 +2350,11 @@ public final class StudioAiHub extends Activity {
         assetPreviewReport.setText("Inspecionando o arquivo local, sem enviá-lo à IA...");
         assetPreviewImage.setImageDrawable(null);
         assetPreviewImage.setVisibility(View.GONE);
+        if (reviewAssetWithAi != null) reviewAssetWithAi.setEnabled(false);
+        if (assetVisualReviewResult != null) {
+            assetVisualReviewResult.setText("");
+            assetVisualReviewResult.setVisibility(View.GONE);
+        }
         setBusy(true, "Lendo imagem/VFX ou som selecionado...");
         requests.execute(() -> {
             String message;
@@ -2403,8 +2409,158 @@ public final class StudioAiHub extends Activity {
                     assetPreviewImage.setVisibility(View.VISIBLE);
                 }
                 setBusy(false, "Prévia local concluída; nenhum asset publicado.");
+                if (reviewAssetWithAi != null)
+                    reviewAssetWithAi.setEnabled(image != null);
             });
         });
+    }
+
+
+    /** Each review has a separate human confirmation. No history or fallback. */
+    private void confirmVisualReview() {
+        if (busy || applyingEdit || assetPreviewImage == null ||
+                !(assetPreviewImage.getDrawable() instanceof
+                        android.graphics.drawable.BitmapDrawable)) return;
+        final int selectedProvider = provider;
+        final String model = selectedModelId();
+        if (!models.contains(model) ||
+                !model.matches("[a-zA-Z0-9_./:-]{1,180}")) {
+            status.setText("Consulte os modelos e escolha um modelo com visão.");
+            return;
+        }
+        final String credential;
+        try { credential = readKey(selectedProvider); }
+        catch (Exception err) {
+            status.setText("Não foi possível ler a chave da IA.");
+            return;
+        }
+        if (credential == null || credential.isEmpty()) {
+            status.setText("Salve uma chave do provedor antes da análise visual.");
+            return;
+        }
+        // Copy a small image while it still belongs to the visible preview.
+        android.graphics.Bitmap current =
+                ((android.graphics.drawable.BitmapDrawable)
+                        assetPreviewImage.getDrawable()).getBitmap();
+        if (current == null || current.isRecycled()) {
+            status.setText("Selecione novamente a imagem.");
+            return;
+        }
+        final android.graphics.Bitmap copy = current.copy(
+                android.graphics.Bitmap.Config.ARGB_8888, false);
+        if (copy == null) {
+            status.setText("Não foi possível preparar a miniatura.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Enviar esta imagem à IA?")
+                .setMessage("Provedor: " + NAMES[selectedProvider] +
+                        "\nModelo: " + model +
+                        "\n\nSerá enviada somente UMA miniatura JPEG de até 384 px," +
+                        " sobre fundo escuro, e um pedido fixo de avaliação visual." +
+                        " O original, scripts, Output e histórico do projeto NÃO serão enviados." +
+                        "\n\nA API pode ter custos; nem todos os modelos aceitam imagens." +
+                        " A análise não modifica o jogo, não publica assets" +
+                        " e não tenta outro provedor automaticamente." +
+                        "\n\nAutoriza este envio único?")
+                .setNegativeButton("Não enviar", (dialog, which) -> copy.recycle())
+                .setOnCancelListener(dialog -> copy.recycle())
+                .setPositiveButton("Enviar uma miniatura", (dialog, which) ->
+                        sendVisualReview(selectedProvider, model, copy))
+                .show();
+    }
+
+    private void sendVisualReview(int selectedProvider, String model,
+            android.graphics.Bitmap snapshot) {
+        if (busy || applyingEdit || isFinishing()) {
+            snapshot.recycle();
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        if (assetVisualReviewResult != null) {
+            assetVisualReviewResult.setText("Preparando imagem reduzida para envio único...");
+            assetVisualReviewResult.setVisibility(View.VISIBLE);
+        }
+        setBusy(true, "Preparando avaliação visual consentida...");
+        requests.execute(() -> {
+            String report;
+            try {
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                byte[] jpeg = jpegForReview(snapshot);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                // Credential is retrieved from the Keystore immediately before
+                // the single permitted HTTPS request, never shown in the report.
+                String key = readKey(selectedProvider);
+                if (key == null || key.isEmpty())
+                    throw new IOException("A chave da API foi removida.");
+                JSONObject body = StudioVisualReview.buildRequest(
+                        selectedProvider, model, jpeg);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                // Single request only. The ordinary chat fallback is NOT used.
+                JSONObject result = request(selectedProvider, key,
+                        messageUrl(selectedProvider, model), body);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                String answer = extractText(selectedProvider, result).trim();
+                if (answer.isEmpty()) throw new IOException(
+                        "O modelo não retornou uma avaliação visual.");
+                if (answer.length() > 12000)
+                    answer = answer.substring(0, 12000) +
+                            "\n[Resposta truncada para leitura no celular]";
+                report = "Avaliação pela IA • " + NAMES[selectedProvider] +
+                        " • modelo " + model + "\n\n" + answer +
+                        "\n\nAnálise de uma imagem estática: NÃO comprova " +
+                        "FPS, animação, física, som ou qualidade no Play. " +
+                        "Nenhuma alteração foi aplicada no mapa.";
+            } catch (Exception error) {
+                report = "Avaliação visual não confirmada: " +
+                        (error instanceof ApiHttpException
+                                ? error.getMessage()
+                                : "o envio foi cancelado ou o modelo não aceitou a imagem.") +
+                        "\nNenhuma edição ou publicação realizada. " +
+                        "Se houve perda de conexão, a API pode ter recebido o pedido.";
+            } finally {
+                snapshot.recycle();
+            }
+            final String visible = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                assetVisualReviewResult.setText(visible);
+                assetVisualReviewResult.setVisibility(View.VISIBLE);
+                setBusy(false, "Avaliação visual finalizada; nenhuma edição executada.");
+            });
+        });
+    }
+
+    /** Encode a single downsampled JPEG and enforce the existing 128-KiB API cap. */
+    private static byte[] jpegForReview(android.graphics.Bitmap src)
+            throws IOException {
+        if (src == null || src.isRecycled() || src.getWidth() < 1 ||
+                src.getHeight() < 1 || src.getWidth() > 8192 ||
+                src.getHeight() > 8192) throw new IOException("Imagem inválida.");
+        float scale = Math.min(1f, Math.min(
+                384f / src.getWidth(), 384f / src.getHeight()));
+        int width = Math.max(1, Math.round(src.getWidth() * scale));
+        int height = Math.max(1, Math.round(src.getHeight() * scale));
+        android.graphics.Bitmap flat = android.graphics.Bitmap.createBitmap(
+                width, height, android.graphics.Bitmap.Config.ARGB_8888);
+        try {
+            android.graphics.Canvas canvas = new android.graphics.Canvas(flat);
+            canvas.drawColor(Color.rgb(24, 29, 38));
+            android.graphics.Rect target = new android.graphics.Rect(0, 0, width, height);
+            canvas.drawBitmap(src, null, target,
+                    new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG));
+            for (int quality : new int[]{72, 56, 40, 28}) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                if (!flat.compress(android.graphics.Bitmap.CompressFormat.JPEG,
+                        quality, out)) continue;
+                byte[] bytes = out.toByteArray();
+                if (bytes.length <= StudioVisualReview.MAX_JPEG_BYTES)
+                    return bytes;
+            }
+            throw new IOException("Não foi possível limitar a miniatura a 64 KiB.");
+        } finally {
+            flat.recycle();
+        }
     }
 
     private void selectToolboxFile() {
@@ -2644,7 +2800,25 @@ public final class StudioAiHub extends Activity {
         assetPreviewReport.setPadding(dp(11), dp(10), dp(11), dp(10));
         assetPreviewReport.setBackground(shape(Color.rgb(26, 42, 65), 12));
         assetPreviewReport.setVisibility(View.GONE);
-        add(root, assetPreviewReport, 10);
+        add(root, assetPreviewReport, 5);
+        reviewAssetWithAi = button("Analisar a imagem com IA • confirmar envio");
+        reviewAssetWithAi.setEnabled(false);
+        reviewAssetWithAi.setOnClickListener(v -> confirmVisualReview());
+        add(root, reviewAssetWithAi, 4);
+        TextView visionHelp = text(
+                "O modelo recebe UMA miniatura JPEG reduzida (até 384 px) somente após " +
+                "você confirmar o envio. O arquivo original, scripts, Output, localização " +
+                "e dados do projeto NÃO são enviados. " +
+                "O provedor pode cobrar e o modelo pode não aceitar imagens. " +
+                "Não há repetição automática por outro provedor. " +
+                "A resposta descreve problemas e sugestões, mas não comprova " +
+                "resultado real do Play.", 12, false);
+        add(root, visionHelp, 5);
+        assetVisualReviewResult = text("", 12, false);
+        assetVisualReviewResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        assetVisualReviewResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        assetVisualReviewResult.setVisibility(View.GONE);
+        add(root, assetVisualReviewResult, 10);
         add(root, text("Auditoria de modelo JÁ INSERIDO (MCP local)", 14, true), 4);
         TextView auditHelp = text("Digite o caminho exato do Model no Explorer. " +
                 "O app percorre árvores reais do Workspace e lê trechos de Luau " +
@@ -3120,6 +3294,12 @@ public final class StudioAiHub extends Activity {
         refresh.setEnabled(!waiting);
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
         if (inspectAssetFile != null) inspectAssetFile.setEnabled(!waiting);
+        if (reviewAssetWithAi != null) {
+            boolean hasImage = assetPreviewImage != null &&
+                    assetPreviewImage.getDrawable() instanceof
+                            android.graphics.drawable.BitmapDrawable;
+            reviewAssetWithAi.setEnabled(!waiting && hasImage);
+        }
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
