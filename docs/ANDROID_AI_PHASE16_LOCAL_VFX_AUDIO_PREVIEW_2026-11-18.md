@@ -212,3 +212,63 @@ ainda é pendente; nenhum resultado será anunciado sem evidências.
 Próxima integração: autorização de importação de arquivo cuja
 compatibilidade esteja comprovada, inserção real no projeto e
 read-back do editor, com rollback local e publicação separada.
+
+
+## Continuação — Roblox Open Cloud decal via consentimento separado
+
+Novo cliente de produção `StudioRobloxImageUpload.java` implementa
+o endpoint **POST https://apis.roblox.com/assets/v1/assets** da API
+oficial Roblox Open Cloud, com `multipart/form-data`, campo `request`
+para os metadados, campo `fileContent` para os bytes PNG/JPG,
+`x-api-key` de autorização e `assetType=Decal`. O endpoint GET
+`/assets/v1/operations/{id}` verifica posteriormente o status real.
+Especificação:
+https://create.roblox.com/docs/cloud/guides/usage-assets
+
+O formulário opcional fica abaixo da verificação de um arquivo local
+na tela já existente do AI Hub, **sem trocar a interface original**.
+O usuário informa seu Roblox User ID, um nome simples para o decal
+e uma chave Open Cloud com escopo autorizado. A chave de **Roblox**
+não é a mesma chave de OpenAI/Gemini e **não é gravada** na memória
+persistente ou no projeto. O usuário deve obter autorização legítima
+para os recursos de upload da própria conta. O aplicativo não solicita
+ou contorna verificações de idade, moderadores, quotas ou permissões.
+
+Para liberar o envio, uma textura PNG/JPG precisa ter sido
+**selecionada manualmente** pelo seletor Android e corresponder ao
+tamanho, à assinatura e ao MD5 informado pela Poly Haven.
+O app solicita então uma **segunda confirmação** de upload, distinta
+da autorização de inspeção local. No momento exato da operação,
+`readVerifiedBytes` relê todo o arquivo pelo URI e verifica novamente
+tamanho, assinatura e checksum; também valida as dimensões decodificadas
+como estritamente menores que 8000 × 8000, antes de uma única requisição
+HTTPS de envio. Nenhum upload é disparado por modelos de IA,
+Toolbox ou buscas automáticas.
+
+Uma resposta de criação bem-sucedida retorna o caminho de uma
+**operação**, não um Asset ID presumido. O usuário consulta
+explicitamente o estado por um segundo botão. O aplicativo só mostra
+`rbxassetid://<ID>` quando a resposta **real da Open Cloud** marca
+a operação como concluída e confirma o tipo de asset `DECAL`,
+exibindo também o estado de moderação. Se o pedido falhar ou perder
+a resposta, o relatório diz que a criação ficou **incerta** e
+recomenda consultar o Creator Dashboard antes de qualquer nova
+tentativa, para evitar duplicações. Não há repetição automática.
+
+Isso cria um **decal na conta Roblox** somente com chave válida,
+permissão real e consentimento no celular. **Não publica o jogo
+nem altera o mapa**: usar o asset ID em uma Part/Decal do Explorer
+será um passo adicional, com validação do destino e recibo MCP,
+sem associar falsamente IDs de assets a arquivos ou publicações.
+
+Teste criado: `scripts/test_ai_roblox_decal_upload_java.py`.
+Ele compila as classes Java de produção e valida o formato
+da requisição, limites, ID e nome de criador, rejeição de valores
+malformados, geração de URLs de operação restritas e revalidação
+de bytes alterados. O workflow Java Android também compila
+`StudioRobloxImageUpload.java` e o AI Hub completo.
+CI validada em
+https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/44248216224.
+Esse teste **não faz um upload real nem prova a autenticação,
+moderação ou a execução no Android físico**, que ainda precisam
+ser verificados por quem tenha uma conta e chave autorizadas.
