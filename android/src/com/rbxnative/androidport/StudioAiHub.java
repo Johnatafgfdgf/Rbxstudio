@@ -629,7 +629,8 @@ public final class StudioAiHub extends Activity {
     private TextView playFrameResult;
     private TextView assetVisualReviewResult, visualComparisonResult;
     private Button rememberVisualBefore, compareVisualLocal, reviewVisualPairWithAi;
-    private android.graphics.Bitmap visualBefore;
+    private android.graphics.Bitmap visualBefore, differenceHeatmapBitmap;
+    private ImageView visualDifferenceImage;
     private long imageSelectionCount, beforeSelectionCount;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
     private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe, allowRookGuiProbe;
@@ -2408,6 +2409,7 @@ public final class StudioAiHub extends Activity {
                     return;
                 }
                 playFrameResult.setText(summary);
+                clearVisualHeatmap();
                 assetPreviewImage.setImageDrawable(null);
                 assetPreviewImage.setVisibility(View.GONE);
                 if (assetVisualReviewResult != null) {
@@ -2474,6 +2476,7 @@ public final class StudioAiHub extends Activity {
         final long epoch = ++requestEpoch;
         assetPreviewReport.setVisibility(View.VISIBLE);
         assetPreviewReport.setText("Inspecionando o arquivo local, sem enviá-lo à IA...");
+        clearVisualHeatmap();
         assetPreviewImage.setImageDrawable(null);
         assetPreviewImage.setVisibility(View.GONE);
         if (reviewAssetWithAi != null) reviewAssetWithAi.setEnabled(false);
@@ -2547,6 +2550,18 @@ public final class StudioAiHub extends Activity {
 
 
 
+    /** Prevent stale heatmaps after the before/after selection changes. */
+    private void clearVisualHeatmap() {
+        if (visualDifferenceImage != null) {
+            visualDifferenceImage.setImageDrawable(null);
+            visualDifferenceImage.setVisibility(View.GONE);
+        }
+        if (differenceHeatmapBitmap != null &&
+                !differenceHeatmapBitmap.isRecycled())
+            differenceHeatmapBitmap.recycle();
+        differenceHeatmapBitmap = null;
+    }
+
     private android.graphics.Bitmap visibleVisualBitmap() {
         if (assetPreviewImage == null ||
                 !(assetPreviewImage.getDrawable() instanceof
@@ -2588,6 +2603,7 @@ public final class StudioAiHub extends Activity {
         if (visualBefore != null) visualBefore.recycle();
         visualBefore = copy;
         beforeSelectionCount = imageSelectionCount;
+        clearVisualHeatmap();
         if (visualComparisonResult != null) {
             visualComparisonResult.setText(
                     "ANTES guardado somente na memória. Selecione agora outra imagem " +
@@ -2622,6 +2638,7 @@ public final class StudioAiHub extends Activity {
 
     private void compareVisualLocal() {
         if (busy || applyingEdit || !hasVisualPair()) return;
+        clearVisualHeatmap();
         android.graphics.Bitmap after = visibleVisualBitmap();
         try {
             float ratioBefore = visualBefore.getWidth() /
@@ -2631,12 +2648,24 @@ public final class StudioAiHub extends Activity {
                 throw new IOException("As imagens têm proporções diferentes. " +
                         "Use capturas no mesmo formato e enquadramento.");
             }
+            int size = StudioVisualCompare.SAMPLE_SIZE;
+            int[] beforePixels = comparePixelSample(visualBefore);
+            int[] afterPixels = comparePixelSample(after);
             String report = StudioVisualCompare.describe(
-                    comparePixelSample(visualBefore), comparePixelSample(after),
-                    StudioVisualCompare.SAMPLE_SIZE,
-                    StudioVisualCompare.SAMPLE_SIZE);
-            visualComparisonResult.setText(report);
+                    beforePixels, afterPixels, size, size);
+            int[] colors = StudioVisualCompare.differenceHeatmap(
+                    beforePixels, afterPixels, size, size);
+            differenceHeatmapBitmap = android.graphics.Bitmap.createBitmap(
+                    colors, size, size, android.graphics.Bitmap.Config.ARGB_8888);
+            visualDifferenceImage.setImageBitmap(differenceHeatmapBitmap);
+            visualDifferenceImage.setVisibility(View.VISIBLE);
+            visualComparisonResult.setText(report +
+                    "\n\nMAPA DE ALTERAÇÕES (diagnóstico, não screenshot): " +
+                    "cinza = sem diferença expressiva, amarelo = pequena, " +
+                    "laranja = grande e vermelho = muito grande. " +
+                    "Diferenças não indicam, por si só, melhoria estética.");
         } catch (Exception ex) {
+            clearVisualHeatmap();
             visualComparisonResult.setText(
                     "Não foi possível comparar: " + ex.getMessage() +
                     "\nNenhum resultado visual foi inventado.");
@@ -3214,7 +3243,13 @@ public final class StudioAiHub extends Activity {
         visualComparisonResult.setPadding(dp(11), dp(10), dp(11), dp(10));
         visualComparisonResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         visualComparisonResult.setVisibility(View.GONE);
-        add(root, visualComparisonResult, 10);
+        add(root, visualComparisonResult, 5);
+        visualDifferenceImage = new ImageView(this);
+        visualDifferenceImage.setAdjustViewBounds(true);
+        visualDifferenceImage.setMaxHeight(dp(250));
+        visualDifferenceImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        visualDifferenceImage.setVisibility(View.GONE);
+        add(root, visualDifferenceImage, 9);
         add(root, text("Auditoria de modelo JÁ INSERIDO (MCP local)", 14, true), 4);
         TextView auditHelp = text("Digite o caminho exato do Model no Explorer. " +
                 "O app percorre árvores reais do Workspace e lê trechos de Luau " +
@@ -7596,6 +7631,7 @@ public final class StudioAiHub extends Activity {
         requestEpoch++;
         abortInFlight();
         requests.shutdownNow();
+        clearVisualHeatmap();
         if (visualBefore != null && !visualBefore.isRecycled()) {
             visualBefore.recycle();
             visualBefore = null;
