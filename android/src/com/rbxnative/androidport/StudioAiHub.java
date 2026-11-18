@@ -2423,6 +2423,218 @@ public final class StudioAiHub extends Activity {
     }
 
 
+
+    private android.graphics.Bitmap visibleVisualBitmap() {
+        if (assetPreviewImage == null ||
+                !(assetPreviewImage.getDrawable() instanceof
+                        android.graphics.drawable.BitmapDrawable)) return null;
+        android.graphics.Bitmap bitmap =
+                ((android.graphics.drawable.BitmapDrawable)
+                        assetPreviewImage.getDrawable()).getBitmap();
+        return bitmap == null || bitmap.isRecycled() ? null : bitmap;
+    }
+
+    private boolean hasVisualPair() {
+        return visualBefore != null && !visualBefore.isRecycled() &&
+                imageSelectionCount > beforeSelectionCount &&
+                visibleVisualBitmap() != null;
+    }
+
+    private void updateVisualCompareButtons() {
+        boolean imageReady = visibleVisualBitmap() != null;
+        if (rememberVisualBefore != null)
+            rememberVisualBefore.setEnabled(!busy && imageReady);
+        boolean pairReady = !busy && hasVisualPair();
+        if (compareVisualLocal != null)
+            compareVisualLocal.setEnabled(pairReady);
+        if (reviewVisualPairWithAi != null)
+            reviewVisualPairWithAi.setEnabled(pairReady);
+    }
+
+    /** A bounded in-memory baseline only; the original asset is not copied. */
+    private void rememberVisualBefore() {
+        if (busy || applyingEdit) return;
+        android.graphics.Bitmap now = visibleVisualBitmap();
+        if (now == null) return;
+        android.graphics.Bitmap copy = now.copy(
+                android.graphics.Bitmap.Config.ARGB_8888, false);
+        if (copy == null) {
+            status.setText("Não foi possível guardar a miniatura ANTES.");
+            return;
+        }
+        if (visualBefore != null) visualBefore.recycle();
+        visualBefore = copy;
+        beforeSelectionCount = imageSelectionCount;
+        if (visualComparisonResult != null) {
+            visualComparisonResult.setText(
+                    "ANTES guardado somente na memória. Selecione agora outra imagem " +
+                    "com o botão de arquivo acima para marcar o DEPOIS.");
+            visualComparisonResult.setVisibility(View.VISIBLE);
+        }
+        updateVisualCompareButtons();
+        status.setText("Imagem ANTES guardada na memória; nenhum arquivo foi enviado.");
+    }
+
+    /** Normalize both independently selected frames to an identical tiny grid. */
+    private static int[] comparePixelSample(android.graphics.Bitmap bitmap)
+            throws IOException {
+        if (bitmap == null || bitmap.isRecycled()) throw new IOException(
+                "Imagem de comparação indisponível.");
+        int size = StudioVisualCompare.SAMPLE_SIZE;
+        android.graphics.Bitmap grid = android.graphics.Bitmap.createBitmap(
+                size, size, android.graphics.Bitmap.Config.ARGB_8888);
+        try {
+            android.graphics.Canvas canvas = new android.graphics.Canvas(grid);
+            canvas.drawColor(Color.rgb(24, 29, 38));
+            canvas.drawBitmap(bitmap, null,
+                    new android.graphics.Rect(0, 0, size, size),
+                    new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG));
+            int[] pixels = new int[size * size];
+            grid.getPixels(pixels, 0, size, 0, 0, size, size);
+            return pixels;
+        } finally {
+            grid.recycle();
+        }
+    }
+
+    private void compareVisualLocal() {
+        if (busy || applyingEdit || !hasVisualPair()) return;
+        android.graphics.Bitmap after = visibleVisualBitmap();
+        try {
+            float ratioBefore = visualBefore.getWidth() /
+                    (float) visualBefore.getHeight();
+            float ratioAfter = after.getWidth() / (float) after.getHeight();
+            if (Math.abs(ratioBefore / ratioAfter - 1f) > 0.03f) {
+                throw new IOException("As imagens têm proporções diferentes. " +
+                        "Use capturas no mesmo formato e enquadramento.");
+            }
+            String report = StudioVisualCompare.describe(
+                    comparePixelSample(visualBefore), comparePixelSample(after),
+                    StudioVisualCompare.SAMPLE_SIZE,
+                    StudioVisualCompare.SAMPLE_SIZE);
+            visualComparisonResult.setText(report);
+        } catch (Exception ex) {
+            visualComparisonResult.setText(
+                    "Não foi possível comparar: " + ex.getMessage() +
+                    "\nNenhum resultado visual foi inventado.");
+        }
+        visualComparisonResult.setVisibility(View.VISIBLE);
+    }
+
+    private void confirmVisualComparison() {
+        if (busy || applyingEdit || !hasVisualPair()) return;
+        final int chosenProvider = provider;
+        final String chosenModel = selectedModelId();
+        if (!models.contains(chosenModel) ||
+                !chosenModel.matches("[a-zA-Z0-9_./:-]{1,180}")) {
+            status.setText("Consulte os modelos e escolha um modelo com visão.");
+            return;
+        }
+        try {
+            String key = readKey(chosenProvider);
+            if (key == null || key.isEmpty()) throw new IOException("Sem chave.");
+        } catch (Exception error) {
+            status.setText("Salve uma chave válida antes da comparação por IA.");
+            return;
+        }
+        android.graphics.Bitmap after = visibleVisualBitmap();
+        if (after == null) return;
+        final android.graphics.Bitmap first = visualBefore.copy(
+                android.graphics.Bitmap.Config.ARGB_8888, false);
+        final android.graphics.Bitmap second = after.copy(
+                android.graphics.Bitmap.Config.ARGB_8888, false);
+        if (first == null || second == null) {
+            if (first != null) first.recycle();
+            if (second != null) second.recycle();
+            status.setText("Não foi possível preparar as duas imagens.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Enviar ANTES e DEPOIS à IA?")
+                .setMessage("Provedor: " + NAMES[chosenProvider] +
+                        "\nModelo: " + chosenModel +
+                        "\n\nSerão enviadas SOMENTE duas miniaturas JPEG reduzidas " +
+                        "(até 384 px e 40 KiB por imagem), nesta ordem: ANTES e DEPOIS." +
+                        "\nNenhum original, script, Output ou histórico do projeto será enviado." +
+                        "\n\nA API pode ter custos e o modelo pode não aceitar imagens." +
+                        " Uma comparação não altera o mapa, não publica assets" +
+                        " e não repete a solicitação em outro provedor." +
+                        "\n\nAutoriza este envio único das duas imagens?")
+                .setNegativeButton("Não enviar", (dialog, which) -> {
+                    first.recycle();
+                    second.recycle();
+                })
+                .setOnCancelListener(dialog -> {
+                    first.recycle();
+                    second.recycle();
+                })
+                .setPositiveButton("Enviar as duas miniaturas",
+                        (dialog, which) -> sendVisualComparison(
+                                chosenProvider, chosenModel, first, second))
+                .show();
+    }
+
+    /** Optional two-frame AI assessment; no MCP writes, history or retry. */
+    private void sendVisualComparison(int selectedProvider, String model,
+            android.graphics.Bitmap before, android.graphics.Bitmap after) {
+        if (busy || applyingEdit || isFinishing()) {
+            before.recycle();
+            after.recycle();
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        visualComparisonResult.setVisibility(View.VISIBLE);
+        visualComparisonResult.setText(
+                "Preparando as duas miniaturas consentidas para comparação...");
+        setBusy(true, "Comparação visual por IA em uma única solicitação...");
+        requests.execute(() -> {
+            String report;
+            try {
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                byte[] jpegBefore = jpegForReview(before,
+                        StudioVisualReview.MAX_COMPARISON_JPEG_BYTES);
+                byte[] jpegAfter = jpegForReview(after,
+                        StudioVisualReview.MAX_COMPARISON_JPEG_BYTES);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                String key = readKey(selectedProvider);
+                if (key == null || key.isEmpty())
+                    throw new IOException("Chave da API removida.");
+                JSONObject payload = StudioVisualReview.buildComparisonRequest(
+                        selectedProvider, model, jpegBefore, jpegAfter);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                JSONObject response = request(selectedProvider, key,
+                        messageUrl(selectedProvider, model), payload);
+                if (epoch != requestEpoch) throw new IOException("Cancelado.");
+                String answer = extractText(selectedProvider, response).trim();
+                if (answer.isEmpty())
+                    throw new IOException("Modelo não retornou uma comparação.");
+                if (answer.length() > 12000)
+                    answer = answer.substring(0, 12000) +
+                            "\n[Resposta truncada para leitura no celular]";
+                report = "Comparação por IA • ANTES/DEPOIS • " +
+                        NAMES[selectedProvider] + " • " + model + "\n\n" +
+                        answer + "\n\nAvaliação de duas imagens estáticas; " +
+                        "não comprova comportamento em Play, áudio, FPS, " +
+                        "movimento ou melhora geral. Nenhuma correção foi executada.";
+            } catch (Exception error) {
+                report = "Comparação visual não confirmada: " +
+                        (error instanceof ApiHttpException ? error.getMessage() :
+                        "envio interrompido ou modelo incompatível com imagens.") +
+                        "\nNenhuma modificação ou publicação realizada. " +
+                        "A API pode ter recebido uma solicitação já iniciada.";
+            } finally {
+                before.recycle();
+                after.recycle();
+            }
+            final String visible = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                visualComparisonResult.setText(visible);
+                setBusy(false, "Comparação finalizada, sem edição automática.");
+            });
+        });
+    }
+
     /** Each review has a separate human confirmation. No history or fallback. */
     private void confirmVisualReview() {
         if (busy || applyingEdit || assetPreviewImage == null ||
