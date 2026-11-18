@@ -48,6 +48,36 @@ com chave de API real e modelo de visão habilitado, verificação de
 qualidade da imagem enviada, limites de custo efetivos e comparação
 visual antes/depois de edições no mapa.
 
+## Continuação — comparação antes/depois
+
+A central de IA agora permite selecionar uma imagem, guardá-la como
+**ANTES** apenas na memória do aplicativo e selecionar outra como
+**DEPOIS**. Os dois arquivos são lidos pelo seletor Android, não são
+extraídos automaticamente do jogo nem publicados.
+
+O botão de comparação local mede diferenças reais após normalizar
+as duas miniaturas para uma amostra RGBA de 160×160: percentual de
+pixels diferentes (limiar de 30 pontos em algum canal), diferença RGB
+média, variação de luminosidade e região com maior concentração de
+mudanças. Proporções diferentes são rejeitadas para evitar comparar
+capturas incompatíveis. Isso NÃO é uma avaliação de beleza ou de FPS,
+apenas diferença técnica de imagem.
+
+Uma segunda opção pede autorização explícita para enviar **somente
+duas miniaturas reduzidas** ao modelo escolhido. Cada uma tem no máximo
+40 KiB; as requisições de dois arquivos também têm limite total de
+120 KiB, menor que o limite de 128 KiB do transporte HTTP existente.
+O formato correto é montado para OpenAI Responses, Gemini, Claude
+Messages ou OpenRouter e o prompt marca a primeira como ANTES e a
+segunda como DEPOIS. O modelo recebe nenhuma informação do
+Explorer, scripts, Output, credenciais ou histórico; não existe
+troca automática de modelo, publicação nem alteração do jogo.
+
+As cópias usadas no pedido são descartadas ao finalizar. A imagem
+ANTES permanece em memória até ser substituída ou até o fechamento
+da Activity. A comparação ainda não comprova que um efeito funciona
+durante o jogo, nem registra o estado do mundo automaticamente.
+
 ## Testes
 
 scripts/test_ai_visual_review_java.py compila e executa a classe

@@ -92,7 +92,44 @@ public class VisualReviewContract {
         invalid(0,"with spaces",jpeg);
         invalid(1,"model",new byte[10]);
         invalid(2,"model",new byte[70000]);
-        System.out.println("Real provider JSON image review contract: passed");
+
+        byte[] before=jpeg.clone(), after=jpeg.clone();
+        after[5]=(byte)42;
+        for(int p=0;p<4;p++){
+            JSONObject pair=StudioVisualReview.buildComparisonRequest(
+                    p,"vision-model",before,after);
+            JSONArray content=p==0
+                    ? pair.getJSONArray("input").getJSONObject(0).getJSONArray("content")
+                    : p==1
+                    ? pair.getJSONArray("contents").getJSONObject(0).getJSONArray("parts")
+                    : pair.getJSONArray("messages").getJSONObject(0).getJSONArray("content");
+            yes(content.length()==3);
+            yes(content.getJSONObject(0).getString("text").contains("ANTES"));
+            yes(content.getJSONObject(0).getString("text").contains("DEPOIS"));
+            if(p==0){
+                yes("input_image".equals(content.getJSONObject(1).getString("type")));
+                yes("input_image".equals(content.getJSONObject(2).getString("type")));
+                yes(!content.getJSONObject(1).getString("image_url")
+                        .equals(content.getJSONObject(2).getString("image_url")));
+            } else if(p==1){
+                yes("image/jpeg".equals(content.getJSONObject(1)
+                        .getJSONObject("inline_data").getString("mime_type")));
+                yes("image/jpeg".equals(content.getJSONObject(2)
+                        .getJSONObject("inline_data").getString("mime_type")));
+            } else if(p==2){
+                yes("image".equals(content.getJSONObject(1).getString("type")));
+                yes("image".equals(content.getJSONObject(2).getString("type")));
+            } else {
+                yes("image_url".equals(content.getJSONObject(1).getString("type")));
+                yes("image_url".equals(content.getJSONObject(2).getString("type")));
+            }
+        }
+        try {
+            StudioVisualReview.buildComparisonRequest(0,"vision-model",
+                    new byte[41000],jpeg);
+            throw new AssertionError("oversized pair accepted");
+        } catch(java.io.IOException expected) {}
+        System.out.println("Real provider JSON image review and comparison: passed");
     }
 }
 """
