@@ -8655,6 +8655,134 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+
+    /**
+     * A separate, informed consent for sending ONE real PixelCopy screenshot.
+     * Only current, time-ordered, exact-asset evidence can be considered.
+     * The screenshot may be unrelated to the Part's on-screen location.
+     */
+    private void confirmDecalVisualReview() {
+        final StudioRobloxDecalPlacement.Proposal p = previewedPlayFrameDecal;
+        final long capturedAt = previewedPlayFrameAt;
+        final long confirmedAt = lastVerifiedPlacedDecalAt;
+        if (busy || applyingEdit || p == null ||
+                p != lastVerifiedPlacedDecal ||
+                !p.assetId.equals(confirmedRobloxDecalId) ||
+                !StudioDecalVisualReview.eligible(p, confirmedAt, capturedAt))
+            return;
+        final android.graphics.Bitmap original = visibleVisualBitmap();
+        if (original == null) {
+            status.setText("Importe uma captura real do Play após criar o Decal.");
+            return;
+        }
+        final int selectedProvider = provider;
+        final String model = selectedModelId();
+        if (!models.contains(model) ||
+                !model.matches("[a-zA-Z0-9_./:-]{1,180}")) {
+            status.setText("Selecione um modelo com visão e API configurada.");
+            return;
+        }
+        try {
+            String key = readKey(selectedProvider);
+            if (key == null || key.isEmpty())
+                throw new IOException("Credencial ausente");
+        } catch (Exception noKey) {
+            status.setText("Salve a chave de uma IA com visão antes da análise.");
+            return;
+        }
+        final android.graphics.Bitmap copy = original.copy(
+                android.graphics.Bitmap.Config.ARGB_8888, false);
+        if (copy == null) {
+            status.setText("Não foi possível copiar a captura exibida.");
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Enviar esta captura do Decal para a IA?")
+                .setMessage("Provedor: " + NAMES[selectedProvider] +
+                        "\nModelo: " + model +
+                        "\nDecal: " + p.decalPath() +
+                        "\nFace: " + p.face + "\nAsset ID: " + p.assetId +
+                        "\n\nA IA receberá UMA miniatura JPEG de até 384 px, " +
+                        "o nome e caminho do Decal, o Asset ID e a face " +
+                        "aprovados. Outros objetos, nomes ou pessoas que " +
+                        "apareçam NA IMAGEM também ficarão visíveis à IA. " +
+                        "Nenhum Output, script, mapa ou histórico será anexado. " +
+                        "A câmera pode não estar apontada para o Decal. " +
+                        "O modelo pode cobrar pela análise e não será " +
+                        "substituído automaticamente. Nenhuma alteração " +
+                        "ou publicação será executada.\n\nAutorizar UM envio?")
+                .setNegativeButton("Não enviar", (dialog, which) -> copy.recycle())
+                .setOnCancelListener(dialog -> copy.recycle())
+                .setPositiveButton("Enviar captura para análise", (dialog, which) ->
+                        sendDecalVisualReview(selectedProvider, model, p,
+                                confirmedAt, capturedAt, copy))
+                .show();
+    }
+
+    /** No AI fallback and no MCP or Open Cloud writes in this visual review. */
+    private void sendDecalVisualReview(int chosenProvider, String model,
+            StudioRobloxDecalPlacement.Proposal decal,
+            long confirmedAt, long capturedAt, android.graphics.Bitmap screenshot) {
+        if (busy || applyingEdit || isFinishing() ||
+                decal != previewedPlayFrameDecal ||
+                decal != lastVerifiedPlacedDecal ||
+                confirmedAt != lastVerifiedPlacedDecalAt ||
+                capturedAt != previewedPlayFrameAt ||
+                !decal.assetId.equals(confirmedRobloxDecalId) ||
+                !StudioDecalVisualReview.eligible(decal, confirmedAt, capturedAt)) {
+            screenshot.recycle();
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        setBusy(true, "Enviando miniatura consentida para revisão visual do Decal...");
+        decalVisualReviewResult.setText("Preparando somente a miniatura autorizada...");
+        decalVisualReviewResult.setVisibility(View.VISIBLE);
+        requests.execute(() -> {
+            String report;
+            try {
+                if (epoch != requestEpoch) throw new IOException("Revisão cancelada.");
+                byte[] jpeg = jpegForReview(screenshot);
+                if (epoch != requestEpoch) throw new IOException("Revisão cancelada.");
+                String apiCredential = readKey(chosenProvider);
+                if (apiCredential == null || apiCredential.isEmpty())
+                    throw new IOException("Credencial revogada.");
+                JSONObject body = StudioDecalVisualReview.buildRequest(
+                        chosenProvider, model, jpeg, decal, confirmedAt, capturedAt);
+                if (epoch != requestEpoch) throw new IOException("Revisão cancelada.");
+                JSONObject result = request(chosenProvider, apiCredential,
+                        messageUrl(chosenProvider, model), body);
+                if (epoch != requestEpoch) throw new IOException("Revisão cancelada.");
+                String answer = extractText(chosenProvider, result).trim();
+                if (answer.isEmpty()) throw new IOException("IA não retornou uma análise.");
+                if (answer.length() > 12000)
+                    answer = answer.substring(0, 12000) +
+                            "\n[Resposta truncada para leitura no Android]";
+                report = "REVISÃO VISUAL DO DECAL • " + decal.decalPath() +
+                        " • " + NAMES[chosenProvider] + " • " + model +
+                        "\n\n" + answer +
+                        "\n\nA captura foi feita após a confirmação da edição, " +
+                        "mas pode não mostrar a Part. IA não comprova " +
+                        "carregamento, scripts, moderação, FPS, animação ou som. " +
+                        "Nenhum ajuste foi aplicado ao mapa.";
+            } catch (Exception error) {
+                report = "Revisão visual não confirmada: " +
+                        (error instanceof ApiHttpException ? error.getMessage() :
+                         "envio interrompido, credencial inválida ou modelo sem visão.") +
+                        "\nNenhuma alteração foi feita no projeto. Se a conexão caiu, " +
+                        "a IA pode ter recebido o pedido já iniciado.";
+            } finally {
+                screenshot.recycle();
+            }
+            final String visible = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                decalVisualReviewResult.setText(visible);
+                decalVisualReviewResult.setVisibility(View.VISIBLE);
+                setBusy(false, "Revisão visual encerrada, sem alterações.");
+            });
+        });
+    }
+
     private void requestClose() {
         if (uploadingRobloxDecal) {
             new android.app.AlertDialog.Builder(this)
