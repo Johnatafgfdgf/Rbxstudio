@@ -635,6 +635,12 @@ public final class StudioAiHub extends Activity {
     private StudioPolyHavenIntegrity.Candidate verifiedPolyHavenCandidate;
     private android.net.Uri verifiedPolyHavenUri;
     private String pendingRobloxDecalOperation;
+    private String confirmedRobloxDecalId;
+    private StudioRobloxDecalPlacement.Proposal pendingDecalPlacement;
+    private EditText decalTargetPath, decalInstanceName;
+    private Spinner decalFace;
+    private Button inspectDecalTarget, applyDecalToPart;
+    private TextView decalPlacementResult;
     private boolean uploadingRobloxDecal;
     private EditText robloxDecalCreator, robloxDecalName, robloxDecalApiKey;
     private Button uploadRobloxDecal, checkRobloxDecal;
@@ -2835,6 +2841,7 @@ public final class StudioAiHub extends Activity {
 
 
     private void refreshRobloxDecalButtons() {
+        refreshDecalPlacementButtons();
         if (uploadRobloxDecal != null) uploadRobloxDecal.setEnabled(
                 !busy && !applyingEdit && verifiedPolyHavenCandidate != null &&
                 verifiedPolyHavenUri != null && pendingRobloxDecalOperation == null);
@@ -2888,6 +2895,8 @@ public final class StudioAiHub extends Activity {
         final long epoch = ++requestEpoch;
         verifiedPolyHavenCandidate = null;
         verifiedPolyHavenUri = null;
+        confirmedRobloxDecalId = null;
+        pendingDecalPlacement = null;
         uploadingRobloxDecal = true;
         setBusy(true, "Revalidando bytes e enviando decal ao Roblox...");
         robloxDecalResult.setText("Conferindo o arquivo; nenhuma operação foi confirmada.");
@@ -2951,6 +2960,7 @@ public final class StudioAiHub extends Activity {
         setBusy(true, "Consultando o status da operação no Roblox...");
         requests.execute(() -> {
             String message;
+            String confirmedId = null;
             try {
                 JSONObject operation = new JSONObject(
                         StudioRobloxImageUpload.getOperation(key, path));
@@ -2972,6 +2982,7 @@ public final class StudioAiHub extends Activity {
                         String state = mod == null ? "NÃO INFORMADO" :
                                 limitedExternalText(
                                         mod.optString("moderationState", "NÃO INFORMADO"), 80);
+                        confirmedId = StudioRobloxDecalPlacement.validateAssetId(id);
                         message = "Asset ID confirmado pela Open Cloud: " + id +
                                 "\nReferência: rbxassetid://" + id +
                                 "\nModeração: " + state +
@@ -2983,9 +2994,19 @@ public final class StudioAiHub extends Activity {
                 message = "Não foi possível confirmar a operação " + path + ": " +
                         limitedExternalText(error.getMessage(), 140);
             }
-            final String result = message;
+            final String result = message, acceptedId = confirmedId;
             runOnUiThread(() -> {
                 if (epoch != requestEpoch || isFinishing()) return;
+                if (acceptedId != null && !acceptedId.equals(confirmedRobloxDecalId)) {
+                    pendingDecalPlacement = null;
+                    confirmedRobloxDecalId = acceptedId;
+                    if (decalPlacementResult != null) {
+                        decalPlacementResult.setText(
+                                "Asset ID confirmado: " + acceptedId +
+                                ". Inspecione uma Part existente pelo MCP antes de aplicar.");
+                        decalPlacementResult.setVisibility(View.VISIBLE);
+                    }
+                }
                 setBusy(false, "Consulta Open Cloud concluída ou recusada.");
                 robloxDecalResult.setText(result);
                 robloxDecalResult.setVisibility(View.VISIBLE);
@@ -3773,7 +3794,40 @@ public final class StudioAiHub extends Activity {
         robloxDecalResult.setPadding(dp(11), dp(10), dp(11), dp(10));
         robloxDecalResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         robloxDecalResult.setVisibility(View.GONE);
-        add(root, robloxDecalResult, 9);
+        add(root, robloxDecalResult, 5);
+        add(root, text("Aplicar decal confirmado em uma Part • MCP local", 14, true), 4);
+        add(root, text(
+                "Exige Asset ID realmente confirmado pela operação Roblox e " +
+                "conexão MCP local com o editor. Inspecione uma Part existente " +
+                "em Workspace ou Workspace.Model, escolha a face, revise " +
+                "a prévia e aprove UMA escrita. O app não substitui texturas " +
+                "existentes, não edita scripts e não publica o mapa. " +
+                "O editor pode exigir autorização MCP adicional.",
+                12, false), 5);
+        decalTargetPath = field("Part existente: Workspace.Parede", false);
+        decalTargetPath.setSingleLine(true);
+        add(root, decalTargetPath, 4);
+        decalInstanceName = field("Nome novo Decal: TexturaVento01", false);
+        decalInstanceName.setSingleLine(true);
+        add(root, decalInstanceName, 4);
+        decalFace = new Spinner(this);
+        decalFace.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Front", "Back", "Top", "Bottom", "Left", "Right"}));
+        add(root, decalFace, 4);
+        inspectDecalTarget = button("Inspecionar Part e preparar aplicação");
+        inspectDecalTarget.setOnClickListener(v -> inspectDecalPartTarget());
+        inspectDecalTarget.setEnabled(false);
+        add(root, inspectDecalTarget, 4);
+        applyDecalToPart = button("Revisar e aplicar Decal na Part");
+        applyDecalToPart.setOnClickListener(v -> confirmDecalPlacement());
+        applyDecalToPart.setEnabled(false);
+        add(root, applyDecalToPart, 4);
+        decalPlacementResult = text("", 12, false);
+        decalPlacementResult.setPadding(dp(11), dp(10), dp(11), dp(10));
+        decalPlacementResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        decalPlacementResult.setVisibility(View.GONE);
+        add(root, decalPlacementResult, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
