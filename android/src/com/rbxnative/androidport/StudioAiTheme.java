@@ -101,6 +101,20 @@ final class StudioAiTheme {
         button.setIncludeFontPadding(false);
         button.setElevation(0);
         button.setStateListAnimator(null);
+        // Same compact Lucide-like line-glyph rhythm as the GPUI launcher:
+        // a 14dp monochrome glyph, 6dp gap, never a new logo.
+        String label = button.getText().toString().toLowerCase(java.util.Locale.ROOT);
+        String glyph = label.startsWith("voltar") ? "back" :
+                label.startsWith("salvar chave") ? "key" :
+                label.startsWith("remover chave") ? "trash" :
+                label.startsWith("consultar modelos") ? "refresh" :
+                label.startsWith("como conectar") ? "help" :
+                label.startsWith("enviar") ? "send" : null;
+        if (glyph != null) {
+            Glyph icon = new Glyph(c,glyph,(primary || danger) ? GROUND : TEXT);
+            button.setCompoundDrawablesRelativeWithIntrinsicBounds(icon,null,null,null);
+            button.setCompoundDrawablePadding(dp(c,6));
+        }
     }
 
     static void checkbox(Context c,CheckBox check) {
@@ -134,6 +148,67 @@ final class StudioAiTheme {
         text.setTextColor(TEXT);
         text.setTextSize(title ? 13.5f : 12f);
         text.setIncludeFontPadding(false);
+    }
+
+
+    /** Small original vector line icons, never upscaled Android system icons. */
+    private static final class Glyph extends Drawable {
+        private final Context context;
+        private final String kind;
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int tint;
+        Glyph(Context c,String name,int color) {
+            context=c;kind=name;tint=color;
+        }
+        @Override public int getIntrinsicWidth() { return dp(context,14); }
+        @Override public int getIntrinsicHeight() { return dp(context,14); }
+        @Override public void draw(Canvas c) {
+            c.save();
+            c.translate(getBounds().left,getBounds().top);
+            float scale=Math.min(getBounds().width(),getBounds().height())/24f;
+            c.scale(scale,scale);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(1.9f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+            paint.setColor(tint);
+            Path p=new Path();
+            switch(kind) {
+                case "back":
+                    p.moveTo(13,5);p.lineTo(6,12);p.lineTo(13,19);
+                    c.drawPath(p,paint);c.drawLine(6,12,21,12,paint);break;
+                case "key":
+                    c.drawCircle(7.5f,9.5f,4.2f,paint);
+                    c.drawLine(10.6f,12.7f,20,22,paint);
+                    c.drawLine(15.5f,17.6f,18,15.1f,paint);
+                    c.drawLine(18,20,20.4f,17.6f,paint);break;
+                case "trash":
+                    c.drawLine(4,7,20,7,paint);
+                    c.drawLine(9,4,15,4,paint);
+                    c.drawRoundRect(new RectF(6,7,18,21),1,1,paint);
+                    c.drawLine(10,11,10,17,paint);
+                    c.drawLine(14,11,14,17,paint);break;
+                case "refresh":
+                    c.drawArc(new RectF(4,4,20,20),210,235,false,paint);
+                    p.moveTo(18,3);p.lineTo(20,9);p.lineTo(14,9);
+                    c.drawPath(p,paint);break;
+                case "help":
+                    c.drawCircle(12,12,9,paint);
+                    c.drawArc(new RectF(8,6,16,14),195,250,false,paint);
+                    c.drawLine(12,14,12,16,paint);
+                    c.drawPoint(12,19,paint);break;
+                case "send":
+                    p.moveTo(4,4);p.lineTo(20,12);p.lineTo(4,20);
+                    p.lineTo(8,12);p.close();
+                    c.drawPath(p,paint);c.drawLine(8,12,20,12,paint);break;
+            }
+            c.restore();
+        }
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha);invalidateSelf(); }
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) {
+            paint.setColorFilter(filter);invalidateSelf();
+        }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 
     /** One real chevron, not the platform-themed Spinner arrow. */
