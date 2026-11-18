@@ -628,6 +628,7 @@ public final class StudioAiHub extends Activity {
     private Button searchPolyHaven;
     private LinearLayout polyHavenResults;
     private TextView polyHavenStatus;
+    private TextView polyHavenDetails;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
     private Button armPlayFrame, importPlayFrame, clearPlayFrame;
@@ -2493,6 +2494,10 @@ public final class StudioAiHub extends Activity {
         }
         final long epoch = ++requestEpoch;
         polyHavenResults.removeAllViews();
+        if (polyHavenDetails != null) {
+            polyHavenDetails.setText("");
+            polyHavenDetails.setVisibility(View.GONE);
+        }
         polyHavenStatus.setText("Consultando a API oficial da Poly Haven...");
         polyHavenStatus.setVisibility(View.VISIBLE);
         setBusy(true, "Buscando recursos reais na Poly Haven...");
@@ -2548,8 +2553,131 @@ public final class StudioAiHub extends Activity {
                         }
                     });
                     add(polyHavenResults, resultButton, 4);
+                    Button detailsButton = button("Ver dados e formatos • " + label);
+                    detailsButton.setContentDescription(
+                            "Consultar metadados reais do asset " + label);
+                    detailsButton.setOnClickListener(v -> inspectPolyHavenAsset(slug, type));
+                    add(polyHavenResults, detailsButton, 8);
                 }
                 setBusy(false, "Busca externa concluída; nenhum asset foi importado.");
+            });
+        });
+    }
+
+
+    private static String limitedExternalText(String raw, int limit) {
+        if (raw == null) return "";
+        String cleaned = raw.replaceAll("[\\p{Cntrl}]", " ").trim();
+        return cleaned.length() > limit ? cleaned.substring(0, limit) + "…" : cleaned;
+    }
+
+    /** Traverse only bounded JSON metadata to identify actual published file formats. */
+    private static void collectPolyHavenFormats(JSONObject node,
+            Set<String> formats, int depth, int[] budget) {
+        if (node == null || depth > 8 || budget[0]-- <= 0) return;
+        java.util.Iterator<String> keys = node.keys();
+        while (keys.hasNext() && budget[0] > 0) {
+            String key = keys.next();
+            JSONObject child = node.optJSONObject(key);
+            if (child == null) continue;
+            // A file leaf contains a URL and size from the API, but neither
+            // value is followed, launched, downloaded or sent to the model.
+            if (child.has("url") && child.has("size")) {
+                String format = StudioPolyHavenCatalog.knownFormat(key);
+                if (!format.isEmpty()) formats.add(format);
+            } else {
+                collectPolyHavenFormats(child, formats, depth + 1, budget);
+            }
+        }
+    }
+
+    /**
+     * Explicitly selects one search result for remote metadata inspection.
+     * This is a read-only preparation report, not a model/texture importer.
+     */
+    private void inspectPolyHavenAsset(String slug, String type) {
+        if (busy || applyingEdit || polyHavenDetails == null) return;
+        try {
+            StudioPolyHavenCatalog.buildInfoUrl(slug);
+            StudioPolyHavenCatalog.buildFilesUrl(slug);
+        } catch (IOException invalid) {
+            polyHavenStatus.setText("Asset inválido. Nenhuma consulta foi feita.");
+            return;
+        }
+        final long epoch = ++requestEpoch;
+        polyHavenDetails.setText("Consultando metadados oficiais de " + slug + "...");
+        polyHavenDetails.setVisibility(View.VISIBLE);
+        setBusy(true, "Lendo formatos do catálogo, sem baixar arquivos...");
+        requests.execute(() -> {
+            String report;
+            try {
+                JSONObject infoEnvelope = new JSONObject(StudioPolyHavenCatalog.fetchInfo(slug));
+                JSONObject info = infoEnvelope.optJSONObject("data");
+                if (info == null)
+                    throw new IOException("Metadados de identidade indisponíveis.");
+                String name = limitedExternalText(info.optString("name", slug), 100);
+                String category = limitedExternalText(info.optString("category", ""), 140);
+                String description = limitedExternalText(
+                        info.optString("description", ""), 250);
+                long published = info.optLong("date_published", 0);
+                boolean notReleased = published > System.currentTimeMillis() / 1000L;
+                Set<String> formats = new java.util.TreeSet<>();
+                String filesState;
+                if (notReleased) {
+                    filesState = "O item ainda não foi publicado; arquivos não consultados.";
+                } else {
+                    try {
+                        JSONObject filesEnvelope = new JSONObject(
+                                StudioPolyHavenCatalog.fetchFiles(slug));
+                        JSONObject files = filesEnvelope.optJSONObject("data");
+                        if (files == null)
+                            throw new IOException("Lista de arquivos ausente.");
+                        collectPolyHavenFormats(files, formats, 0, new int[]{2000});
+                        filesState = formats.isEmpty()
+                                ? "A API retornou dados, mas nenhum formato conhecido foi confirmado."
+                                : "Formatos identificados na lista oficial: " +
+                                android.text.TextUtils.join(", ", formats);
+                    } catch (Exception fileError) {
+                        filesState = "Não foi possível verificar os formatos: " +
+                                limitedExternalText(fileError.getMessage(), 140);
+                    }
+                }
+                String prep;
+                if ("textures".equals(type) &&
+                        (formats.contains("PNG") || formats.contains("JPG"))) {
+                    prep = "Imagens PNG/JPG aparecem na lista oficial. " +
+                            "Ainda é necessário selecionar, validar, importar e " +
+                            "publicar com consentimento. Nenhum ID Roblox foi gerado.";
+                } else if ("models".equals(type)) {
+                    prep = "Modelos 3D externos exigem conversão e teste de " +
+                            "compatibilidade no editor. Importação ainda não suportada.";
+                } else if ("hdris".equals(type)) {
+                    prep = "HDRI não é uma skybox pronta do Roblox. " +
+                            "Conversão e publicação ainda não suportadas.";
+                } else {
+                    prep = "Formato não confirmado para importação pelo RBX Studio. " +
+                            "Nenhuma conversão ou publicação foi executada.";
+                }
+                report = "FICHA REAL DO ASSET — " + slug +
+                        "\\nNome: " + name +
+                        (category.isEmpty() ? "" : "\\nCategoria: " + category) +
+                        (description.isEmpty() ? "" : "\\nDescrição: " + description) +
+                        "\\nFonte: Poly Haven • CC0, conforme catálogo público." +
+                        "\\n" + filesState +
+                        "\\nPreparação para RBX Studio: " + prep +
+                        "\\nNenhum asset baixado, importado, enviado à IA ou publicado. " +
+                        "Verifique as condições antes de reutilizar arquivos.";
+            } catch (Exception failure) {
+                report = "Não foi possível confirmar os metadados do asset: " +
+                        limitedExternalText(failure.getMessage(), 150) +
+                        ". Nenhum arquivo foi baixado ou publicado.";
+            }
+            final String result = report;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                polyHavenDetails.setText(result);
+                polyHavenDetails.setVisibility(View.VISIBLE);
+                setBusy(false, "Ficha de asset concluída ou recusada; nenhuma publicação.");
             });
         });
     }
@@ -3279,7 +3407,12 @@ public final class StudioAiHub extends Activity {
         polyHavenStatus.setVisibility(View.GONE);
         add(root, polyHavenStatus, 4);
         polyHavenResults = column();
-        add(root, polyHavenResults, 9);
+        add(root, polyHavenResults, 4);
+        polyHavenDetails = text("", 12, false);
+        polyHavenDetails.setPadding(dp(11), dp(10), dp(11), dp(10));
+        polyHavenDetails.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        polyHavenDetails.setVisibility(View.GONE);
+        add(root, polyHavenDetails, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
