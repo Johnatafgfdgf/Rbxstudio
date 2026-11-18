@@ -12,6 +12,8 @@ on:
       - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
       - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
       - android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java
+      - android/src/com/rbxnative/androidport/StudioRobloxDecalPlacement.java
+      - scripts/test_ai_roblox_decal_placement_java.py
       - scripts/test_ai_roblox_decal_upload_java.py
       - scripts/test_ai_polyhaven_catalog_java.py
       - scripts/test_ai_polyhaven_integrity_java.py
