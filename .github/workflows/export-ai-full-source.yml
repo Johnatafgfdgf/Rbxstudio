@@ -35,6 +35,11 @@ on:
       - .github/workflows/engine-compatibility.yml
       - docs/ANDROID_AI_PHASE2_READ_AGENT_2026-11-16.md
 
+# New commits supersede older builds of this same workflow/branch.
+concurrency:
+  group: rbxstudio-source-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

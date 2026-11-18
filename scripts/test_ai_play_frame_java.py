@@ -25,6 +25,9 @@ assert "setPositiveButton(\"Autorizar esta captura\"" in hub
 assert "Nenhuma imagem foi inventada ou enviada à IA." in hub
 assert "assetPreviewImage.setImageBitmap(frame)" in hub
 assert "imageSelectionCount++" in hub
+assert "StudioAssetInspector.pixelSignals(pixels, width, height)" in hub
+assert 'Se a cena estiver vazia, revise o renderizador' in hub
+assert 'if (frame != null) {\n                    // A failed import must not discard' in hub
 assert "report.optBoolean(\"playerReady\", false)" in evidence
 assert "StudioPlayFrameRules.validReceipt(" in evidence
 assert 'private static final String AUTHORIZATION' in evidence

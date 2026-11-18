@@ -41,6 +41,11 @@ on:
       - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
       - scripts/test_ai_play_frame_java.py
 
+# New commits supersede older builds of this same workflow/branch.
+concurrency:
+  group: rbxstudio-ai-java-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

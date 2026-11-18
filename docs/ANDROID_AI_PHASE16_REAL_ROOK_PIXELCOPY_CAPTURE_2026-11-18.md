@@ -67,3 +67,16 @@ no registro original e no recibo. A revogação apaga também o registro,
 impedindo a leitura posterior mesmo que uma operação entre processos
 termine tarde. A checagem SHA-256 continua verificando integridade
 dos bytes, não qualidade da cena.
+
+## Indicadores técnicos de frames e preservação do estado
+
+O importador calcula agora os indicadores de pixels **da imagem real
+copiada do Play** com o mesmo analisador local usado para texturas:
+transparência, excesso de pixels escuros/claros e baixa variação.
+Isso ajuda a identificar capturas vazias ou que possam ter sido feitas
+sobre uma tela de carregamento, sem inventar execução de scripts ou FPS.
+A análise local permanece separada da IA e não exige rede.
+
+Importações recusadas ou sem relatório verificável **não apagam** a
+prévia válida, o mapa de diferenças ou a imagem anterior da sessão.
+O usuário poderá rearmar outra captura sem perder a comparação aberta.

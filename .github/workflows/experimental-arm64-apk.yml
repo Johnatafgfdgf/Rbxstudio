@@ -29,6 +29,11 @@ on:
       - .gitmodules
   workflow_dispatch:
 
+# New commits supersede older builds of this same workflow/branch.
+concurrency:
+  group: rbxstudio-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

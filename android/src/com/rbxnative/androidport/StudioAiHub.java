@@ -2393,7 +2393,16 @@ public final class StudioAiHub extends Activity {
                     throw new IOException(
                             "A imagem não corresponde ao registro confirmado.");
                 }
-                report = captured.summary;
+                // A real copied frame can still be blank or show a loading
+                // layer. Report observable pixel signals, not gameplay success.
+                int width = image.getWidth();
+                int height = image.getHeight();
+                int[] pixels = new int[width * height];
+                image.getPixels(pixels, 0, width, 0, 0, width, height);
+                report = captured.summary + "\n\n" +
+                        StudioAssetInspector.pixelSignals(pixels, width, height) +
+                        "\nSe a cena estiver vazia, revise o renderizador e " +
+                        "não trate PixelCopy.SUCCESS como aprovação do jogo.";
             } catch (Exception error) {
                 report = "CAPTURA NÃO CONFIRMADA: " +
                         (error.getMessage() == null ? "imagem indisponível" :
@@ -2409,18 +2418,20 @@ public final class StudioAiHub extends Activity {
                     return;
                 }
                 playFrameResult.setText(summary);
-                clearVisualHeatmap();
-                assetPreviewImage.setImageDrawable(null);
-                assetPreviewImage.setVisibility(View.GONE);
-                if (assetVisualReviewResult != null) {
-                    assetVisualReviewResult.setText("");
-                    assetVisualReviewResult.setVisibility(View.GONE);
-                }
-                if (visualComparisonResult != null) {
-                    visualComparisonResult.setText("");
-                    visualComparisonResult.setVisibility(View.GONE);
-                }
                 if (frame != null) {
+                    // A failed import must not discard a valid previous
+                    // comparison or the screenshot the user selected.
+                    clearVisualHeatmap();
+                    assetPreviewImage.setImageDrawable(null);
+                    assetPreviewImage.setVisibility(View.GONE);
+                    if (assetVisualReviewResult != null) {
+                        assetVisualReviewResult.setText("");
+                        assetVisualReviewResult.setVisibility(View.GONE);
+                    }
+                    if (visualComparisonResult != null) {
+                        visualComparisonResult.setText("");
+                        visualComparisonResult.setVisibility(View.GONE);
+                    }
                     assetPreviewImage.setImageBitmap(frame);
                     assetPreviewImage.setVisibility(View.VISIBLE);
                     assetPreviewReport.setText(
