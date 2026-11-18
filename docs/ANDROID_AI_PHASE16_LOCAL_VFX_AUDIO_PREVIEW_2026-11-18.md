@@ -55,3 +55,11 @@ todos os arquivos Java do diretório Android na compilação do APK.
   verificação do ID retornado e teste real dos objetos/efeitos no Play.
 - Relatórios de avaliação visual e tentativa de correção que comparem
   estado anterior e posterior; nenhuma alegação de beleza ou correção sem provas.
+
+## Ajuste de memória e distribuição
+
+Arquivos de áudio são agora identificados pelo cabeçalho e processados em
+streaming até o limite; apenas o hash/tamanho ficam na estrutura de resultado.
+As imagens ainda podem ser armazenadas temporariamente até 8 MiB para produzir
+miniatura, sem enviar bytes à rede. O workflow de exportação foi ajustado para
+incluir mudanças futuras neste inspetor e gerar um ZIP do commit exato.
