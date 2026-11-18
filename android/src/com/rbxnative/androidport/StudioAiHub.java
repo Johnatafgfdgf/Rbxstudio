@@ -640,7 +640,10 @@ public final class StudioAiHub extends Activity {
     private EditText decalTargetPath, decalInstanceName;
     private Spinner decalFace;
     private Button inspectDecalTarget, applyDecalToPart;
-    private TextView decalPlacementResult;
+    private TextView decalPlacementResult, decalPlayReport;
+    private CheckBox allowDecalPlayEvidence;
+    private Button inspectDecalPlay;
+    private StudioRobloxDecalPlacement.Proposal lastVerifiedPlacedDecal;
     private boolean uploadingRobloxDecal;
     private EditText robloxDecalCreator, robloxDecalName, robloxDecalApiKey;
     private Button uploadRobloxDecal, checkRobloxDecal;
@@ -2897,6 +2900,7 @@ public final class StudioAiHub extends Activity {
         verifiedPolyHavenUri = null;
         confirmedRobloxDecalId = null;
         pendingDecalPlacement = null;
+        lastVerifiedPlacedDecal = null;
         uploadingRobloxDecal = true;
         setBusy(true, "Revalidando bytes e enviando decal ao Roblox...");
         robloxDecalResult.setText("Conferindo o arquivo; nenhuma operação foi confirmada.");
@@ -2999,6 +3003,7 @@ public final class StudioAiHub extends Activity {
                 if (epoch != requestEpoch || isFinishing()) return;
                 if (acceptedId != null && !acceptedId.equals(confirmedRobloxDecalId)) {
                     pendingDecalPlacement = null;
+                    lastVerifiedPlacedDecal = null;
                     confirmedRobloxDecalId = acceptedId;
                     if (decalPlacementResult != null) {
                         decalPlacementResult.setText(
@@ -3828,7 +3833,42 @@ public final class StudioAiHub extends Activity {
         decalPlacementResult.setPadding(dp(11), dp(10), dp(11), dp(10));
         decalPlacementResult.setBackground(shape(Color.rgb(26, 42, 65), 12));
         decalPlacementResult.setVisibility(View.GONE);
-        add(root, decalPlacementResult, 9);
+        add(root, decalPlacementResult, 5);
+        add(root, text("Verificar carregamento no Play • diagnóstico local", 14, true), 4);
+        add(root, text(
+                "Depois de colocar um Decal e obter confirmação MCP, " +
+                "abra o Play LOCAL pelo editor. Esta análise apenas lê o estado " +
+                "do Play e procura no Output possíveis erros que mencionem o " +
+                "Asset ID exato. Não inicia Play, não captura a tela, não envia " +
+                "logs para IA e não modifica objetos. Mesmo sem erros, a " +
+                "imagem ainda precisa ser conferida visualmente.",
+                12, false), 5);
+        allowDecalPlayEvidence = new CheckBox(this);
+        allowDecalPlayEvidence.setText(
+                "Autorizo ler o estado/Output local para ESTE diagnóstico de Decal");
+        allowDecalPlayEvidence.setTextColor(Color.rgb(228, 236, 250));
+        allowDecalPlayEvidence.setChecked(false);
+        allowDecalPlayEvidence.setOnCheckedChangeListener((v, checked) -> {
+            if (!checked) {
+                ++requestEpoch;
+                if (decalPlayReport != null) {
+                    decalPlayReport.setText("Permissão de diagnóstico revogada.");
+                    decalPlayReport.setVisibility(View.VISIBLE);
+                }
+                abortInFlight();
+            }
+            refreshDecalPlacementButtons();
+        });
+        add(root, allowDecalPlayEvidence, 5);
+        inspectDecalPlay = button("Conferir erros do Decal no Play local");
+        inspectDecalPlay.setOnClickListener(v -> inspectPlacedDecalPlay());
+        inspectDecalPlay.setEnabled(false);
+        add(root, inspectDecalPlay, 4);
+        decalPlayReport = text("", 12, false);
+        decalPlayReport.setPadding(dp(11), dp(10), dp(11), dp(10));
+        decalPlayReport.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        decalPlayReport.setVisibility(View.GONE);
+        add(root, decalPlayReport, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
@@ -8300,6 +8340,12 @@ public final class StudioAiHub extends Activity {
             applyDecalToPart.setEnabled(!busy && !applyingEdit &&
                     !mcpPairing.isEmpty() && pendingDecalPlacement != null &&
                     pendingDecalPlacement.assetId.equals(confirmedRobloxDecalId));
+        if (inspectDecalPlay != null)
+            inspectDecalPlay.setEnabled(!busy && !applyingEdit &&
+                    allowDecalPlayEvidence != null &&
+                    allowDecalPlayEvidence.isChecked() &&
+                    !mcpPairing.isEmpty() && lastVerifiedPlacedDecal != null &&
+                    lastVerifiedPlacedDecal.assetId.equals(confirmedRobloxDecalId));
     }
 
     /** Read-only MCP inspection, no AI model or user-generated Luau involved. */
@@ -8431,6 +8477,7 @@ public final class StudioAiHub extends Activity {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingDecalPlacement = null;
+                    lastVerifiedPlacedDecal = confirmed ? p : null;
                     setBusy(false, readBackNotice(confirmed, p.decalPath()));
                     decalPlacementResult.setText(
                             "MCP respondeu: " + receipt + "\n" +
@@ -8448,6 +8495,7 @@ public final class StudioAiHub extends Activity {
                     if (epoch != requestEpoch || isFinishing()) return;
                     applyingEdit = false;
                     pendingDecalPlacement = null;
+                    lastVerifiedPlacedDecal = null;
                     setBusy(false, "Operação Decal não confirmada.");
                     decalPlacementResult.setText(
                             "A criação do Decal não foi confirmada: " +
