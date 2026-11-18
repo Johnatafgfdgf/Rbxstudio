@@ -8359,20 +8359,24 @@ public final class StudioAiHub extends Activity {
             }
             int code = conn.getResponseCode();
             if (code < 200 || code >= 300) {
+                // Distinguish errors in the model catalog from generation errors.
+                // Never include the full endpoint, query strings, API keys or prompts.
+                String operation = body == null ? "consulta de modelos" : "geração de resposta";
                 if (code == 400) throw new ApiHttpException(code,
-                        "HTTP 400: pedido rejeitado; verifique se o modelo aceita esta API e formato de mensagem.");
+                        "HTTP 400 na " + operation +
+                        ": pedido rejeitado; verifique se o modelo aceita esta API e formato de mensagem.");
                 if (code == 401 || code == 403) throw new ApiHttpException(code, "HTTP " +
                         code + ": autenticação recusada; verifique a chave e as permissões.");
                 if (code == 402) throw new ApiHttpException(code,
                         "HTTP 402: sem créditos; não é permitido trocar para uma IA paga automaticamente.");
                 if (code == 404) throw new ApiHttpException(code,
-                        "HTTP 404: modelo ou endpoint não encontrado; atualize a lista e escolha outro modelo.");
+                        "HTTP 404 na " + operation + ": modelo ou endpoint não encontrado; atualize a lista e escolha outro modelo.");
                 if (code == 408 || code == 504) throw new ApiHttpException(code,
-                        "HTTP " + code + ": o provedor demorou demais para responder.");
+                        "HTTP " + code + " na " + operation + ": o provedor demorou demais para responder.");
                 if (code == 429) throw new ApiHttpException(code,
                         "HTTP 429: limite de requisições atingido, inclusive cotas gratuitas.");
                 if (code >= 500) throw new ApiHttpException(code,
-                        "HTTP " + code + ": falha temporária no servidor da IA; tente novamente.");
+                        "HTTP " + code + " na " + operation + ": servidor temporariamente indisponível ou sobrecarregado; tente outro modelo disponível.");
                 throw new ApiHttpException(code,
                         "HTTP " + code + ": o provedor recusou a solicitação.");
             }
