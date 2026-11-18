@@ -65,7 +65,7 @@ import java.io.*;
 public final class DecalFaceCorrectionContract {
     static void yes(boolean ok,String what){if(!ok)throw new AssertionError(what);}
     interface Action{void run()throws Exception;}
-    static void bad(Action action) {
+    static void bad(Action action) throws Exception {
         try{action.run();throw new AssertionError("unsafe face change allowed");}
         catch(IOException expected){}
         catch(IllegalArgumentException expected){}
