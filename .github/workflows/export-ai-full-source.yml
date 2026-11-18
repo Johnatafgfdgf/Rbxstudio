@@ -10,6 +10,11 @@ on:
       - android/src/com/rbxnative/androidport/StudioAssetInspector.java
       - android/src/com/rbxnative/androidport/StudioVisualReview.java
       - android/src/com/rbxnative/androidport/StudioVisualCompare.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameRules.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
+      - android/src/com/rbxnative/androidport/RookPlayerActivity.java
+      - scripts/test_ai_play_frame_java.py
+      - docs/ANDROID_AI_PHASE16_REAL_ROOK_PIXELCOPY_CAPTURE_2026-11-18.md
       - scripts/test_ai_asset_inspector.py
       - scripts/test_ai_visual_review_java.py
       - scripts/test_ai_visual_compare_java.py
