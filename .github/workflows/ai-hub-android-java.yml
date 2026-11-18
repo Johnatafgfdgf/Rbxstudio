@@ -37,6 +37,9 @@ on:
       - scripts/test_ai_visual_review_java.py
       - android/src/com/rbxnative/androidport/StudioVisualCompare.java
       - scripts/test_ai_visual_compare_java.py
+      - android/src/com/rbxnative/androidport/StudioPlayFrameRules.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
+      - scripts/test_ai_play_frame_java.py
 
 permissions:
   contents: read
@@ -94,6 +97,8 @@ jobs:
         run: python3 scripts/test_ai_visual_review_java.py
       - name: Verify real Java before-and-after pixel metrics and consented comparison
         run: python3 scripts/test_ai_visual_compare_java.py
+      - name: Test actual Rook Play frame receipt rules and explicit user consent
+        run: python3 scripts/test_ai_play_frame_java.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
@@ -105,6 +110,8 @@ jobs:
             android/src/com/rbxnative/androidport/StudioAssetInspector.java \
             android/src/com/rbxnative/androidport/StudioVisualReview.java \
             android/src/com/rbxnative/androidport/StudioVisualCompare.java \
+            android/src/com/rbxnative/androidport/StudioPlayFrameRules.java \
+            android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java \
             android/src/com/rbxnative/androidport/StudioWindow.java \
             android/src/com/rbxnative/androidport/RbxGeometry.java \
             android/src/com/rbxnative/androidport/RbxBrand.java \
