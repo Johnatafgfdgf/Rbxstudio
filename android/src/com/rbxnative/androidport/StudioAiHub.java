@@ -74,6 +74,7 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_SCRIPT_SOURCE = 10000;
     private static final int TOOLBOX_XML_PICK_REQUEST = 7604;
     private static final int ASSET_PREVIEW_PICK_REQUEST = 7623;
+    private static final int POLYHAVEN_VERIFY_PICK_REQUEST = 7630;
     private static final int MAX_TOOLBOX_XML_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TOOLBOX_XML_ITEMS = 1200;
     private static final int MAX_TOOLBOX_XML_SCRIPTS = 100;
@@ -628,7 +629,9 @@ public final class StudioAiHub extends Activity {
     private Button searchPolyHaven;
     private LinearLayout polyHavenResults;
     private TextView polyHavenStatus;
-    private TextView polyHavenDetails;
+    private TextView polyHavenDetails, polyHavenVerification;
+    private LinearLayout polyHavenVariants;
+    private StudioPolyHavenIntegrity.Candidate pendingPolyHavenCandidate;
     private ImageView assetPreviewImage;
     private Button inspectAssetFile, reviewAssetWithAi;
     private Button armPlayFrame, importPlayFrame, clearPlayFrame;
@@ -2494,6 +2497,12 @@ public final class StudioAiHub extends Activity {
         }
         final long epoch = ++requestEpoch;
         polyHavenResults.removeAllViews();
+        pendingPolyHavenCandidate = null;
+        if (polyHavenVariants != null) polyHavenVariants.removeAllViews();
+        if (polyHavenVerification != null) {
+            polyHavenVerification.setText("");
+            polyHavenVerification.setVisibility(View.GONE);
+        }
         if (polyHavenDetails != null) {
             polyHavenDetails.setText("");
             polyHavenDetails.setVisibility(View.GONE);
@@ -2605,15 +2614,27 @@ public final class StudioAiHub extends Activity {
             return;
         }
         final long epoch = ++requestEpoch;
+        pendingPolyHavenCandidate = null;
+        if (polyHavenVariants != null) polyHavenVariants.removeAllViews();
+        if (polyHavenVerification != null) {
+            polyHavenVerification.setText("");
+            polyHavenVerification.setVisibility(View.GONE);
+        }
         polyHavenDetails.setText("Consultando metadados oficiais de " + slug + "...");
         polyHavenDetails.setVisibility(View.VISIBLE);
         setBusy(true, "Lendo formatos do catálogo, sem baixar arquivos...");
         requests.execute(() -> {
             String report;
+            final ArrayList<StudioPolyHavenIntegrity.Candidate> candidates =
+                    new ArrayList<>();
             try {
                 JSONObject info = new JSONObject(StudioPolyHavenCatalog.fetchInfo(slug));
                 if (!info.has("name") || !info.has("type"))
                     throw new IOException("Metadados de identidade indisponíveis.");
+                int expectedKind = "textures".equals(type) ? 1 :
+                        "models".equals(type) ? 2 : 0;
+                if (info.optInt("type", -1) != expectedKind)
+                    throw new IOException("O tipo do asset não corresponde à pesquisa.");
                 String name = limitedExternalText(info.optString("name", slug), 100);
                 String category = limitedExternalText(info.optString("category", ""), 140);
                 String description = limitedExternalText(
@@ -2631,6 +2652,14 @@ public final class StudioAiHub extends Activity {
                         if (files.length() == 0)
                             throw new IOException("Lista de arquivos vazia.");
                         collectPolyHavenFormats(files, formats, 0, new int[]{2000});
+                        if ("textures".equals(type)) {
+                            collectPolyHavenCandidates(files, slug, "", candidates,
+                                    0, new int[]{2000});
+                            candidates.sort((a, b) ->
+                                    Integer.compare(a.expectedSize, b.expectedSize));
+                            if (candidates.size() > 6)
+                                candidates.subList(6, candidates.size()).clear();
+                        }
                         filesState = formats.isEmpty()
                                 ? "A API retornou dados, mas nenhum formato conhecido foi confirmado."
                                 : "Formatos identificados na lista oficial: " +
@@ -2675,7 +2704,113 @@ public final class StudioAiHub extends Activity {
                 if (epoch != requestEpoch || isFinishing()) return;
                 polyHavenDetails.setText(result);
                 polyHavenDetails.setVisibility(View.VISIBLE);
+                if (polyHavenVariants != null) {
+                    polyHavenVariants.removeAllViews();
+                    if (!candidates.isEmpty()) {
+                        add(polyHavenVariants, text(
+                                "Arquivos PNG/JPG oficiais até 8 MiB • escolha um arquivo " +
+                                "já salvo no celular para conferir sua integridade",
+                                12, true), 4);
+                        for (StudioPolyHavenIntegrity.Candidate candidate : candidates) {
+                            Button verifyButton = button("Conferir localmente • " +
+                                    candidate.label());
+                            verifyButton.setContentDescription(
+                                    "Comparar uma imagem do celular com " +
+                                    candidate.variant + " de " + candidate.slug);
+                            verifyButton.setOnClickListener(v ->
+                                    beginPolyHavenVerification(candidate));
+                            add(polyHavenVariants, verifyButton, 4);
+                        }
+                    }
+                }
                 setBusy(false, "Ficha de asset concluída ou recusada; nenhuma publicação.");
+            });
+        });
+    }
+
+
+    /** Recognize only PNG/JPG leaves of the official texture file tree. */
+    private static void collectPolyHavenCandidates(JSONObject tree, String slug,
+            String prefix, ArrayList<StudioPolyHavenIntegrity.Candidate> results,
+            int depth, int[] budget) {
+        if (tree == null || depth > 8 || budget[0]-- <= 0) return;
+        java.util.Iterator<String> keys = tree.keys();
+        while (keys.hasNext() && budget[0] > 0) {
+            String key = keys.next();
+            // Ignore untrusted or oversized path elements; never use them as a URL.
+            if (!key.matches("[A-Za-z0-9_-]{1,48}")) continue;
+            JSONObject item = tree.optJSONObject(key);
+            if (item == null) continue;
+            String path = prefix.isEmpty() ? key : prefix + "/" + key;
+            if (item.has("url") && item.has("size") && item.has("md5")) {
+                String format = StudioPolyHavenCatalog.knownFormat(key);
+                if (!("PNG".equals(format) || "JPG".equals(format))) continue;
+                try {
+                    results.add(new StudioPolyHavenIntegrity.Candidate(
+                            slug, format, path, item.optLong("size", -1),
+                            item.optString("md5", ""), item.optString("url", "")));
+                } catch (IOException rejected) {
+                    // Invalid, oversized or non-official files are NOT offered.
+                }
+            } else {
+                collectPolyHavenCandidates(item, slug, path, results, depth + 1, budget);
+            }
+        }
+    }
+
+    /** A local system document is read once, without copying it to the project. */
+    private void beginPolyHavenVerification(StudioPolyHavenIntegrity.Candidate candidate) {
+        if (busy || applyingEdit || candidate == null) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Verificar arquivo local de " + candidate.slug + "?")
+                .setMessage("Selecione um PNG/JPG que você obteve por conta própria " +
+                        "na página oficial. O aplicativo vai ler SOMENTE esse arquivo " +
+                        "para conferir tamanho, assinatura e MD5 publicados no catálogo, " +
+                        "além de calcular SHA-256. MD5 não é prova criptográfica forte " +
+                        "de autenticidade. Nenhum dado será enviado, instalado ou publicado.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Escolher arquivo", (dialog, which) -> {
+                    Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    choose.addCategory(Intent.CATEGORY_OPENABLE);
+                    choose.setType("image/*");
+                    choose.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    pendingPolyHavenCandidate = candidate;
+                    try {
+                        startActivityForResult(choose, POLYHAVEN_VERIFY_PICK_REQUEST);
+                    } catch (Exception unavailable) {
+                        pendingPolyHavenCandidate = null;
+                        polyHavenVerification.setText(
+                                "Seletor Android indisponível; nenhuma verificação realizada.");
+                        polyHavenVerification.setVisibility(View.VISIBLE);
+                    }
+                }).show();
+    }
+
+    private void verifyPolyHavenLocal(android.net.Uri selected,
+            StudioPolyHavenIntegrity.Candidate candidate) {
+        if (selected == null || candidate == null || busy) return;
+        final long epoch = ++requestEpoch;
+        polyHavenVerification.setText("Conferindo bytes da imagem selecionada...");
+        polyHavenVerification.setVisibility(View.VISIBLE);
+        setBusy(true, "Comparando arquivo local com a ficha oficial...");
+        requests.execute(() -> {
+            String message;
+            try (InputStream input = getContentResolver().openInputStream(selected)) {
+                StudioPolyHavenIntegrity.Verification checked =
+                        StudioPolyHavenIntegrity.verify(candidate, input);
+                message = checked.report(candidate);
+            } catch (Exception failure) {
+                message = "VERIFICAÇÃO RECUSADA: " +
+                        limitedExternalText(failure.getMessage(), 180) +
+                        "\\nNenhuma correspondência foi confirmada. " +
+                        "Nenhum arquivo foi importado ou enviado.";
+            }
+            final String result = message;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) return;
+                polyHavenVerification.setText(result);
+                polyHavenVerification.setVisibility(View.VISIBLE);
+                setBusy(false, "Verificação local concluída ou recusada.");
             });
         });
     }
@@ -3180,6 +3315,19 @@ public final class StudioAiHub extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == POLYHAVEN_VERIFY_PICK_REQUEST) {
+            StudioPolyHavenIntegrity.Candidate candidate = pendingPolyHavenCandidate;
+            pendingPolyHavenCandidate = null;
+            if (resultCode == Activity.RESULT_OK && data != null &&
+                    data.getData() != null && candidate != null && !busy) {
+                verifyPolyHavenLocal(data.getData(), candidate);
+            } else if (polyHavenVerification != null) {
+                polyHavenVerification.setText(
+                        "Seleção cancelada ou expirada. Nenhum arquivo foi verificado.");
+                polyHavenVerification.setVisibility(View.VISIBLE);
+            }
+            return;
+        }
         if (requestCode == ASSET_PREVIEW_PICK_REQUEST) {
             if (resultCode == Activity.RESULT_OK && data != null &&
                     data.getData() != null && !busy)
@@ -3410,7 +3558,14 @@ public final class StudioAiHub extends Activity {
         polyHavenDetails.setPadding(dp(11), dp(10), dp(11), dp(10));
         polyHavenDetails.setBackground(shape(Color.rgb(26, 42, 65), 12));
         polyHavenDetails.setVisibility(View.GONE);
-        add(root, polyHavenDetails, 9);
+        add(root, polyHavenDetails, 4);
+        polyHavenVariants = column();
+        add(root, polyHavenVariants, 4);
+        polyHavenVerification = text("", 12, false);
+        polyHavenVerification.setPadding(dp(11), dp(10), dp(11), dp(10));
+        polyHavenVerification.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        polyHavenVerification.setVisibility(View.GONE);
+        add(root, polyHavenVerification, 9);
         add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
         TextView previewHelp = text(
                 "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
