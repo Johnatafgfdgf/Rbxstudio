@@ -3615,7 +3615,7 @@ public final class StudioAiHub extends Activity {
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(StudioAiTheme.GROUND);
         LinearLayout root = column();
-        root.setBackgroundColor(StudioAiTheme.DOCK);
+        root.setBackgroundColor(StudioAiTheme.GROUND);
         root.setPadding(dp(16), dp(12), dp(16), dp(22));
         scroll.addView(root);
         setContentView(scroll);
@@ -3633,32 +3633,51 @@ public final class StudioAiHub extends Activity {
         notice.setTextColor(StudioAiTheme.TEXT_MUTED);
         add(root, notice, 10);
 
-        add(root, text("Provedor", 14, true), 5);
+        // Same compact dock panel language as the pinned GPUI Studio shell.
+        LinearLayout connectionPanel = column();
+        connectionPanel.setPadding(dp(12), dp(12), dp(12), dp(10));
+        connectionPanel.setBackground(StudioAiTheme.panel(this));
+        add(root, connectionPanel, 11);
+        LinearLayout.LayoutParams connectionBounds =
+                (LinearLayout.LayoutParams)connectionPanel.getLayoutParams();
+        connectionBounds.width = Math.min(dp(470),
+                getResources().getDisplayMetrics().widthPixels - dp(56));
+        connectionPanel.setLayoutParams(connectionBounds);
+
+        add(connectionPanel, text("Provedor", 14, true), 5);
         providerPicker = new Spinner(this);
         ArrayAdapter<String> providers = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_dropdown_item, NAMES);
         providers.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         providerPicker.setAdapter(providers);
-        add(root, providerPicker, 7);
+        add(connectionPanel, providerPicker, 7);
         status = text("Nenhuma conexão verificada", 12, false);
-        add(root, status, 8);
+        add(connectionPanel, status, 8);
 
         apiKey = field("Cole a API Key (não é guardada como texto simples)", true);
-        add(root, apiKey, 7);
+        add(connectionPanel, apiKey, 7);
+        LinearLayout keyActions = new LinearLayout(this);
+        keyActions.setOrientation(LinearLayout.HORIZONTAL);
+        keyActions.setGravity(Gravity.CENTER_VERTICAL);
         save = button("Salvar chave com segurança");
         StudioAiTheme.button(this, save, true, false);
         save.setOnClickListener(v -> saveKey());
-        add(root, save, 7);
+        keyActions.addView(save, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         Button revoke = button("Remover chave deste provedor");
         revoke.setOnClickListener(v -> revokeKey());
-        add(root, revoke, 8);
+        LinearLayout.LayoutParams revokeBounds = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        revokeBounds.leftMargin = dp(7);
+        keyActions.addView(revoke, revokeBounds);
+        add(connectionPanel, keyActions, 8);
         refresh = button("Consultar modelos disponíveis • testar conexão");
         refresh.setOnClickListener(v -> refreshModels());
-        add(root, refresh, 9);
+        add(connectionPanel, refresh, 9);
 
         TextView cost = text("APIs podem cobrar por uso. O catálogo não garante preço, saldo ou gratuidade. Confira as condições do provedor antes de enviar mensagens.", 12, false);
         cost.setTextColor(Color.rgb(222, 194, 142));
-        add(root, cost, 12);
+        add(connectionPanel, cost, 12);
         Button tutorial = button("Como conectar esta IA?");
         tutorial.setOnClickListener(v -> new android.app.AlertDialog.Builder(this)
                 .setTitle("Conectar " + NAMES[provider])
@@ -3669,7 +3688,7 @@ public final class StudioAiHub extends Activity {
                     "4. Digite sua mensagem e toque em Enviar.\n\n" +
                     "Não compartilhe a chave no chat. O RBX Studio não pode garantir custos ou limites de terceiros.")
                 .setPositiveButton("Entendi", null).show());
-        add(root, tutorial, 12);
+        add(connectionPanel, tutorial, 12);
 
         add(root, text("Modelo", 14, true), 4);
         modelPicker = new Spinner(this);
