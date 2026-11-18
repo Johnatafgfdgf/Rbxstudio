@@ -8,6 +8,14 @@ on:
       - .github/workflows/export-ai-full-source.yml
       - android/src/com/rbxnative/androidport/StudioAiHub.java
       - android/src/com/rbxnative/androidport/StudioAssetInspector.java
+      - android/src/com/rbxnative/androidport/StudioVisualReview.java
+      - android/src/com/rbxnative/androidport/StudioVisualCompare.java
+      - scripts/test_ai_asset_inspector.py
+      - scripts/test_ai_visual_review_java.py
+      - scripts/test_ai_visual_compare_java.py
+      - docs/ANDROID_AI_PHASE16_LOCAL_VFX_AUDIO_PREVIEW_2026-11-18.md
+      - docs/ANDROID_AI_PHASE16_MULTIMODAL_IMAGE_REVIEW_2026-11-18.md
+      - android/src/com/rbxnative/androidport/StudioAssetInspector.java
       - scripts/test_ai_asset_inspector.py
       - docs/ANDROID_AI_PHASE16_LOCAL_VFX_AUDIO_PREVIEW_2026-11-18.md
       - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
