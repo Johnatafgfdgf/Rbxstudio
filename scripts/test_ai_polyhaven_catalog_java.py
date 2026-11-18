@@ -55,7 +55,7 @@ public final class PolyHavenContract {
         failQuery(null, "textures");
         failQuery("a", "textures");
         failQuery("a".repeat(101), "textures");
-        failQuery("construir\\nsegredo", "textures");
+        failQuery("construir\nsegredo", "textures");
         failQuery("wood", "audio");
         failQuery("wood", "https://malicious.example");
         yes(StudioPolyHavenCatalog.validSlug("concrete_floor_01"));
