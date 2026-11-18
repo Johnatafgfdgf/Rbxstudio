@@ -31,6 +31,8 @@ on:
       - scripts/test_ai_play_equip_java.py
       - scripts/test_ai_play_activation_java.py
       - scripts/test_ai_android_touch_java.py
+      - scripts/test_ai_asset_inspector.py
+      - android/src/com/rbxnative/androidport/StudioAssetInspector.java
 
 permissions:
   contents: read
@@ -82,6 +84,8 @@ jobs:
         run: python3 scripts/test_ai_play_activation_java.py
       - name: Validate Android Rook real touch evidence and Play publication guard
         run: python3 scripts/test_ai_android_touch_java.py
+      - name: Test real Java local VFX/audio resource inspection
+        run: python3 scripts/test_ai_asset_inspector.py
       - name: Compile real native Android AI Hub and Keystore service
         run: |
           mkdir -p "$RUNNER_TEMP/rbx-ai-java"
@@ -90,6 +94,7 @@ jobs:
             -d "$RUNNER_TEMP/rbx-ai-java" \
             android/src/com/rbxnative/androidport/StudioServices.java \
             android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java \
+            android/src/com/rbxnative/androidport/StudioAssetInspector.java \
             android/src/com/rbxnative/androidport/StudioWindow.java \
             android/src/com/rbxnative/androidport/RbxGeometry.java \
             android/src/com/rbxnative/androidport/RbxBrand.java \

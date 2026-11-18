@@ -73,6 +73,7 @@ public final class StudioAiHub extends Activity {
     private static final int MAX_EDIT_NEW = 2400;
     private static final int MAX_SCRIPT_SOURCE = 10000;
     private static final int TOOLBOX_XML_PICK_REQUEST = 7604;
+    private static final int ASSET_PREVIEW_PICK_REQUEST = 7623;
     private static final int MAX_TOOLBOX_XML_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TOOLBOX_XML_ITEMS = 1200;
     private static final int MAX_TOOLBOX_XML_SCRIPTS = 100;
@@ -621,6 +622,9 @@ public final class StudioAiHub extends Activity {
     private final List<String> backupIds = new ArrayList<>();
     private CheckBox rememberVerified, includeMemory;
     private TextView memoryPreview, toolboxScanResult, modelAuditResult;
+    private TextView assetPreviewReport;
+    private ImageView assetPreviewImage;
+    private Button inspectAssetFile;
     private Button scanToolboxFile, auditInsertedModel, inspectLocalPlay, runLocalPlaySmoke;
     private CheckBox allowLocalPlayProbe, allowLocalPlaySmoke, checkLocalGameplayScene, checkLocalToolGui, checkLocalToolEquip, checkLocalToolActivate, allowRookTouchProbe, allowRookGuiProbe;
     private TextView playProbeResult, playSmokeResult, rookTouchResult;
@@ -2321,6 +2325,88 @@ public final class StudioAiHub extends Activity {
         });
     }
 
+    /** One user-selected file only. Never auto-download or publish resources. */
+    private void pickLocalAssetFile() {
+        if (busy || applyingEdit) return;
+        Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        choose.addCategory(Intent.CATEGORY_OPENABLE);
+        choose.setType("*/*");
+        choose.putExtra(Intent.EXTRA_MIME_TYPES,
+                new String[]{"image/png", "image/jpeg", "image/webp",
+                        "image/gif", "audio/*"});
+        choose.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(choose, ASSET_PREVIEW_PICK_REQUEST);
+        } catch (Exception unavailable) {
+            status.setText("O seletor de imagens e sons não está disponível.");
+        }
+    }
+
+    /** Real local preview from SAF, with bounded data and no provider upload. */
+    private void inspectLocalAssetFile(android.net.Uri selected) {
+        final long epoch = ++requestEpoch;
+        assetPreviewReport.setVisibility(View.VISIBLE);
+        assetPreviewReport.setText("Inspecionando o arquivo local, sem enviá-lo à IA...");
+        assetPreviewImage.setImageDrawable(null);
+        assetPreviewImage.setVisibility(View.GONE);
+        setBusy(true, "Lendo imagem/VFX ou som selecionado...");
+        requests.execute(() -> {
+            String message;
+            android.graphics.Bitmap thumbnail = null;
+            try (InputStream input = getContentResolver().openInputStream(selected)) {
+                StudioAssetInspector.Inspected evidence = StudioAssetInspector.inspect(input);
+                message = evidence.report();
+                if (evidence.image && evidence.imageBytes != null) {
+                    byte[] bytes = evidence.imageBytes;
+                    android.graphics.BitmapFactory.Options bounds =
+                            new android.graphics.BitmapFactory.Options();
+                    bounds.inJustDecodeBounds = true;
+                    android.graphics.BitmapFactory.decodeByteArray(bytes, 0,
+                            bytes.length, bounds);
+                    if (bounds.outWidth < 1 || bounds.outHeight < 1 ||
+                            bounds.outWidth > 8192 || bounds.outHeight > 8192)
+                        throw new IOException("Imagem inválida ou dimensões acima de 8192 pixels.");
+                    android.graphics.BitmapFactory.Options opts =
+                            new android.graphics.BitmapFactory.Options();
+                    int sample = 1;
+                    while (bounds.outWidth / sample > 384 ||
+                            bounds.outHeight / sample > 384) sample *= 2;
+                    opts.inSampleSize = sample;
+                    thumbnail = android.graphics.BitmapFactory.decodeByteArray(
+                            bytes, 0, bytes.length, opts);
+                    if (thumbnail == null)
+                        throw new IOException("O arquivo parece ser imagem, mas não pode ser decodificado.");
+                    int w = thumbnail.getWidth(), h = thumbnail.getHeight();
+                    int[] pixels = new int[w * h];
+                    thumbnail.getPixels(pixels, 0, w, 0, 0, w, h);
+                    message += "\nResolução original: " + bounds.outWidth +
+                            " × " + bounds.outHeight + " px\n" +
+                            StudioAssetInspector.pixelSignals(pixels, w, h);
+                }
+            } catch (Exception error) {
+                message = "Arquivo não aprovado para prévia: " +
+                        (error.getMessage() == null ? "erro de leitura" :
+                        error.getMessage()) +
+                        "\nNenhum upload, publicação ou execução foi realizado.";
+                if (thumbnail != null) { thumbnail.recycle(); thumbnail = null; }
+            }
+            final String report = message;
+            final android.graphics.Bitmap image = thumbnail;
+            runOnUiThread(() -> {
+                if (epoch != requestEpoch || isFinishing()) {
+                    if (image != null) image.recycle();
+                    return;
+                }
+                assetPreviewReport.setText(report);
+                if (image != null) {
+                    assetPreviewImage.setImageBitmap(image);
+                    assetPreviewImage.setVisibility(View.VISIBLE);
+                }
+                setBusy(false, "Prévia local concluída; nenhum asset publicado.");
+            });
+        });
+    }
+
     private void selectToolboxFile() {
         if (busy || applyingEdit) return;
         Intent choose = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -2336,6 +2422,12 @@ public final class StudioAiHub extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == ASSET_PREVIEW_PICK_REQUEST) {
+            if (resultCode == Activity.RESULT_OK && data != null &&
+                    data.getData() != null && !busy)
+                inspectLocalAssetFile(data.getData());
+            return;
+        }
         if (requestCode != TOOLBOX_XML_PICK_REQUEST ||
                 resultCode != Activity.RESULT_OK ||
                 data == null || data.getData() == null || busy) return;
@@ -2530,6 +2622,29 @@ public final class StudioAiHub extends Activity {
         toolboxScanResult.setBackground(shape(Color.rgb(26, 42, 65), 13));
         toolboxScanResult.setVisibility(View.GONE);
         add(root, toolboxScanResult, 9);
+        add(root, text("Prévia real • VFX, imagens, sons e screenshots", 14, true), 4);
+        TextView previewHelp = text(
+                "Escolha uma imagem, sprite ou captura de Play para visualizar os pixels " +
+                "reais e receber indicadores técnicos. Também aceita WAV, OGG, MP3 e FLAC " +
+                "para verificar tipo e tamanho, sem reproduzir o áudio. " +
+                "A prévia é LOCAL; não busca repositórios, não avalia a cena por IA " +
+                "nem publica decals/sons. Origem, licença e autorização " +
+                "devem ser verificadas antes de qualquer publicação.", 12, false);
+        add(root, previewHelp, 5);
+        inspectAssetFile = button("Inspecionar imagem/VFX ou som do celular");
+        inspectAssetFile.setOnClickListener(v -> pickLocalAssetFile());
+        add(root, inspectAssetFile, 5);
+        assetPreviewImage = new ImageView(this);
+        assetPreviewImage.setAdjustViewBounds(true);
+        assetPreviewImage.setMaxHeight(dp(240));
+        assetPreviewImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        assetPreviewImage.setVisibility(View.GONE);
+        add(root, assetPreviewImage, 4);
+        assetPreviewReport = text("", 12, false);
+        assetPreviewReport.setPadding(dp(11), dp(10), dp(11), dp(10));
+        assetPreviewReport.setBackground(shape(Color.rgb(26, 42, 65), 12));
+        assetPreviewReport.setVisibility(View.GONE);
+        add(root, assetPreviewReport, 10);
         add(root, text("Auditoria de modelo JÁ INSERIDO (MCP local)", 14, true), 4);
         TextView auditHelp = text("Digite o caminho exato do Model no Explorer. " +
                 "O app percorre árvores reais do Workspace e lê trechos de Luau " +
@@ -3004,6 +3119,7 @@ public final class StudioAiHub extends Activity {
         busy = waiting;
         refresh.setEnabled(!waiting);
         if (scanToolboxFile != null) scanToolboxFile.setEnabled(!waiting);
+        if (inspectAssetFile != null) inspectAssetFile.setEnabled(!waiting);
         if (auditInsertedModel != null) auditInsertedModel.setEnabled(!waiting);
         if (inspectLocalPlay != null) inspectLocalPlay.setEnabled(!waiting);
         if (runLocalPlaySmoke != null) runLocalPlaySmoke.setEnabled(!waiting);
