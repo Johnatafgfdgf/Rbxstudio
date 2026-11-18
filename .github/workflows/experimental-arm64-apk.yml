@@ -19,6 +19,9 @@ on:
       - scripts/check_preparation.py
       - scripts/check_studio_branding.py
       - scripts/check_ai_hub.py
+      - scripts/test_ai_play_frame_java.py
+      - scripts/test_ai_visual_review_java.py
+      - scripts/test_ai_visual_compare_java.py
       - scripts/check_studio_apk.py
       - tests/mobile_ai_permissions.rs
       - Cargo.toml
@@ -70,6 +73,11 @@ jobs:
         run: python3 scripts/check_studio_branding.py
       - name: Verify real AI hub safety and API contracts
         run: python3 scripts/check_ai_hub.py
+      - name: Verify actual screenshot proof and visual comparison contracts
+        run: |
+          python3 scripts/test_ai_play_frame_java.py
+          python3 scripts/test_ai_visual_compare_java.py
+          python3 scripts/test_ai_visual_review_java.py
       - name: Verify MCP agent approval policy
         run: |
           rustc --edition=2021 --test tests/mobile_ai_permissions.rs -o /tmp/rbx-mobile-agent-policy
