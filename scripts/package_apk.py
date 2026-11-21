@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import zipfile
@@ -14,7 +15,8 @@ NDK=pathlib.Path(os.environ.get("ANDROID_NDK_HOME",SDK/"android-ndk-r28c"))
 BUILD=ROOT/"android/build"
 DIST=ROOT/"dist"
 studio=os.environ.get("PORT_APP")=="studio"
-version="0.6.10" if studio else "0.3"
+experimental=studio and os.environ.get("PORT_EXPERIMENTAL_PACKAGE")=="1"
+version="0.6.11" if studio else "0.3"
 library_name="rbx_android_studio" if studio else "rbx_android"
 BT=SDK/"build-tools/35.0.0"
 PLATFORM=SDK/"platforms/android-35/android.jar"
@@ -41,6 +43,14 @@ if classes.exists():shutil.rmtree(classes)
 classes.mkdir()
 sources=list((ROOT/"android/src").rglob("*.java"))
 if studio:
+    # The GPUI launcher is the only Studio entry point. Never ship the
+    # unrelated 0.3 MainActivity, its instrumentation, or their standalone
+    # legacy helper classes in the 0.6.11 application DEX.
+    # RbxGeometry is still used by current branding, loading UI and player.
+    # It must remain packaged until its symbols are migrated safely.
+    legacy={"MainActivity.java", "NativeSmokeTest.java",
+            "PlayerPad.java", "StudioIcon.java"}
+    sources=[source for source in sources if source.name not in legacy]
     helpers=ROOT/"upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile"
     sources.extend(helpers/(name+".java") for name in ["GpuiClipboard","GpuiFilePicker","GpuiPickerActivity","GpuiDeepLink","GpuiPlatformView","GpuiVideoPlayer","GpuiCamera"])
 def run(*cmd):subprocess.run([str(x) for x in cmd],check=True,cwd=ROOT)
@@ -50,6 +60,18 @@ base=BUILD/"base.apk"
 manifest=ROOT/"android"/("StudioManifest.xml" if studio else "AndroidManifest.xml")
 packaged_manifest=BUILD/"AndroidManifest.xml"
 manifest_text = manifest.read_text()
+if experimental:
+    # Experimental builds use their own Android application identity: install
+    # beside an existing Studio without overwriting its app data or requiring
+    # the original signing certificate.
+    original_id='package="com.rbxnative.androidport"'
+    assert original_id in manifest_text, "Unexpected Studio package ID"
+    suffix = os.environ.get("PORT_EXPERIMENTAL_SUFFIX", "experimental")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*", suffix):
+        raise SystemExit("Invalid experimental package suffix")
+    manifest_text=manifest_text.replace(original_id, f'package="com.rbxnative.androidport.{suffix}"', 1)
+    label = "Rbx Studio AI Chat" if suffix == "experimental.aichat" else "Rbx Studio Experimental"
+    manifest_text=manifest_text.replace('android:label="Rbx Studio"', f'android:label="{label}"', 1)
 if os.environ.get("PORT_DEBUGGABLE") == "0":
     manifest_text = manifest_text.replace('android:debuggable="true"', 'android:debuggable="false"')
 packaged_manifest.write_text(manifest_text)
@@ -70,11 +92,38 @@ with zipfile.ZipFile(raw,"a") as apk:
     cpp=NDK/"toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"/arch/"libc++_shared.so"
     apk.write(cpp,"lib/"+abi+"/libc++_shared.so",compress_type=zipfile.ZIP_DEFLATED)
 aligned=BUILD/"aligned.apk";run(BT/"zipalign","-f","-P","16","4",raw,aligned)
-key=ROOT/"tools/debug.keystore";key.parent.mkdir(exist_ok=True)
-if not key.exists():run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias","androiddebugkey","-storepass","android","-keypass","android","-keyalg","RSA","-keysize","2048","-validity","10000","-dname","CN=rbx-native Android Debug,O=Development,C=BR")
-apk=DIST/("rbx-native-android-"+version+"-"+abi+"-debug.apk")
+# A new key on every CI runner changes the APK certificate and prevents
+# Android from installing upgrades over previously installed versions.
+# For reproducible upgrades, pass PORT_SIGNING_KEYSTORE_PATH to a persistent,
+# PRIVATE key restored from a GitHub Actions secret (never commit it).
+provided_key = os.environ.get("PORT_SIGNING_KEYSTORE_PATH")
+if studio and os.environ.get("PORT_REQUIRE_PERSISTENT_SIGNING") == "1" and not provided_key:
+    raise SystemExit("Persistent Studio signing key is required, but PORT_SIGNING_KEYSTORE_PATH is unset")
+key = pathlib.Path(provided_key) if provided_key else ROOT/"tools/debug.keystore"
+key.parent.mkdir(parents=True,exist_ok=True)
+if provided_key and not key.is_file():
+    raise SystemExit("Configured Android signing keystore does not exist")
+alias = os.environ.get("PORT_SIGNING_KEY_ALIAS") or "androiddebugkey"
+store_pass = os.environ.get("PORT_SIGNING_STORE_PASS") or "android"
+key_pass = os.environ.get("PORT_SIGNING_KEY_PASS") or store_pass
+if not key.exists():
+    print("WARNING: no persistent Android signing key configured; upgrades may be rejected due to different signatures")
+    run("keytool","-genkeypair","-noprompt","-keystore",key,"-alias",alias,
+        "-storepass",store_pass,"-keypass",key_pass,"-keyalg","RSA","-keysize","2048",
+        "-validity","10000","-dname",("CN=Rbx Studio Android Debug,O=Development,C=BR" if studio else "CN=rbx-native Android Debug,O=Development,C=BR"))
+product_prefix="rbx-studio-android" if studio else "rbx-native-android"
+apk=DIST/(product_prefix+"-"+version+"-"+abi+("-experimental" if experimental else "")+"-debug.apk")
 signed=BUILD/"signed.apk"
-run(BT/"apksigner","sign","--ks",key,"--ks-pass","pass:android","--key-pass","pass:android","--v4-signing-enabled","false","--out",signed,aligned)
+# Passwords stay out of shell command arguments and logs. apksigner reads
+# them from short-lived environment variables.
+signing_env = dict(os.environ)
+signing_env["RBX_STUDIO_SIGN_STORE_PASS"] = store_pass
+signing_env["RBX_STUDIO_SIGN_KEY_PASS"] = key_pass
+subprocess.run([str(BT/"apksigner"),"sign","--ks",str(key),"--ks-key-alias",alias,
+    "--ks-pass","env:RBX_STUDIO_SIGN_STORE_PASS",
+    "--key-pass","env:RBX_STUDIO_SIGN_KEY_PASS",
+    "--v4-signing-enabled","false","--out",str(signed),str(aligned)],
+    check=True,cwd=ROOT,env=signing_env)
 run(BT/"apksigner","verify","--verbose",signed)
 run(BT/"zipalign","-c","-P","16","4",signed)
 signed.replace(apk)

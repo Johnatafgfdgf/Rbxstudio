@@ -65,7 +65,7 @@ new file mode 100644
 index 0000000..8de275a
 --- /dev/null
 +++ b/apps/rook-player/src/android.rs
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,153 @@
 +//! Android lifecycle host for the original player. The original Game, server
 +//! thread, SceneCache, Renderer, audio mixer and frame loop are reused directly.
 +use crate::*;
@@ -95,6 +95,11 @@ index 0000000..8de275a
 +    failed: Option<anyhow::Error>,
 +    presented: bool,
 +    on_presented: Box<dyn Fn() + Send>,
++    // Counts only winit events from the opt-in native session; no coordinates.
++    native_touch_down: u32,
++    native_touch_up: u32,
++    native_touch_cancel: u32,
++    on_native_touch: Option<Box<dyn Fn(u32, u32, u32) + Send>>,
 +}
 +
 +impl AndroidLaunch {
@@ -136,6 +141,33 @@ index 0000000..8de275a
 +        if let Some(launch) = &mut self.launch { launch.suspended(event_loop); }
 +    }
 +    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
++        // winit's Android NativeActivity backend receives AInputQueue touch
++        // events. Observe phases ONLY after the first frame and ONLY for a
++        // one-use, user-authorized session; never consume or synthesize input.
++        if self.presented && self.on_native_touch.is_some() {
++            if let WindowEvent::Touch(touch) = &event {
++                let changed = match touch.phase {
++                    winit::event::TouchPhase::Started => {
++                        self.native_touch_down = self.native_touch_down.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Ended => {
++                        self.native_touch_up = self.native_touch_up.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Cancelled => {
++                        self.native_touch_cancel = self.native_touch_cancel.saturating_add(1).min(100000);
++                        true
++                    }
++                    winit::event::TouchPhase::Moved => false,
++                };
++                if changed {
++                    if let Some(report) = &self.on_native_touch {
++                        report(self.native_touch_down, self.native_touch_up, self.native_touch_cancel);
++                    }
++                }
++            }
++        }
 +        if let Some(launch) = &mut self.launch { launch.window_event(event_loop, id, event); }
 +    }
 +    fn device_event(&mut self, event_loop: &ActiveEventLoop, id: DeviceId, event: DeviceEvent) {
@@ -164,6 +196,8 @@ index 0000000..8de275a
 +    place: PathBuf,
 +    prepare: impl FnOnce() -> anyhow::Result<Resources> + Send + 'static,
 +    on_presented: impl Fn() + Send + 'static,
++    observe_native_touch: bool,
++    on_native_touch: impl Fn(u32, u32, u32) + Send + 'static,
 +) -> anyhow::Result<()> {
 +    let (send, resources) = mpsc::channel();
 +    std::thread::Builder::new().name("rook-android-resources".into()).spawn(move || {
@@ -175,6 +209,9 @@ index 0000000..8de275a
 +    let mut host = AndroidLaunch {
 +        args: Some(args), resources, launch: None, active: false, failed: None,
 +        presented: false, on_presented: Box::new(on_presented),
++        native_touch_down: 0, native_touch_up: 0, native_touch_cancel: 0,
++        on_native_touch: observe_native_touch.then(|| Box::new(on_native_touch)
++            as Box<dyn Fn(u32, u32, u32) + Send>),
 +    };
 +    event_loop.run_app(&mut host)?;
 +    if let Some(error) = host.failed { return Err(error); }
@@ -1646,7 +1683,7 @@ index 7c5ba3f..fb05cbf 100644
                  "Press"
              } else if hovered {
                  "Hover"
-@@ -349,6 +378,123 @@ impl DataModel {
+@@ -349,6 +378,157 @@ impl DataModel {
          scrolled.is_some() || self.any_active(&hits)
      }
  
@@ -1754,7 +1791,41 @@ index 7c5ba3f..fb05cbf 100644
 +            if over && !scrolled {
 +                let count = self.click_count(button);
 +                if let Ok(object) = self.runtime.push_instance(object) {
++                    #[cfg(target_os = "android")]
++                    let observed_button = crate::touch_probe::enabled().then(|| {
++                        // Button names stay local to the device and are only
++                        // captured after separate GUI-inspection consent.
++                        format!("{}", self.runtime.world().dom.full_name(button))
++                            .chars().take(240).collect::<String>()
++                    });
++                    #[cfg(target_os = "android")]
++                    let (stats, journal_changes) = if observed_button.is_some() {
++                        // Evidence is confined to this synchronous Activated window.
++                        // The DOM journal counts mutations, NOT visual effects or
++                        // definitive causation by a particular Luau callback.
++                        let before = self.runtime.world().dom.journal().end();
++                        let journal_on = self.runtime.world().dom.journal().is_enabled();
++                        let stats = rook_lua::signal_probe::capture(|| {
++                            self.fire(button, "Activated", (object, count));
++                        }).1;
++                        let after = self.runtime.world().dom.journal().end();
++                        let changes = if journal_on {
++                            after.saturating_sub(before).min(1000) as u32
++                        } else { 0 };
++                        (stats, changes)
++                    } else {
++                        self.fire(button, "Activated", (object, count));
++                        (Default::default(), 0)
++                    };
++                    #[cfg(not(target_os = "android"))]
 +                    self.fire(button, "Activated", (object, count));
++                    #[cfg(target_os = "android")]
++                    if let Some(path) = observed_button {
++                        crate::touch_probe::activated(&path, stats.queued, stats.attempted,
++                            stats.completed, stats.unresolved, stats.failed, stats.errors,
++                            journal_changes, stats.handler_dom_changes,
++                            stats.handlers_with_changes);
++                    }
 +                }
 +            }
 +        }
@@ -2009,6 +2080,42 @@ index 0000000..1642ffa
 +            detector,
 +            kind: ClickKind::Click,
 +        })
++    }
++}
+diff --git a/crates/rook-engine/src/touch_probe.rs b/crates/rook-engine/src/touch_probe.rs
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/crates/rook-engine/src/touch_probe.rs
+@@ -0,0 +1,30 @@
++//! Opt-in, touch-only evidence from the actual Rook GUI signal emission.
++//! This is NOT a synthetic tap or a proof that a user's Luau callback ran.
++use std::sync::{Arc, Mutex};
++
++type Listener = Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>;
++static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
++
++/// The isolated Android player process installs this listener only with
++/// explicit one-shot consent. No other host starts diagnostics.
++pub fn install(listener: Option<Arc<dyn Fn(&str, u32, u32, u32, u32, u32, u32, u32, u32, u32) + Send + Sync + 'static>>) {
++    if let Ok(mut current) = LISTENER.lock() {
++        *current = listener;
++    }
++}
++
++pub(crate) fn enabled() -> bool {
++    LISTENER.lock().is_ok_and(|current| current.is_some())
++}
++
++/// Reports only *after* GUI touch handling fires the Activated event.
++pub(crate) fn activated(path: &str, queued: u32, attempted: u32,
++        completed: u32, unresolved: u32, failed: u32, errors: u32,
++        journal_changes: u32, handler_dom_changes: u32,
++        handlers_with_changes: u32) {
++    let listener = LISTENER.lock().ok().and_then(|current| current.clone());
++    if let Some(listener) = listener {
++        listener(path, queued, attempted, completed, unresolved, failed,
++            errors, journal_changes, handler_dom_changes, handlers_with_changes);
 +    }
 +}
 diff --git a/crates/rook-engine/src/bridges/input/world.rs b/crates/rook-engine/src/bridges/input/world.rs
@@ -2282,15 +2389,17 @@ index cc1bf1b..0525752 100644
  mod bridges;
  pub mod build_config;
  mod chat;
-@@ -13,6 +14,7 @@ pub mod core_scripts;
+@@ -13,6 +14,9 @@ pub mod core_scripts;
  pub mod data_folder;
  mod frame;
  pub mod logging;
 +mod locomotion;
++#[cfg(target_os = "android")]
++pub mod touch_probe;
  mod rigs;
  mod scripts;
  pub mod session;
-@@ -20,7 +22,7 @@ pub mod settings;
+@@ -20,7 +24,7 @@ pub mod settings;
  pub mod user_settings;
  
  pub use bridges::camera::{CameraView, MouseLock};
@@ -2299,7 +2408,7 @@ index cc1bf1b..0525752 100644
  
  pub use bridges::render_changes::{RenderChanges, adorned_part, is_effect_class};
  
-@@ -70,6 +72,11 @@ const DEFAULT_SERVICES: &[&str] = &[
+@@ -70,6 +74,11 @@ const DEFAULT_SERVICES: &[&str] = &[
  /// Options for a DataModel host.
  #[derive(Debug, Clone)]
  pub struct Options {
@@ -2311,7 +2420,7 @@ index cc1bf1b..0525752 100644
      /// Frames per second of the fixed clock.
      pub hz: f64,
      /// Script timeout (Roblox Studio's default is 10 seconds).
-@@ -101,6 +108,8 @@ pub struct Options {
+@@ -101,6 +110,8 @@ pub struct Options {
  impl Default for Options {
      fn default() -> Self {
          Self {
@@ -2320,7 +2429,7 @@ index cc1bf1b..0525752 100644
              hz: 60.0,
              script_timeout: rook_lua::DEFAULT_SCRIPT_TIMEOUT,
              memory_limit: 1 << 30,
-@@ -143,6 +152,9 @@ pub struct DataModel {
+@@ -143,6 +154,9 @@ pub struct DataModel {
      adorned: rustc_hash::FxHashMap<InstanceId, InstanceId>,
      /// Keyboard and mouse bookkeeping (clients).
      input: input::InputTracker,
@@ -2330,7 +2439,7 @@ index cc1bf1b..0525752 100644
      content: Content,
      sounds: sounds::Sounds,
      unions: unions::Unions,
-@@ -214,6 +226,7 @@ impl DataModel {
+@@ -214,6 +228,7 @@ impl DataModel {
          self.sounds.watch.rescan(end);
          self.unions.watch.rescan(end);
          self.explosions.watch.rescan(end);
@@ -2338,7 +2447,7 @@ index cc1bf1b..0525752 100644
          if let Some(kept) = &mut self.user_settings {
              kept.rescan(end);
          }
-@@ -228,11 +241,31 @@ impl DataModel {
+@@ -228,11 +243,31 @@ impl DataModel {
      /// every reader has heard so ([`rook_lua::Runtime::trim_journal`]);
      /// input, which reads no journal, drops them as they are freed.
      pub fn trim_journal(&mut self) {
@@ -2371,7 +2480,7 @@ index cc1bf1b..0525752 100644
      }
  
      /// Every reader of the journal takes what it hasn't seen yet, noting
-@@ -256,6 +289,9 @@ impl DataModel {
+@@ -256,6 +291,9 @@ impl DataModel {
          self.check_unions();
          self.check_explosions();
          self.check_user_settings();
@@ -2381,7 +2490,7 @@ index cc1bf1b..0525752 100644
      }
  
      /// Load a place file.
-@@ -305,6 +341,17 @@ impl DataModel {
+@@ -305,6 +343,17 @@ impl DataModel {
              }
          }
          ensure_camera(&mut dom);
@@ -2399,7 +2508,7 @@ index cc1bf1b..0525752 100644
          // Roblox's client names its build here; the menu's version label shows it.
          if let Some(rs) = dom.find_service("RunService") {
              rook_dom::ignore_stale(dom.set_property_by_name(
-@@ -343,6 +390,9 @@ impl DataModel {
+@@ -343,6 +392,9 @@ impl DataModel {
          .map_err(|e| EngineError::Lua(e.to_string()))?;
          runtime.set_script_timeout(options.script_timeout);
          runtime.world_mut().signal_behavior = signal_behavior;
@@ -2409,7 +2518,7 @@ index cc1bf1b..0525752 100644
          let content = options
              .content
              .clone()
-@@ -367,7 +417,7 @@ impl DataModel {
+@@ -367,7 +419,7 @@ impl DataModel {
                  .map_err(|e| EngineError::Lua(e.to_string()))?;
          }
          let cursor = runtime.world().dom.journal().end();
@@ -2418,7 +2527,7 @@ index cc1bf1b..0525752 100644
              runtime,
              role,
              auto_trim: true,
-@@ -377,6 +427,10 @@ impl DataModel {
+@@ -377,6 +429,10 @@ impl DataModel {
              render_changes: RenderChanges::everything(),
              adorned: Default::default(),
              input: Default::default(),
@@ -2429,7 +2538,7 @@ index cc1bf1b..0525752 100644
              content: Content {
                  resolver: options.content.clone(),
                  wait_for_sounds: options.wait_for_sounds,
-@@ -387,7 +441,11 @@ impl DataModel {
+@@ -387,7 +443,11 @@ impl DataModel {
              explosions: Default::default(),
              web: Default::default(),
              user_settings: None,
@@ -5312,7 +5421,9 @@ diff --git a/crates/rook-lua/src/lib.rs b/crates/rook-lua/src/lib.rs
 index ab5fa2b..d3be8a2 100644
 --- a/crates/rook-lua/src/lib.rs
 +++ b/crates/rook-lua/src/lib.rs
-@@ -22,7 +22,8 @@ mod world;
+@@ -22,7 +22,10 @@ mod world;
++#[cfg(target_os = "android")]
++pub mod signal_probe;
  use threads::watchdog;
  
  pub use api::methods::assets::AssetFill;
@@ -5322,7 +5433,7 @@ index ab5fa2b..d3be8a2 100644
  pub use api::methods::characters::movement::drives as humanoid_drives;
  pub use api::methods::characters::ownership::authority;
  pub use api::methods::characters::{
-@@ -48,6 +49,11 @@ use mlua::{IntoLuaMulti, Lua};
+@@ -48,6 +51,11 @@ use mlua::{IntoLuaMulti, Lua};
  use rook_dom::{Dom, InstanceId};
  use rook_types::{UserInputState, UserInputType};
  
@@ -5334,7 +5445,7 @@ index ab5fa2b..d3be8a2 100644
  /// Create an `InputObject` describing one input (an `Enum.KeyCode` value;
  /// position and delta in pixels). Used by the engine when firing input events and by
  /// UserInputService queries.
-@@ -456,12 +462,120 @@ impl Runtime {
+@@ -456,12 +464,120 @@ impl Runtime {
          std::mem::take(&mut self.world_mut().tool_moves)
      }
  
@@ -5543,6 +5654,125 @@ index 5c87ba0..e8f398b 100644
                      _ => {}
                  }
              }
+diff --git a/crates/rook-lua/src/threads.rs b/crates/rook-lua/src/threads.rs
+index 0000000..0000000 100644
+--- a/crates/rook-lua/src/threads.rs
++++ b/crates/rook-lua/src/threads.rs
+@@ -91,6 +91,8 @@
+ /// Stack End
+ /// ```
+ pub(crate) fn report_error(lua: &Lua, thread: &Thread, e: &mlua::Error) {
++    #[cfg(target_os = "android")]
++    crate::signal_probe::error();
+     let message = lua_error_message(e);
+     let mut text = message;
+     let stack = mlua_traceback(e)
+@@ -297,21 +299,70 @@
+             // Debris may outlive what it was given; destroyed is destroyed.
+             let _ = crate::removal::destroy(lua, id);
+         }
++        Job::Fire { connection, handler, args } => {
++            #[cfg(target_os = "android")]
++            let tracked = crate::signal_probe::attempted(connection);
++            #[cfg(not(target_os = "android"))]
++            let _ = connection;
++            #[cfg(not(target_os = "android"))]
++            let tracked = false;
++            let (outcome, dom_changes) = run_handler(lua, handler, args, tracked);
++            #[cfg(target_os = "android")]
++            if tracked { crate::signal_probe::finished(outcome, dom_changes); }
++            #[cfg(not(target_os = "android"))]
++            let _ = (outcome, dom_changes);
++        },
+-        Job::Fire { handler, args, .. } => run_handler(lua, handler, args),
+     }
+ }
+ 
++// Observe the first synchronous resumption only, never arbitrary future
++// continuations or Deferred handlers.
++fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>,
++        observe: bool) -> (Option<bool>, u32) {
++    #[cfg(target_os = "android")]
++    let errors_before = observe.then(|| with_world(lua, |w| w.errors));
++    #[cfg(target_os = "android")]
++    let journal_before = if observe {
++        Some(with_world(lua, |w| {
++            let journal = w.dom.journal();
++            (journal.end(), journal.is_enabled())
++        }))
++    } else { None };
++    #[cfg(not(target_os = "android"))]
++    let _ = observe;
++    let outcome = match handler {
++        Handler::Call(f) => match spawn(lua, f, MultiValue::from_vec(args)) {
++            Ok(thread) => Some(observe && thread.status() == ThreadStatus::Finished),
++            Err(e) => {
+-fn run_handler(lua: &Lua, handler: Handler, args: Vec<LuaValue>) {
+-    match handler {
+-        Handler::Call(f) => {
+-            if let Err(e) = spawn(lua, f, MultiValue::from_vec(args)) {
+                 with_world(lua, |w| {
+                     w.push_log(MessageType::Error, lua_error_message(&e))
+                 });
++                None
+             }
++        },
++        Handler::Resume(thread) => {
++            let runnable = observe && thread.status() == ThreadStatus::Resumable
++                && !stopped_thread(lua, &thread);
++            resume(lua, &thread, MultiValue::from_vec(args));
++            Some(runnable && thread.status() == ThreadStatus::Finished)
++        },
++    };
++    #[cfg(target_os = "android")]
++    let dom_changes = journal_before
++        .map(|(start, enabled)| {
++            if !enabled { return 0; }
++            with_world(lua, |w| w.dom.journal().end().saturating_sub(start).min(1000) as u32)
++        })
++        .unwrap_or(0);
++    #[cfg(not(target_os = "android"))]
++    let dom_changes = 0;
++    #[cfg(target_os = "android")]
++    if let Some(before) = errors_before
++        && with_world(lua, |w| w.errors) > before
++    {
++        return (None, dom_changes);
+-        }
+-        Handler::Resume(thread) => resume(lua, &thread, MultiValue::from_vec(args)),
+     }
++    (outcome, dom_changes)
+ }
+ 
+ /// Drain the deferred queue, including jobs deferred while draining.
+@@ -340,6 +391,10 @@
+             with_world(lua, |w| w.signals.disconnect(connection));
+             continue;
+         }
++        #[cfg(target_os = "android")]
++        if crate::signal_probe::observes(key) {
++            crate::signal_probe::queued(connection);
++        }
+         match behavior {
+             SignalBehavior::Deferred => with_world(lua, |w| {
+                 w.scheduler.defer(Job::Fire {
+@@ -354,7 +409,15 @@
+                     with_world(lua, |w| w.push_log(MessageType::Error, e.to_string()));
+                     continue;
+                 }
++                #[cfg(target_os = "android")]
++                let tracked = crate::signal_probe::attempted(connection);
++                #[cfg(not(target_os = "android"))]
++                let tracked = false;
++                let (outcome, dom_changes) = run_handler(lua, handler, args.to_vec(), tracked);
++                #[cfg(target_os = "android")]
++                if tracked { crate::signal_probe::finished(outcome, dom_changes); }
++                #[cfg(not(target_os = "android"))]
++                let _ = (outcome, dom_changes);
+-                run_handler(lua, handler, args.to_vec());
+                 with_world(lua, |w| w.signals.leave());
+             }
+         }
 diff --git a/crates/rook-lua/src/user_settings.rs b/crates/rook-lua/src/user_settings.rs
 index 7a5aadf..5dd0890 100644
 --- a/crates/rook-lua/src/user_settings.rs
@@ -5568,6 +5798,116 @@ index 7a5aadf..5dd0890 100644
          ),
          (
              "TouchCameraMovementMode",
+diff --git a/crates/rook-lua/src/signal_probe.rs b/crates/rook-lua/src/signal_probe.rs
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/crates/rook-lua/src/signal_probe.rs
+@@ -0,0 +1,104 @@
++//! Opt-in, single-touch GUI Luau handler dispatch diagnostics on Android.
++//! No source collection, no hook injection, and no claim of script completion.
++use std::{cell::RefCell, collections::HashSet};
++use crate::signal::{ConnectionId, SignalKey, SignalKind};
++
++#[derive(Clone, Copy, Debug, Default)]
++pub struct DispatchStats {
++    pub queued: u32,
++    pub attempted: u32,
++    pub errors: u32,
++    pub completed: u32,
++    pub unresolved: u32,
++    pub failed: u32,
++    /// DOM mutations observed while resuming tracked Luau handlers.
++    /// May include nested work; never treated as proof of causation.
++    pub handler_dom_changes: u32,
++    pub handlers_with_changes: u32,
++}
++
++#[derive(Default)]
++struct Capture {
++    stats: DispatchStats,
++    pending: HashSet<ConnectionId>,
++}
++
++thread_local! {
++    static ACTIVE: RefCell<Option<Capture>> = const { RefCell::new(None) };
++}
++
++/// The caller surrounds only its real touch-originated Activated firing.
++pub fn capture<T>(execute: impl FnOnce() -> T) -> (T, DispatchStats) {
++    struct Restore(Option<Capture>);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            ACTIVE.with(|active| {
++                *active.borrow_mut() = self.0.take();
++            });
++        }
++    }
++    let previous = ACTIVE.with(|a| a.borrow_mut().replace(Capture::default()));
++    let restore = Restore(previous);
++    let result = execute();
++    let stats = ACTIVE.with(|a| {
++        a.borrow().as_ref().map(|c| c.stats).unwrap_or_default()
++    });
++    drop(restore);
++    (result, stats)
++}
++
++pub(crate) fn observes(key: &SignalKey) -> bool {
++    matches!(key.kind, SignalKind::Event("Activated"))
++        && ACTIVE.with(|a| a.borrow().is_some())
++}
++
++pub(crate) fn queued(connection: ConnectionId) {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            if c.pending.insert(connection) {
++                c.stats.queued = c.stats.queued.saturating_add(1);
++            }
++        }
++    });
++}
++
++/// Deferred handlers execute later and cannot be confirmed here.
++pub(crate) fn attempted(connection: ConnectionId) -> bool {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            if c.pending.remove(&connection) {
++                c.stats.attempted = c.stats.attempted.saturating_add(1);
++                return true;
++            }
++        }
++        false
++    })
++}
++
++/// First synchronous resumption: completed / unresolved / failed.
++pub(crate) fn finished(outcome: Option<bool>, dom_changes: u32) {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            let item = match outcome {
++                Some(true) => &mut c.stats.completed,
++                Some(false) => &mut c.stats.unresolved,
++                None => &mut c.stats.failed,
++            };
++            *item = item.saturating_add(1);
++            c.stats.handler_dom_changes = c.stats.handler_dom_changes
++                .saturating_add(dom_changes).min(1000);
++            if dom_changes > 0 {
++                c.stats.handlers_with_changes =
++                    c.stats.handlers_with_changes.saturating_add(1);
++            }
++        }
++    });
++}
++
++pub(crate) fn error() {
++    ACTIVE.with(|a| {
++        if let Some(c) = a.borrow_mut().as_mut() {
++            c.stats.errors = c.stats.errors.saturating_add(1);
++        }
++    });
++}
 diff --git a/crates/rook-lua/src/world.rs b/crates/rook-lua/src/world.rs
 index 4fbd731..ccf0145 100644
 --- a/crates/rook-lua/src/world.rs
@@ -7316,3 +7656,141 @@ index 0a25492..cd3eff4 100644
          .find_map(|name| dom.content_property(id, name).filter(|u| !u.is_empty()))
          .unwrap_or_default()
  }
+diff --git a/crates/rook-engine/src/tests/gui.rs b/crates/rook-engine/src/tests/gui.rs
+index 0000000..0000000 100644
+--- a/crates/rook-engine/src/tests/gui.rs
++++ b/crates/rook-engine/src/tests/gui.rs
+@@ -281,0 +282,133 @@
++/// Headless regression: a real Rook GUI hit calls the existing Luau
++/// LocalScript, and the script mutates the actual client DOM. This uses
++/// injected test input only in CI; it is NOT proof of physical Android touch.
++fn touch_gui_fixture() -> (Session, usize) {
++    let mut server = Server::new(&Options::default()).unwrap();
++    let workspace = service(&server, "Workspace");
++    let probe = add_under(&server, workspace, "Part", "TouchProbePart", "");
++    server.runtime().world_mut().dom
++        .set_property_by_name(probe, "Anchored", Value::Bool(true)).unwrap();
++    let starter = service(&server, "StarterGui");
++    let screen = add_under(&server, starter, "ScreenGui", "TouchFixture", "");
++    let button = add_under(&server, screen, "TextButton", "Action", "");
++    add_under(
++        &server,
++        button,
++        "LocalScript",
++        "TouchAction",
++        r#"
++        local button = script.Parent
++        local probe = workspace:WaitForChild("TouchProbePart")
++        button.Size = UDim2.fromScale(1, 1)
++        button.Active = true
++        button.Text = "PRONTO"
++        button.Activated:Connect(function()
++            button.Text = "TOQUE_CONFIRMADO"
++            task.wait(0.15)
++            probe.Transparency = 0.625
++        end)
++        "#,
++    );
++    server.start();
++    let options = Options {
++        touch_input: true,
++        initial_viewport: Some((800, 600)),
++        ..Options::default()
++    };
++    let mut session = Session::new(server, options);
++    let index = session.join("TouchRegression", 1).unwrap();
++    session.run_for(0.25);
++    (session, index)
++}
++
++fn touch_gui_text(session: &mut Session, index: usize) -> Option<Value> {
++    let client = session.client_mut(index)?;
++    let world = client.runtime().world();
++    let dom = &world.dom;
++    let player = dom.local_player()?;
++    let gui = dom.find_first_child(player, "PlayerGui", false)?;
++    let screen = dom.find_first_child(gui, "TouchFixture", false)?;
++    let button = dom.find_first_child(screen, "Action", false)?;
++    dom.property_by_name(button, "Text")
++}
++
++/// Reads the real replicated client Workspace, not Lua print output.
++fn touch_probe_part_transparency(session: &mut Session, index: usize) -> Option<f32> {
++    let client = session.client_mut(index)?;
++    let world = client.runtime().world();
++    let workspace = world.dom.find_service("Workspace")?;
++    let part = world.dom.find_first_child(workspace, "TouchProbePart", false)?;
++    world.dom.float_property(part, "Transparency")
++}
++
++#[test]
++fn touch_activation_updates_visible_gui_state() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++    session.input(index, InputEvent::Touch {
++        id: 71, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 71, phase: TouchPhase::End, x: 400.0, y: 300.0,
++    });
++    session.run_for(0.1);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("TOQUE_CONFIRMADO".into())));
++}
++
++#[test]
++fn touch_cancel_does_not_activate_or_change_gui_state() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++    session.input(index, InputEvent::Touch {
++        id: 72, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 72, phase: TouchPhase::Cancel, x: 400.0, y: 300.0,
++    });
++    session.run_for(0.1);
++    assert_eq!(touch_gui_text(&mut session, index), Some(Value::String("PRONTO".into())));
++}
++
++#[test]
++fn touch_activation_updates_client_workspace_after_yield() {
++    let (mut session, index) = touch_gui_fixture();
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
++    session.input(index, InputEvent::Touch {
++        id: 73, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 73, phase: TouchPhase::End, x: 400.0, y: 300.0,
++    });
++    // Activation changes Text immediately, but Workspace remains untouched
++    // until Luau resumes this callback after task.wait(0.15).
++    session.run_for(0.05);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("TOQUE_CONFIRMADO".into())));
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
++    session.run_for(0.25);
++    let observed = touch_probe_part_transparency(&mut session, index)
++        .expect("the real client Workspace must contain the test Part");
++    assert!((observed - 0.625).abs() < 0.001, "unexpected Transparency {observed}");
++    // LocalScript changes are client-local and must not mutate the server.
++    let server_world = session.server().runtime().world();
++    let ws = server_world.dom.find_service("Workspace").unwrap();
++    let part = server_world.dom.find_first_child(ws, "TouchProbePart", false).unwrap();
++    assert_eq!(server_world.dom.float_property(part, "Transparency"), Some(0.0));
++}
++
++#[test]
++fn touch_cancel_never_resumes_delayed_gameplay_change() {
++    let (mut session, index) = touch_gui_fixture();
++    session.input(index, InputEvent::Touch {
++        id: 74, phase: TouchPhase::Begin, x: 400.0, y: 300.0,
++    });
++    session.input(index, InputEvent::Touch {
++        id: 74, phase: TouchPhase::Cancel, x: 400.0, y: 300.0,
++    });
++    // Wait longer than the async callback would have taken if fired.
++    session.run_for(0.4);
++    assert_eq!(touch_gui_text(&mut session, index),
++        Some(Value::String("PRONTO".into())));
++    assert_eq!(touch_probe_part_transparency(&mut session, index), Some(0.0));
++}

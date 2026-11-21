@@ -1,5 +1,17 @@
 # Prévia interativa do Rbx Studio
 
+Use `preview/lote-01.html` para rever o primeiro lote já editado no código Rust. As cores,
+os raios, os tempos de animação e os ícones vêm das mesmas fontes usadas pelo editor.
+O navegador usa uma Baseplate de exemplo. Desfazer, seleção e navegação da prévia
+operam sobre esse exemplo. Arquivos, Vulkan, Toolbox on-line e Roblox requerem o app.
+
+A página em `preview/mobile-ui.html` acompanha o trabalho atual. A de
+`preview/index.html` é a prévia histórica de antes dessa edição.
+
+Com Playwright e Chromium disponíveis, execute
+`node preview/check-mobile-ui.mjs` na raiz para verificar a navegação,
+as gavetas, as categorias e os tamanhos da prévia atual.
+
 Abra `preview/index.html` no navegador ou use um serviço de visualização de HTML hospedado no GitHub. Não há dependências externas ou necessidade de instalar APK.
 
 ## Objetivo

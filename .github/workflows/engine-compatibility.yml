@@ -1,7 +1,7 @@
 name: RBX-Mobile engine compatibility
 on:
   push:
-    branches: ['work/rbx-mobile-*']
+    branches: ['work/rbx-mobile-*', 'work/ai-autonomous-*']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -32,6 +32,14 @@ jobs:
           cargo test --locked -p rbx_android_core --tests 2>&1 | tee logs/regression-tests.log
       - name: Run the phone diagnostic scenarios on the cloud host
         run: cargo run --locked -p rbx_android_core --example engine_diagnostics -- logs/engine-diagnostics.json
+      - name: Test actual Rook touch GUI to Luau state changes
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_activation_updates_visible_gui_state -- --nocapture 2>&1 | tee logs/rook-touch-activation.log
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_cancel_does_not_activate_or_change_gui_state -- --nocapture 2>&1 | tee logs/rook-touch-cancel.log
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_activation_updates_client_workspace_after_yield -- --nocapture 2>&1 | tee logs/rook-touch-delayed-workspace.log
+          cargo test --locked --manifest-path upstream/rook/Cargo.toml -p rook-engine --lib touch_cancel_never_resumes_delayed_gameplay_change -- --nocapture 2>&1 | tee logs/rook-touch-cancel-delayed.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

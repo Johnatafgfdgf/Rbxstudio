@@ -88,7 +88,7 @@ impl PlaySession {
         };
         let state = humanoid_state(dm);
         editor.selection.clear();
-        editor.status = "Play local · servidor + cliente Rook".into();
+        editor.status = "Play local · servidor e cliente".into();
         let mut p = Self {
             animation: None,
             before,

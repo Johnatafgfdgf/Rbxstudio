@@ -2,6 +2,27 @@
 
 Editor nativo para Android com arquivos RBXL, RBXLX, RBXM e RBXMX. O Play salva o projeto, publica uma cópia numa experiência privada de teste e abre o Roblox oficial no Android. O Rook fica disponível em Ferramentas → Test → Play local. O APK ARM64 requer Android 10 ou superior.
 
+## Versão 0.6.11 experimental
+
+- Identidade apresentada ao usuário: **Rbx Studio**. O APK Studio usa o nome `rbx-studio-android`; classes do protótipo Java 0.3 não entram no DEX do editor GPUI.
+- O projeto ainda utiliza bibliotecas de código aberto derivadas de rbx-native e Rook. Os nomes internos, caminhos de compatibilidade, créditos e licenças não devem ser confundidos com a marca exibida; remover essas dependências exige substituição técnica, não apenas renomeação.
+- IA: painel MCP com permissões e **central Android de provedores** (OpenAI, Gemini, Claude e OpenRouter), catálogo real de modelos, chat por API, chaves no Android Keystore e leitura opcional do Explorer real via MCP. **Ainda não há agente executor autônomo geral** nem garantia de publicação de animações. Veja [implementação e limitações](docs/ANDROID_AI_PHASE1_2026-11-16.md).
+- Verificações nativas: compilação ARM64, boot, Home, criação de mapa e toques em Menu, Ferramentas, Painéis e IA. Falta validação física completa de Play, scripts, importação e publicação.
+- **Atualizações de APK de desenvolvimento:** novas assinaturas debug geradas em runners descartáveis do GitHub podem impedir atualização por cima da instalação anterior. Exporte projetos antes de remover qualquer aplicativo. Builds destinados a atualizar a instalação devem usar a **mesma** chave de assinatura anterior.
+- O APK produzido é inspecionado por `scripts/check_studio_apk.py` para impedir que a antiga `MainActivity` e seus textos voltem à versão GPUI. As duas referências privadas de credenciais legadas são preservadas até haver migração segura.
+
+### Chave persistente para atualizar o aplicativo
+
+No GitHub, em **Settings → Secrets and variables → Actions**, configure estes segredos no repositório (nunca os envie no chat nem adicione o arquivo .jks ao Git):
+
+- `RBX_STUDIO_ANDROID_KEYSTORE_B64`: conteúdo em base64 de **uma chave de assinatura privada existente e guardada em segurança**.
+- `RBX_STUDIO_ANDROID_STORE_PASS`: senha do keystore.
+- `RBX_STUDIO_ANDROID_KEY_PASS`: senha da chave, quando diferente da senha anterior.
+- `RBX_STUDIO_ANDROID_KEY_ALIAS`: alias da chave (por padrão `androiddebugkey`).
+
+Os workflows Android usam o keystore somente dentro do runner e os parâmetros `--ks-pass env:...` e `--key-pass env:...`. Se os segredos não existirem, continuam gerando um APK de teste com aviso de que a assinatura pode mudar. **Uma nova chave persistente não permite atualizar APKs já instalados com outra assinatura**. O app precisa ser instalado pela primeira vez com a assinatura que permanecerá nas próximas versões; faça backup dos projetos e preserve os dados antes de qualquer migração. Não há migração automática de identificador Android, credenciais ou projetos nesta etapa.
+
+
 ## Versão 0.6.9
 
 - Use **Painéis** para alternar entre Explorer, Propriedades e Toolbox. Abra os menus e a faixa de ferramentas quando precisar.
@@ -65,7 +86,23 @@ PORT_ARCH=aarch64-linux-android python3 scripts/cargo_android.py build --locked 
 PORT_APP=studio PORT_ARCH=aarch64-linux-android python3 scripts/package_apk.py
 ```
 
-Use `PORT_DEBUGGABLE=0` junto a `PORT_APP=studio` para empacotar sem a opção de depuração do Android. O resultado está em `dist/rbx-native-android-0.6.9-arm64-v8a-debug.apk`. O empacotamento usa javac, D8, aapt, zipalign e apksigner. Para um emulador x86_64, instale o alvo Rust correspondente e use `PORT_ARCH=x86_64-linux-android`. A assinatura de atualização deve usar a mesma chave da instalação anterior.
+Use `PORT_DEBUGGABLE=0` junto a `PORT_APP=studio` para empacotar sem a opção de depuração do Android. O resultado está em `dist/rbx-studio-android-0.6.11-arm64-v8a-debug.apk`. O empacotamento usa javac, D8, aapt, zipalign e apksigner. Para um emulador x86_64, instale o alvo Rust correspondente e use `PORT_ARCH=x86_64-linux-android`. A assinatura de atualização deve usar a mesma chave da instalação anterior.
+
+### Chat de IA no editor
+
+Toque em **IA** na barra superior. O menu ☰ do chat abre as configurações, o histórico local do mapa e as referências Roblox. Use **+** para selecionar modelos ou anexar uma imagem ou um arquivo UTF-8. O envio de imagens requer um modelo compatível.
+
+Em **Menu → Conexão MCP**, ative a conexão local se quiser que o agente consulte ou proponha mudanças no editor. A central de provedores usa HTTPS e credenciais próprias. Minimize o chat para confirmar solicitações que surgirem no editor. O botão **Parar** cancela a análise e descarta o trabalho ainda em proposta. Ajustes já confirmados no editor seguem o fluxo de desfazer do editor, quando a operação oferece esse suporte. Acrescentar uma mensagem durante a consulta cancela a resposta em curso e envia a solicitação atualizada ao modelo. O provedor pode já ter contabilizado a chamada anterior.
+
+O chat usa instruções de Roblox e Luau em todos os provedores. Blocos Luau têm **Copiar** e **Adicionar ao projeto**. Para inserir um rascunho, selecione o destino, revise o código e confirme. Para a IA consultar e propor alterações em scripts existentes, use **Ativar agente**. As permissões de contexto, ferramentas de assets, testes e histórico ficam em abas. Antes de pedir confirmação de uma proposta Luau, o editor verifica a sintaxe e o destino. Se o mapa estiver sem um contêiner padrão compatível, a revisão mostra as pastas que a gravação poderá criar. Pastas e script entram na mesma alteração do editor e podem ser desfeitos juntos.
+
+No Android, a integração local inicia quando o chat é aberto no mapa. O modo automático de scripts pode ser autorizado uma vez por mapa e provedor, com revogação em **Configurações → Permissões**. Ações externas continuam no fluxo de revisão. Depois da gravação, o editor compara a fonte armazenada com a proposta. Pedidos simples de chuva podem usar a receita embutida de gotas em tela e relâmpagos visuais. Para som, configure um asset Roblox permitido no atributo numérico `ThunderSoundId` do LocalScript.
+
+No Gemini, **Atualizar catálogo de modelos** consulta as opções de geração. **Testar resposta do Gemini** envia um pedido curto ao modelo selecionado e pode consumir cota. Se a geração devolver HTTP 404, o chat mostra o nome do modelo e oferece **Trocar modelo Gemini**, preservando o rascunho.
+
+O histórico criptografado mantém as seis trocas mais recentes por caminho de projeto. Ele pode ser limpo pelo menu ☰. O conteúdo dos anexos não é gravado no histórico. A função de retomar mostra uma confirmação antes de enviar mensagens salvas ao provedor atual.
+
+Para compilar a variante que pode ser instalada ao lado do RBX Studio e do experimental anterior, adicione `PORT_EXPERIMENTAL_PACKAGE=1 PORT_EXPERIMENTAL_SUFFIX=experimental.aichat` ao comando de empacotamento.
 
 ```bash
 cargo test --locked -p rbx_android_core --tests

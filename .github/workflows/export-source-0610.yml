@@ -1,0 +1,89 @@
+name: Export RBX-Mobile 0.6.10 source
+
+on:
+  push:
+    branches: [verify/android-menus]
+    paths: [.github/workflows/export-source-0610.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BUILD_REVISION: f2ac820ebfb11c4b57c41b97bd7d15c2eaae68a0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BUILD_REVISION }}
+          submodules: recursive
+          persist-credentials: false
+      - name: Verify Android source preparation
+        run: python3 scripts/check_preparation.py
+      - name: Export the verified source and submodules
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BUILD_REVISION"
+          archive_dir="$RUNNER_TEMP/rbx-source-export"
+          source_dir="$archive_dir/RBX-Mobile-0.6.10"
+          mkdir -p "$source_dir"
+          git archive "$BUILD_REVISION" | tar -xf - -C "$source_dir"
+          for component in rbx-native rook gpui-mobile; do
+            dependency="upstream/$component"
+            pinned=$(git rev-parse "$BUILD_REVISION:$dependency")
+            test "$(git -C "$dependency" rev-parse HEAD)" = "$pinned"
+            mkdir -p "$source_dir/$dependency"
+            git -C "$dependency" archive "$pinned" | tar -xf - -C "$source_dir/$dependency"
+            printf '%s %s\n' "$pinned" "$dependency"
+          done
+
+          cat > "$source_dir/LEIA-ME-0.6.10.md" <<'BUILD_GUIDE'
+          # RBX-Mobile 0.6.10
+
+          Código da revisão `f2ac820ebfb11c4b57c41b97bd7d15c2eaae68a0`, compilada no [build ARM64](https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/43657605144).
+
+          O ZIP inclui rbx-native, Rook e gpui-mobile nas revisões fixadas pelo projeto, com os patches Android aplicados. Os patches e as licenças acompanham os fontes. O inventário da interface está em `docs/ANDROID_STYLE_BATCHES.md`.
+
+          ## Compilar o APK ARM64 no Linux
+
+          Use Git, Python 3.12, JDK 17, Rust 1.99.1 e o Android SDK com `sdkmanager` no PATH. Execute na pasta extraída, com `ANDROID_HOME` apontando para o SDK.
+
+          ```bash
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup target add --toolchain 1.99.1 aarch64-linux-android
+          export RUSTUP_TOOLCHAIN=1.99.1
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python3 scripts/prepare.py
+          PORT_ARCH=aarch64-linux-android python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
+          PORT_APP=studio PORT_ARCH=aarch64-linux-android python3 scripts/package_apk.py
+          ```
+
+          O pacote gerado fica em `dist/rbx-native-android-0.6.10-arm64-v8a-debug.apk`. O build baixa as dependências externas do Cargo. O script de empacotamento cria uma chave de depuração se nenhuma estiver disponível. Para atualizar uma instalação existente, assine o APK com o mesmo certificado usado nela.
+          BUILD_GUIDE
+
+          (
+            cd "$source_dir"
+            python3 scripts/prepare.py
+            PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/android -p 'test_*.py'
+          )
+          for component in rbx-native rook gpui-mobile; do
+            diff -qr --exclude=.git "upstream/$component" "$source_dir/upstream/$component"
+          done
+          diff -qr core/src/upstream "$source_dir/core/src/upstream"
+          diff -qr geometry/src/upstream "$source_dir/geometry/src/upstream"
+          (
+            cd "$archive_dir"
+            zip -qry "$RUNNER_TEMP/RBX-Mobile-0.6.10-Fonte.zip" RBX-Mobile-0.6.10
+          )
+          unzip -tq "$RUNNER_TEMP/RBX-Mobile-0.6.10-Fonte.zip"
+          sha256sum "$RUNNER_TEMP/RBX-Mobile-0.6.10-Fonte.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rbx-mobile-0.6.10-source
+          path: ${{ runner.temp }}/RBX-Mobile-0.6.10-Fonte.zip
+          if-no-files-found: error
+          retention-days: 7

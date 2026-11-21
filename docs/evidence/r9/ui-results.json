@@ -1,0 +1,11 @@
+{
+  "scope": "Production Java Activity in Android 29 software emulator using a UI-only APK; no native viewport, MCP, Play or user keys",
+  "plus_landscape": "passed",
+  "scroll_to_last_item": "passed",
+  "keyboard": "captured",
+  "plus_portrait": "passed",
+  "keyboard_composer_geometry": "passed",
+  "portrait_options_present": 3,
+  "system_ui_boot_anr": "Observed once; Wait selected before testing. No device performance claim.",
+  "capture_note": "chat-portrait.png preceded Activity rendering; plus-portrait.png and XML confirm the chat and all three popup items. Future test captures after layout dump."
+}

@@ -5,11 +5,15 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.media.AudioManager;
+import android.graphics.Bitmap;
+import android.view.PixelCopy;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
@@ -25,6 +29,11 @@ public final class RookPlayerActivity extends NativeActivity {
     private PlayLoadingView loading;
     private volatile String stage = "Preparando o Play local…";
     private volatile boolean ready;
+    private volatile String touchProbeId;
+    private String playFrameConsentId;
+    private final Handler frameHandler = new Handler(Looper.getMainLooper());
+    private boolean frameCaptureScheduled;
+    private int touchDownCount, touchUpCount, touchCancelCount;
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
         if (focused) {
@@ -46,6 +55,10 @@ public final class RookPlayerActivity extends NativeActivity {
             catch (android.system.ErrnoException error) { throw new IllegalStateException(error); }
         }
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        // NativeActivity can start its winit thread inside super.onCreate.
+        // Consume consent first so the native process sees the correct state.
+        touchProbeId = StudioTouchDiagnostics.begin(this);
+        playFrameConsentId = StudioPlayFrameEvidence.begin(this);
         super.onCreate(state);
         StudioWindow.configure(this);
         // The loading card owns its surface until the first game frame.
@@ -81,6 +94,61 @@ public final class RookPlayerActivity extends NativeActivity {
         }
     }
 
+
+    /**
+     * PixelCopy from this actual NativeActivity's Rook window, not from
+     * StudioPlayer preview.png (the latter belongs to the EDITOR).
+     * Only scheduled after the native player reports ready and the loading
+     * PopupWindow has been dismissed. Captures at most once per consent.
+     */
+    private void scheduleOnePlayFrame() {
+        if (playFrameConsentId == null || frameCaptureScheduled) return;
+        frameCaptureScheduled = true;
+        final String requestId = playFrameConsentId;
+        frameHandler.postDelayed(() -> {
+            if (!ready || isFinishing() || isDestroyed()) {
+                StudioPlayFrameEvidence.failed(this, requestId, "player_not_ready");
+                return;
+            }
+            View decor = getWindow().getDecorView();
+            int viewWidth = decor.getWidth();
+            int viewHeight = decor.getHeight();
+            if (decor.getWindowToken() == null || viewWidth < 1 || viewHeight < 1 ||
+                    !decor.hasWindowFocus()) {
+                StudioPlayFrameEvidence.failed(this, requestId, "window_not_focused");
+                return;
+            }
+            final int copyWidth = 420;
+            final int copyHeight = Math.min(512, Math.max(1,
+                    Math.round(viewHeight * (420f / viewWidth))));
+            final Bitmap frame = Bitmap.createBitmap(copyWidth,
+                    copyHeight, Bitmap.Config.ARGB_8888);
+            try {
+                PixelCopy.request(getWindow(), frame, result -> {
+                    try {
+                        if (result == PixelCopy.SUCCESS && ready &&
+                                !isFinishing() && !isDestroyed()) {
+                            StudioPlayFrameEvidence.save(this, requestId,
+                                    frame, result);
+                        } else {
+                            StudioPlayFrameEvidence.failed(this, requestId,
+                                    "pixelcopy_result_" + result);
+                        }
+                    } catch (Exception failure) {
+                        StudioPlayFrameEvidence.failed(this, requestId,
+                                "encode_or_storage_failed");
+                    } finally {
+                        frame.recycle();
+                    }
+                }, frameHandler);
+            } catch (Exception error) {
+                frame.recycle();
+                StudioPlayFrameEvidence.failed(this, requestId,
+                        "pixelcopy_request_failed");
+            }
+        }, 900L);
+    }
+
     /** Called by the Rust service bridge; credential bytes never enter a log. */
     public String service(String operation, String value) throws Exception {
         switch (operation) {
@@ -92,8 +160,40 @@ public final class RookPlayerActivity extends NativeActivity {
                 return packed == null ? "" : new String(StudioServices.unhex(
                     packed.substring(packed.indexOf(':') + 1)), StandardCharsets.UTF_8);
             }
+            case "touch-probe-enabled": return touchProbeId == null ? "0" : "1";
+            case "touch-gui-enabled":
+                return StudioTouchDiagnostics.guiConsent(this, touchProbeId) ? "1" : "0";
+            case "native-gui-activated":
+                if (ready && touchProbeId != null && value != null && value.length() <= 768) {
+                    JSONObject activation = new JSONObject(value);
+                    StudioTouchDiagnostics.noteGuiActivation(this, touchProbeId,
+                            activation.getString("path"), activation.getInt("queued"),
+                            activation.getInt("attempted"), activation.getInt("completed"),
+                            activation.getInt("unresolved"), activation.getInt("failed"),
+                            activation.getInt("errors"),
+                            activation.getInt("journalChanges"),
+                            activation.getInt("handlerDomChanges"),
+                            activation.getInt("handlersWithChanges"));
+                }
+                return "";
+            case "native-touch-counts": {
+                if (touchProbeId == null || !ready || value == null || value.length() > 96)
+                    return "";
+                JSONObject totals = new JSONObject(value);
+                StudioTouchDiagnostics.writeNativeCounts(this, touchProbeId,
+                        totals.getInt("down"), totals.getInt("up"), totals.getInt("cancel"));
+                return "";
+            }
             case "loading-stage": stage = value; runOnUiThread(this::showControls); return "";
-            case "ready": ready = true; runOnUiThread(this::showControls); return "";
+            case "ready":
+                ready = true;
+                runOnUiThread(() -> {
+                    StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
+                            touchDownCount, touchUpCount, touchCancelCount, false);
+                    showControls();
+                    scheduleOnePlayFrame();
+                });
+                return "";
             case "finish": runOnUiThread(this::finish); return "";
             case "clipboard-read": {
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -126,8 +226,43 @@ public final class RookPlayerActivity extends NativeActivity {
         for (int i = 0; i < bytes.length; i++) bytes[i] = (byte) Integer.parseInt(value.substring(i * 2, i * 2 + 2), 16);
         return bytes;
     }
+    /**
+     * Real touchscreen MotionEvents received by the Java Activity. Never
+     * consume, inject, replay or transform native input. NativeActivity may
+     * deliver some/all game input through AInputQueue instead; zero events
+     * is inconclusive and this is NOT a GuiButton.Activated verification.
+     */
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        boolean consumed = super.dispatchTouchEvent(event);
+        if (touchProbeId == null || !ready || event == null ||
+                (event.getSource() & InputDevice.SOURCE_TOUCHSCREEN) !=
+                        InputDevice.SOURCE_TOUCHSCREEN) return consumed;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                if (touchDownCount < 100000) touchDownCount++;
+                break;
+            case MotionEvent.ACTION_UP:
+                if (touchUpCount < 100000) touchUpCount++;
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                if (touchCancelCount < 100000) touchCancelCount++;
+                break;
+            default:
+                return consumed;
+        }
+        StudioTouchDiagnostics.writeReport(this, touchProbeId, true,
+                touchDownCount, touchUpCount, touchCancelCount, false);
+        return consumed;
+    }
+
     @Override public void onBackPressed() { finish(); }
     @Override protected void onDestroy() {
+        frameHandler.removeCallbacksAndMessages(null);
+        if (playFrameConsentId != null)
+            StudioPlayFrameEvidence.failed(this, playFrameConsentId,
+                    "player_closed_before_capture");
+        StudioTouchDiagnostics.writeReport(this, touchProbeId, ready,
+                touchDownCount, touchUpCount, touchCancelCount, true);
         if (progressPopup != null) progressPopup.dismiss();
         try {
             File session = new File(getIntent().getStringExtra("session"));
