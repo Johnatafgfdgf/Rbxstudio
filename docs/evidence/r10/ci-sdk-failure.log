@@ -1,0 +1,5 @@
+Run 45026662406, job 137221072458, 2026-11-22:
+sdkmanager tools
+Warning: Failed to find package 'tools'
+sdkmanager failed with exit code 1 before compilation or tests.
+Fix: explicitly request platform-tools in setup-android, not the obsolete default tools package.

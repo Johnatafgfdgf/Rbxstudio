@@ -292,6 +292,7 @@ public final class StudioAiHub extends Activity {
     private View chatPopupAnchor;
     private boolean chatPopupAbove;
     private LinearLayout chatPanel;
+    private View chatHeader, chatHeaderRule;
     private ScrollView chatScroll;
     private TextView chatStatus;
     private ProgressBar chatActivity;
@@ -3769,6 +3770,7 @@ public final class StudioAiHub extends Activity {
         setContentView(frame, frameParams);
 
         LinearLayout header = chatRow();
+        chatHeader=header;
         TextView title = text("Configurações de IA", 15, true);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         Button back = button(overlayChat ? "Voltar ao chat" : "Voltar ao editor");
@@ -5046,6 +5048,7 @@ public final class StudioAiHub extends Activity {
         header.addView(close);
         chatPanel.addView(header);
         View rule = new View(this);
+        chatHeaderRule=rule;
         rule.setBackgroundColor(StudioAiTheme.BORDER);
         LinearLayout.LayoutParams separator = new LinearLayout.LayoutParams(-1, dp(1));
         separator.setMargins(0, dp(7), 0, dp(7));
@@ -5223,6 +5226,15 @@ public final class StudioAiHub extends Activity {
         int availableWidth = Math.max(1, width - dp(16));
         int availableHeight = Math.max(1, height - dp(16));
         compactChat = availableHeight < dp(260);
+        // In a short landscape IME window, the fixed header used to consume
+        // the composer's touch targets. Keep the composer/status and attachments
+        // available; Android BACK restores the full header with the keyboard closed.
+        int headerVisibility=availableHeight<dp(180)?View.GONE:View.VISIBLE;
+        if(chatHeader!=null&&chatHeader.getVisibility()!=headerVisibility)chatHeader.setVisibility(headerVisibility);
+        int ruleVisibility=compactChat?View.GONE:View.VISIBLE;
+        if(chatHeaderRule!=null&&chatHeaderRule.getVisibility()!=ruleVisibility)chatHeaderRule.setVisibility(ruleVisibility);
+        int padTop=dp(compactChat?4:8),padBottom=dp(compactChat?4:10);
+        if(chatPanel.getPaddingTop()!=padTop||chatPanel.getPaddingBottom()!=padBottom)chatPanel.setPadding(dp(10),padTop,dp(10),padBottom);
         renderAgentMode();
         if (chatModel != null) chatModel.setVisibility(compactChat ? View.GONE : View.VISIBLE);
         if(chatUsage!=null)chatUsage.setVisibility(compactChat?View.GONE:View.VISIBLE);
@@ -5248,10 +5260,25 @@ public final class StudioAiHub extends Activity {
         android.graphics.Rect safe=new android.graphics.Rect();
         if(android.os.Build.VERSION.SDK_INT>=30&&chatHost.getRootWindowInsets()!=null){
             safe.set(getWindowManager().getCurrentWindowMetrics().getBounds());
-            android.graphics.Insets bars=chatHost.getRootWindowInsets().getInsets(android.view.WindowInsets.Type.systemBars()
-                |android.view.WindowInsets.Type.displayCutout()|android.view.WindowInsets.Type.ime());
+            android.graphics.Insets bars=android.graphics.Insets.max(chatHost.getRootWindowInsets().getInsetsIgnoringVisibility(android.view.WindowInsets.Type.systemBars()
+                |android.view.WindowInsets.Type.displayCutout()),chatHost.getRootWindowInsets().getInsets(android.view.WindowInsets.Type.ime()));
             safe.left+=bars.left;safe.top+=bars.top;safe.right-=bars.right;safe.bottom-=bars.bottom;
-        }else chatHost.getWindowVisibleDisplayFrame(safe);
+        }else{
+            chatHost.getWindowVisibleDisplayFrame(safe);
+            android.view.WindowInsets insets=chatHost.getRootWindowInsets();
+            if(insets!=null){
+                // Immersive Android 29 can draw below a hidden navigation bar
+                // while accessibility still clips hit targets to its stable area.
+                // Intersect in screen coordinates, so an IME-resized host is not
+                // charged these insets a second time.
+                android.util.DisplayMetrics display=new android.util.DisplayMetrics();
+                getWindowManager().getDefaultDisplay().getRealMetrics(display);
+                safe.left=Math.max(safe.left,insets.getStableInsetLeft());
+                safe.top=Math.max(safe.top,insets.getStableInsetTop());
+                safe.right=Math.min(safe.right,display.widthPixels-insets.getStableInsetRight());
+                safe.bottom=Math.min(safe.bottom,display.heightPixels-insets.getStableInsetBottom());
+            }
+        }
         int[] at=new int[2];chatHost.getLocationOnScreen(at);
         int[] p=StudioAiPopupBounds.safePadding(at[0],at[1],chatHost.getWidth(),chatHost.getHeight(),safe.left,safe.top,safe.right,safe.bottom);
         if(chatHost.getPaddingLeft()!=p[0]||chatHost.getPaddingTop()!=p[1]||chatHost.getPaddingRight()!=p[2]||chatHost.getPaddingBottom()!=p[3])chatHost.setPadding(p[0],p[1],p[2],p[3]);

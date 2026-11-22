@@ -10,6 +10,8 @@ from pathlib import Path
 import os,subprocess,time,zipfile,shutil,json,xml.etree.ElementTree as E,re
 repo=Path(__file__).resolve().parents[1];base=repo.parent;sdk=Path(os.environ.get('ANDROID_HOME',base/'sdk'));out=Path(os.environ.get('RBX_UI_OUTPUT',repo/'target/chat-ui-regression'));out.mkdir(parents=True,exist_ok=True);bt=sdk/'build-tools/35.0.0';jar=sdk/'platforms/android-35/android.jar'
 env=os.environ.copy();env.update(ANDROID_HOME=str(sdk),ANDROID_I_WANT_MY_TCG='yes');env.setdefault('ANDROID_AVD_HOME',str(base/'r9-avd'))
+acceleration=env.get('RBX_UI_ACCEL','off')
+if acceleration not in {'off','auto'}:raise ValueError('RBX_UI_ACCEL must be off or auto')
 def run(args,timeout=90):
  r=subprocess.run(list(map(str,args)),env=env,capture_output=True,timeout=timeout)
  if r.returncode:raise RuntimeError((r.stderr+r.stdout).decode(errors='replace')[-2000:])
@@ -24,7 +26,7 @@ with zipfile.ZipFile(out/'unsigned.apk','a',zipfile.ZIP_DEFLATED) as z:z.write(o
 key=out/'ui-disposable.keystore'
 if not key.exists():run(['keytool','-genkeypair','-noprompt','-keystore',key,'-alias','androiddebugkey','-storepass','android','-keypass','android','-keyalg','RSA','-keysize','2048','-validity','30','-dname','CN=Disposable RBX UI Test'])
 run([bt/'apksigner','sign','--ks',key,'--ks-key-alias','androiddebugkey','--ks-pass','pass:android','--key-pass','pass:android','--out',out/'ui-only.apk',out/'unsigned.apk'])
-adb=sdk/'platform-tools/adb';run([adb,'start-server']);log=(out/'emulator.log').open('wb');emulator=subprocess.Popen([str(sdk/'emulator/emulator'),'-avd',env.get('RBX_UI_AVD','test'),'-no-window','-read-only','-no-audio','-no-boot-anim','-no-snapshot','-no-metrics','-accel','off','-gpu','swiftshader_indirect','-cores','4','-memory','1536','-partition-size','768','-ports','5554,5555','-show-kernel'],env=env,stdout=log,stderr=subprocess.STDOUT)
+adb=sdk/'platform-tools/adb';run([adb,'start-server']);log=(out/'emulator.log').open('wb');emulator=subprocess.Popen([str(sdk/'emulator/emulator'),'-avd',env.get('RBX_UI_AVD','test'),'-no-window','-read-only','-no-audio','-no-boot-anim','-no-snapshot','-no-metrics','-accel',acceleration,'-gpu','swiftshader_indirect','-cores','4','-memory','1536','-partition-size','768','-ports','5554,5555','-show-kernel'],env=env,stdout=log,stderr=subprocess.STDOUT)
 try:
  deadline=time.monotonic()+600
  while time.monotonic()<deadline:
@@ -85,7 +87,10 @@ try:
  for title in ['Escolher modelo','Anexar imagem','Anexar texto ou Luau']:
   matches=[n for n in nodes if n.get('text','').startswith(title)];assert len(matches)==1,(title,matches);x0,y0,x1,y1=bounds(matches[0]);assert 0<=x0<x1<=1280 and 0<=y0<y1<=600
  shell('input','keyevent','4');nodes=state('chat-before-menu');click(nodes,'Menu do chat');nodes=state('menu-before-scroll');scrolls=[n for n in nodes if n.get('class')=='android.widget.ScrollView' and n.get('scrollable')=='true'];assert scrolls,'No native scrollable popup';x0,y0,x1,y1=bounds(scrolls[-1]);shell('input','swipe',str((x0+x1)//2),str(y1-12),str((x0+x1)//2),str(y0+12),'400');time.sleep(1);nodes=state('menu-after-scroll');assert any(n.get('text','').startswith('Minimizar') and bounds(n)[3]>bounds(n)[1] for n in nodes),'Last option inaccessible'
- shell('input','keyevent','4');nodes=state('chat-before-keyboard');edits=[n for n in nodes if n.get('class')=='android.widget.EditText'];assert len(edits)==1;x0,y0,x1,y1=bounds(edits[0]);shell('input','tap',str((x0+x1)//2),str((y0+y1)//2));shell('input','text','teste');time.sleep(2);nodes=state('chat-keyboard');composer=[n for n in nodes if n.get('content-desc')=='Modelos e anexos'];assert composer and bounds(composer[0])[3] < 275,'Composer obscured by keyboard';click(nodes,'Modelos e anexos');state('plus-with-keyboard');shell('input','keyevent','4')
+ shell('input','keyevent','4');nodes=state('chat-before-keyboard');edits=[n for n in nodes if n.get('class')=='android.widget.EditText'];assert len(edits)==1;x0,y0,x1,y1=bounds(edits[0]);shell('input','tap',str((x0+x1)//2),str((y0+y1)//2));shell('input','text','teste');time.sleep(2);nodes=state('chat-keyboard');composer=[n for n in nodes if n.get('content-desc')=='Modelos e anexos'];send=[n for n in nodes if n.get('content-desc')=='Enviar mensagem'];assert len(composer)==1 and len(send)==1,'Missing composer controls'
+ for button in composer+send:
+  x0,y0,x1,y1=bounds(button);assert y1<275 and y1-y0>=60 and x1-x0>=60,'Composer touch target clipped by keyboard or panel'
+ click(nodes,'Modelos e anexos');state('plus-with-keyboard');shell('input','keyevent','4')
  # BACK can hide IME before dismissing the focused popup. Close the observed
  # popup explicitly before rotating; never assume one BACK closed both.
  for attempt in range(3):

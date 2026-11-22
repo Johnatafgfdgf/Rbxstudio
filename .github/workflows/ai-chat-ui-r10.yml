@@ -1,0 +1,59 @@
+name: Android chat and encrypted connection persistence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['work/ai-agent-r10']
+    paths: ['android/src/**', 'tests/StudioAiStoreProbe.java', 'scripts/test_chat_popup_android.py', '.github/workflows/ai-chat-ui-r10.yml']
+  pull_request:
+    paths: ['android/src/**', 'tests/StudioAiStoreProbe.java', 'scripts/test_chat_popup_android.py', '.github/workflows/ai-chat-ui-r10.yml']
+
+permissions:
+  contents: read
+concurrency:
+  group: android-chat-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chat-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools emulator
+          log-accepted-android-sdk-licenses: false
+      - name: Prepare SDK and disposable Android 29 device
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'system-images;android-29;default;x86_64'
+          mkdir -p "$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$RUNNER_TEMP/avd" >> "$GITHUB_ENV"
+          echo "no" | ANDROID_AVD_HOME="$RUNNER_TEMP/avd" avdmanager create avd --force --name test --package 'system-images;android-29;default;x86_64' --device pixel
+          if [ -e /dev/kvm ]; then sudo chmod a+rw /dev/kvm; fi
+      - name: Apply pinned adapters
+        run: python3 scripts/prepare.py
+      - name: Exercise real chat Activity and Android Keystore
+        env:
+          RBX_UI_ACCEL: auto
+          RBX_UI_OUTPUT: ${{ github.workspace }}/target/android-chat-ui
+        run: python3 -u scripts/test_chat_popup_android.py
+      - name: Retain screenshots, accessibility trees and scope reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-chat-ui-evidence
+          path: |
+            target/android-chat-ui/*.png
+            target/android-chat-ui/*.xml
+            target/android-chat-ui/*report.json
+            target/android-chat-ui/logcat.txt
+            target/android-chat-ui/emulator.log
+          if-no-files-found: warn
+          retention-days: 30

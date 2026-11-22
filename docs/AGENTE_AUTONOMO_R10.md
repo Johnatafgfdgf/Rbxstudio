@@ -4,6 +4,8 @@ Validação retomada em 22/11/2026. Repositório: https://github.com/Johnatafgfd
 
 ## Recuperação e preservação
 
+Atualização após novo reinício do ambiente: o checkpoint durável versão 5 recuperou o código final até `2aaac9b` e o APK de SHA-256 `8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06`. O commit local posterior `1dedef6` e seus novos traces/capturas não estavam nesse checkpoint e o envio foi interrompido antes de atualizar a branch. Esses arquivos não são apresentados como recuperados. Os resultados observados na sessão anterior continuam descritos com esse limite de evidência. Foi adicionado um workflow Android para gerar e preservar novas capturas e relatórios de escopo no GitHub Actions.
+
 A continuação usa a R9 realmente recuperada e o checkpoint R10, sem recriar o aplicativo. A referência R9 `403b3b841fccd3e018cb7bcdbdc3e7b7ff663795` veio do arquivo de origem; esse objeto Git original não foi encontrado. A branch pública R10 foi preservada e avançada; a principal não foi substituída. Os pins dos três submódulos permanecem originais e as mudanças nativas são patches reproduzíveis.
 
 O ambiente reiniciou entre as sessões. O APK e algumas capturas/traces finais de 21/11 não foram recuperados. Não são apresentados como artefatos disponíveis. Os ajustes finais foram reaplicados, testados novamente e preservados em commits/checkpoints. A pasta `docs/evidence/r10/recovered-validation/` contém a nova execução. Falhas do próprio harness também estão registradas e não contam como falhas ou sucessos de tarefas do modelo.
@@ -89,6 +91,12 @@ Os resultados atuais e seus arquivos estão em `docs/evidence/r10/`. Um `complet
 | Dispositivo físico | POCO X6 5G indisponível: sem medição de FPS, bateria, memória ou estabilidade real nesse aparelho. |
 
 O teste de inventário gerou fontes reais e salvou o mapa, mas a leitura independente encontrou falhas funcionais: controles I/F sem toque, coleta fora do contêiner percorrido, Tool sem Handle confirmado e ausência da entrega/equipagem pedida. O retorno `completed:true` dessas tentativas NÃO é aprovação do sistema. A barreira mobile foi ampliada após essa evidência; o resultado final está no resumo de validação. A revisão estática de remotes/referências é limitada e não substitui segurança e testes de gameplay. Builds que avisam sobre ausência de cloudflared/Luau-LSP Android não incluem esses binários automaticamente.
+
+Na sessão anterior, uma correção dirigida pelo diagnóstico independente, com Gemini 3.5, confirmou nove operações e depois foi interrompida por HTTP 503. Corrigiu posição da coleta, visibilidade da GUI e entrega ao Backpack, mas Tool/Handle e destino ServerStorage continuaram pendentes. O mapa e os traces específicos dessa última tentativa foram perdidos no reinício; não estão incluídos como evidência disponível. Não houve aprovação funcional do inventário.
+
+O chat foi exercitado no emulador Android 29: menus dentro da tela, rolagem, Keystore após reinício de processo e teclado. A inspeção de capturas encontrou dois defeitos reais: corte do alvo na navegação vertical e corte parcial do composer com IME. Os insets estáveis e o layout compacto foram corrigidos. O teste final exigiu largura/altura mínima de 60 px nos botões de anexos/enviar e observou 63 px. As capturas locais dessa execução foram perdidas; a nova execução em CI e seus artefatos devem ser consultados separadamente. Isso não foi um teste do viewport nativo ou de Play no POCO.
+
+O CI inicial de contratos falhou antes dos testes porque setup-android tentou instalar o pacote obsoleto `tools`. A configuração passou a solicitar `platform-tools` explicitamente. O workflow de compatibilidade do engine passou naquele commit. Nenhuma falha de preparação é contabilizada como teste funcional aprovado.
 
 ## Pendências
 

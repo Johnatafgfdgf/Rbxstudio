@@ -1,6 +1,5 @@
 {
   "branch": "work/ai-agent-r10",
-  "base_phase_17": "c589edc0326c7e7887f842e2eebad9c1f671ce48",
   "upstream": {
     "upstream/gpui-mobile": "0b882efdac7f524e0bb0b1d4c886b2aa752f9f20",
     "upstream/rbx-native": "eb85a1088a69f4159598b4fed0ae26956573c175",
@@ -11,9 +10,22 @@
   "version": "0.6.11-Agente-R10",
   "android_version_code": 26,
   "package_id": "com.rbxnative.androidport.experimental.aichat.r8",
-  "base_r8_commit": "ec6cfe5bca368925225544065b5122169e8be688",
   "apk_build": "Full native ARM64 editor rebuild plus recompiled Java/resources; preserved R9 player/signing identity",
   "verification_report": "docs/AGENTE_AUTONOMO_R10.md",
   "recovered_r9_reference": "403b3b841fccd3e018cb7bcdbdc3e7b7ff663795",
-  "recovery_date": "2026-11-22"
+  "recovery_date": "2026-11-22",
+  "recovered_r9_snapshot_commit": "3d59347f0e9d797053a7c5221b74e4945672b35e",
+  "original_r9_git_object_recovered": false,
+  "native_build": {
+    "editor_sha256": "fcf978d596baf15706fe8e38ff76f3c83a6aaef57527d40ac482e8a004fd8f14",
+    "editor_bytes": 158630320,
+    "source_patch_sha256": "b399f39cd68a9e83104c5ec0c52b5a8a121f20c3ad0afc2e4eb90e4cc8f9a250",
+    "abi": "arm64-v8a",
+    "native_profile": "dev optimized",
+    "ndk": "r28c",
+    "local_player": "preserved R9 payload"
+  },
+  "apk_sha256": "8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06",
+  "build_date": "2026-11-22",
+  "source_archive": "Expanded patched upstream sources plus tracked project sources; Git history is in the separate checkpoint bundle"
 }

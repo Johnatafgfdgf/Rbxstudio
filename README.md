@@ -6,7 +6,7 @@ Editor nativo para Android com arquivos RBXL, RBXLX, RBXM e RBXMX. O Play salva 
 
 - Identidade apresentada ao usuário: **Rbx Studio**. O APK Studio usa o nome `rbx-studio-android`; classes do protótipo Java 0.3 não entram no DEX do editor GPUI.
 - O projeto ainda utiliza bibliotecas de código aberto derivadas de rbx-native e Rook. Os nomes internos, caminhos de compatibilidade, créditos e licenças não devem ser confundidos com a marca exibida; remover essas dependências exige substituição técnica, não apenas renomeação.
-- IA: painel MCP com permissões e **central Android de provedores** (OpenAI, Gemini, Claude e OpenRouter), catálogo real de modelos, chat por API, chaves no Android Keystore e leitura opcional do Explorer real via MCP. **Ainda não há agente executor autônomo geral** nem garantia de publicação de animações. Veja [implementação e limitações](docs/ANDROID_AI_PHASE1_2026-11-16.md).
+- IA R10: agente com ferramentas reais de edição, múltiplas conexões OpenAI/Gemini/Claude/OpenRouter, catálogo por API, credenciais no Android Keystore, autonomia por projeto, checkpoints e retomada entre modelos. O AI Visual Builder produz hierarquias editáveis. A cobertura é limitada pelas capacidades do editor e pelas verificações disponíveis; não há garantia de gameplay, publicação de animações ou qualidade profissional automática. Veja o [relatório atual com evidências e pendências](docs/AGENTE_AUTONOMO_R10.md).
 - Verificações nativas: compilação ARM64, boot, Home, criação de mapa e toques em Menu, Ferramentas, Painéis e IA. Falta validação física completa de Play, scripts, importação e publicação.
 - **Atualizações de APK de desenvolvimento:** novas assinaturas debug geradas em runners descartáveis do GitHub podem impedir atualização por cima da instalação anterior. Exporte projetos antes de remover qualquer aplicativo. Builds destinados a atualizar a instalação devem usar a **mesma** chave de assinatura anterior.
 - O APK produzido é inspecionado por `scripts/check_studio_apk.py` para impedir que a antiga `MainActivity` e seus textos voltem à versão GPUI. As duas referências privadas de credenciais legadas são preservadas até haver migração segura.
@@ -72,7 +72,7 @@ O [estado de validação](docs/ANDROID_MOBILE.md) detalha as integrações e os 
 
 ## Compilar no Linux
 
-Use Rust 1.99.1, Python 3.12, Git, JDK 17 ou mais recente, SDK Android 35 e NDK r28c. O ZIP de código-fonte inclui os três repositórios preparados e os patches. Em um clone Git, inicialize os submódulos com `git submodule update --init --recursive`.
+O build R10 foi validado com Rust 1.100, Python 3.12, Git, JDK 21 (fontes Java 11), SDK Android 35 e NDK r28c. O ZIP de código-fonte inclui os três repositórios preparados e os patches. Em um clone Git, inicialize os submódulos com `git submodule update --init --recursive`.
 
 ```bash
 rustup toolchain install 1.99.1 --profile minimal
