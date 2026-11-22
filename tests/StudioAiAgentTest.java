@@ -149,8 +149,8 @@ public final class StudioAiAgentTest {
         yes(StudioAiScriptPolicy.requiredScriptScopes(nested).size()==1);
         // Invalid Luau runtime properties must be rejected even though the editor's spatial
         // aliases intentionally skip generic reflection for BaseParts.
-        String invalidEmitterPosition = "local e = Instance.new('ParticleEmitter')\\ne.Position = Vector3.new(0,50,0)";
-        String invalidEmitterParent = "local f = Instance.new('Folder')\\nlocal e = Instance.new('ParticleEmitter')\\ne.Parent = f";
+        String invalidEmitterPosition = "local e = Instance.new('ParticleEmitter')\ne.Position = Vector3.new(0,50,0)";
+        String invalidEmitterParent = "local f = Instance.new('Folder')\nlocal e = Instance.new('ParticleEmitter')\ne.Parent = f";
         for (String sourceCode : new String[]{invalidEmitterPosition, invalidEmitterParent}) {
             JSONArray ops=new JSONArray().put(new JSONObject().put("op","create")
                 .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
@@ -163,7 +163,7 @@ public final class StudioAiAgentTest {
         JSONArray validEmitter=new JSONArray().put(new JSONObject().put("op","create")
             .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
             .put("name","ValidRain").put("source",
-                "local e = Instance.new('ParticleEmitter')\\nlocal a = Instance.new('Attachment')\\ne.Parent = a"));
+                "local e = Instance.new('ParticleEmitter')\nlocal a = Instance.new('Attachment')\ne.Parent = a"));
         StudioAiScriptPolicy.check(validEmitter,new java.util.HashSet<>(),new Session());
         Session automatic=new Session(EDIT,EDIT,DONE,DONE);
         StudioAiAgent.Run automaticRun=new StudioAiAgent.Run(8,true,false,false,false,"duas edições sem inspeção manual");
