@@ -34,6 +34,8 @@ public final class StudioAiAgentTest {
             if(blankScript&&"script_read".equals(tool))throw new StudioAiAgent.Refusal("Script missing");
             if(blankScript&&"inspect_instance".equals(tool))return "{\"className\":\"LocalScript\",\"properties\":{}}";
             if("inspect_instance".equals(tool)&&missingPaths.contains(args.optString("path")))throw new IOException("Instance not found");
+            if("inspect_instance".equals(tool)&&"StarterPlayer.StarterPlayerScripts".equals(args.optString("path")))
+                return "{\"className\":\"StarterPlayerScripts\",\"name\":\"StarterPlayerScripts\"}";
             if (StudioAiProjectEdit.CONTEXT.equals(tool)) return "{\"revision\":\"1:2\",\"roots\":[]}";
             if (StudioAiProjectEdit.PREVIEW.equals(tool)) {
                 previews++;
@@ -134,6 +136,35 @@ public final class StudioAiAgentTest {
         StudioAiProjectEdit unchanged=StudioAiProjectEdit.checkedPreview(new JSONObject(EDIT).getJSONArray("operations"),"{\"revision\":\"1:2\",\"review\":false,\"operations\":[\"create Workspace.Generated\"]}");
         unchanged.checkedReceipt("{\"applied\":true,\"changed\":false,\"operations\":[\"create Workspace.Generated\"]}");
         yes(unchanged.appliedCount==0);StudioAiAgent.Run noMutation=new StudioAiAgent.Run(8,true,false,false,false,"no change");noMutation.record(0,"unchanged");yes(noMutation.operations==0&&noMutation.batches==0);
+        // Context-first script authoring: a global tree does NOT permit an uninspected script destination.
+        String weatherScript = "{\"action\":\"project_edit\",\"operations\":[{\"op\":\"create\",\"parent\":\"StarterPlayer.StarterPlayerScripts\",\"class\":\"LocalScript\",\"name\":\"Weather\",\"source\":\"print('rain')\"}]}";
+        String inspectWeather = "{\"action\":\"inspect_instance\",\"path\":\"StarterPlayer.StarterPlayerScripts\"}";
+        Session firstInspect = new Session(weatherScript,inspectWeather,weatherScript,DONE,DONE,DONE,DONE);
+        StudioAiAgent.Run firstInspectRun=new StudioAiAgent.Run(12,true,false,false,false,"sistema de chuva");
+        execute(firstInspect,"sistema de chuva",firstInspectRun);
+        yes(firstInspect.applied==1 && firstInspect.previews==1 && firstInspectRun.completed);
+        // A new folder created in the same batch is grounded by inspecting its existing ancestor.
+        JSONArray nested = StudioAiProjectEdit.operations(new JSONObject("{\"operations\":[{\"op\":\"create\",\"parent\":\"Workspace\",\"class\":\"Folder\",\"name\":\"Storm\"},{\"op\":\"create\",\"parent\":\"Workspace.Storm\",\"class\":\"Script\",\"name\":\"Controller\",\"source\":\"print(1)\"}]}"));
+        yes(StudioAiScriptPolicy.requiredScriptScopes(nested).contains("Workspace"));
+        yes(StudioAiScriptPolicy.requiredScriptScopes(nested).size()==1);
+        // Invalid Luau runtime properties must be rejected even though the editor's spatial
+        // aliases intentionally skip generic reflection for BaseParts.
+        String invalidEmitterPosition = "local e = Instance.new('ParticleEmitter')\\ne.Position = Vector3.new(0,50,0)";
+        String invalidEmitterParent = "local f = Instance.new('Folder')\\nlocal e = Instance.new('ParticleEmitter')\\ne.Parent = f";
+        for (String sourceCode : new String[]{invalidEmitterPosition, invalidEmitterParent}) {
+            JSONArray ops=new JSONArray().put(new JSONObject().put("op","create")
+                .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
+                .put("name","BadRain").put("source",sourceCode));
+            boolean refused=false;
+            try { StudioAiScriptPolicy.check(ops,new java.util.HashSet<>(),new Session()); }
+            catch(StudioAiAgent.Refusal expected){refused=true;}
+            yes(refused);
+        }
+        JSONArray validEmitter=new JSONArray().put(new JSONObject().put("op","create")
+            .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
+            .put("name","ValidRain").put("source",
+                "local e = Instance.new('ParticleEmitter')\\nlocal a = Instance.new('Attachment')\\ne.Parent = a"));
+        StudioAiScriptPolicy.check(validEmitter,new java.util.HashSet<>(),new Session());
         Session automatic=new Session(EDIT,EDIT,DONE,DONE);
         StudioAiAgent.Run automaticRun=new StudioAiAgent.Run(8,true,false,false,false,"duas edições sem inspeção manual");
         execute(automatic,"duas edições sem inspeção manual",automaticRun);
