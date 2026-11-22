@@ -298,6 +298,8 @@ final class StudioDeveloperEngine {
         if (i > build.next && op.optString("op").equals("terrain")) break;
         batch.put(op);
       }
+      run.requireScriptDesign(batch);
+      StudioAiScriptPolicy.check(batch, run.assetIds, host);
       try {
         StudioAiProjectEdit.operations(new JSONObject().put("operations", batch));
       } catch (IOException e) {
