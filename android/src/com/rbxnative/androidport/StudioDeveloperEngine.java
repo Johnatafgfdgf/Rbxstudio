@@ -11,6 +11,7 @@ import org.json.*;
 final class StudioDeveloperEngine {
   static final String[] ACTIONS = {
     "finish",
+    "script_design",
     "project_edit",
     "editor_schema",
     "project_context",
@@ -44,6 +45,10 @@ final class StudioDeveloperEngine {
   };
   static final String GUIDE =
       "\n"
+          + "script_design(placements) prepara a arquitetura de scripts a partir do Explorer: "
+          + " [{path,class,mode,purpose}] com modo create ou edit; só depois gere Luau e aplique Source. "
+          + " Scripts novos precisam do caminho completo, e edição usa o caminho existente. "
+          + " Este planejamento é baseado em inspeção REAL, nunca num snippet fixo. "
           + "Developer Intelligence Engine: skills_list mostra geradores e schemas. task_plan"
           + " recebe steps:[{id,title,role,acceptance,depends_on:[id]}]. Registra critérios, não"
           + " finge conclusão. procedural_generate com generator e spec prepara uma prévia"
