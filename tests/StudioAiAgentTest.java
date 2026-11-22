@@ -138,8 +138,8 @@ public final class StudioAiAgentTest {
         yes(unchanged.appliedCount==0);StudioAiAgent.Run noMutation=new StudioAiAgent.Run(8,true,false,false,false,"no change");noMutation.record(0,"unchanged");yes(noMutation.operations==0&&noMutation.batches==0);
         // Context-first script authoring: a global tree does NOT permit an uninspected script destination.
         String weatherScript = "{\"action\":\"project_edit\",\"operations\":[{\"op\":\"create\",\"parent\":\"StarterPlayer.StarterPlayerScripts\",\"class\":\"LocalScript\",\"name\":\"Weather\",\"source\":\"print('rain')\"}]}";
-        String inspectWeather = "{\"action\":\"inspect_instance\",\"path\":\"StarterPlayer.StarterPlayerScripts\"}";
-        Session firstInspect = new Session(weatherScript,inspectWeather,weatherScript,DONE,DONE,DONE,DONE);
+        String designWeather = "{\"action\":\"script_design\",\"placements\":[{\"path\":\"StarterPlayer.StarterPlayerScripts.Weather\",\"class\":\"LocalScript\",\"mode\":\"create\",\"purpose\":\"Chuva visual cliente\"}]}";
+        Session firstInspect = new Session(weatherScript,designWeather,weatherScript,DONE,DONE,DONE,DONE);
         StudioAiAgent.Run firstInspectRun=new StudioAiAgent.Run(12,true,false,false,false,"sistema de chuva");
         execute(firstInspect,"sistema de chuva",firstInspectRun);
         yes(firstInspect.applied==1 && firstInspect.previews==1 && firstInspectRun.completed);
@@ -150,8 +150,8 @@ public final class StudioAiAgentTest {
         // Invalid Luau runtime properties must be rejected even though the editor's spatial
         // aliases intentionally skip generic reflection for BaseParts.
         String invalidEmitterPosition = "local e = Instance.new('ParticleEmitter')\ne.Position = Vector3.new(0,50,0)";
-        String invalidEmitterParent = "local f = Instance.new('Folder')\nlocal e = Instance.new('ParticleEmitter')\ne.Parent = f";
-        for (String sourceCode : new String[]{invalidEmitterPosition, invalidEmitterParent}) {
+        String invalidFolderPosition = "local f = Instance.new('Folder')\\nf.Position = Vector3.new(0,0,0)";
+        for (String sourceCode : new String[]{invalidEmitterPosition, invalidFolderPosition}) {
             JSONArray ops=new JSONArray().put(new JSONObject().put("op","create")
                 .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
                 .put("name","BadRain").put("source",sourceCode));
