@@ -11,6 +11,7 @@ import org.json.*;
 final class StudioDeveloperEngine {
   static final String[] ACTIONS = {
     "finish",
+    "script_design",
     "project_edit",
     "editor_schema",
     "project_context",
@@ -44,6 +45,10 @@ final class StudioDeveloperEngine {
   };
   static final String GUIDE =
       "\n"
+          + "script_design(placements) prepara a arquitetura de scripts a partir do Explorer: "
+          + " [{path,class,mode,purpose}] com modo create ou edit; só depois gere Luau e aplique Source. "
+          + " Scripts novos precisam do caminho completo, e edição usa o caminho existente. "
+          + " Este planejamento é baseado em inspeção REAL, nunca num snippet fixo. "
           + "Developer Intelligence Engine: skills_list mostra geradores e schemas. task_plan"
           + " recebe steps:[{id,title,role,acceptance,depends_on:[id]}]. Registra critérios, não"
           + " finge conclusão. procedural_generate com generator e spec prepara uma prévia"
@@ -254,12 +259,23 @@ final class StudioDeveloperEngine {
     String id = "build_" + hex.substring(0, 16);
     if (!builds.containsKey(id)) builds.put(id, new Build(id, generator, ops));
     JSONArray preview = new JSONArray();
-    for (int i = 0; i < Math.min(8, ops.length()); i++) {
-      JSONObject o = new JSONObject(ops.getJSONObject(i).toString());
-      o.remove("source");
-      preview.put(o);
+    JSONArray scriptTargets = new JSONArray();
+    for (int i = 0; i < ops.length(); i++) {
+      JSONObject raw = ops.getJSONObject(i);
+      if (i < 8) {
+        JSONObject o = new JSONObject(raw.toString());
+        o.remove("source");
+        preview.put(o);
+      }
+      if ("create".equals(raw.optString("op"))
+          && Arrays.asList("Script","LocalScript","ModuleScript").contains(raw.optString("class"))
+          && raw.opt("parent") instanceof String)
+        scriptTargets.put(new JSONObject().put("path",raw.optString("parent")+"."+raw.optString("name"))
+            .put("class",raw.optString("class")).put("mode","create")
+            .put("purpose","Lógica do gerador "+generator));
     }
     return new JSONObject()
+        .put("script_targets",scriptTargets)
         .put("build_id", id)
         .put("generator", generator)
         .put("operations", ops.length())
@@ -267,7 +283,7 @@ final class StudioDeveloperEngine {
         .put("layout_review",generator.equals("ui")&&spec.has("elements")?StudioAiVisualBuilder.review(spec):JSONObject.NULL)
         .put("preview", preview)
         .put("applied", false)
-        .put("next", "Confira os parâmetros e use procedural_apply com build_id.")
+        .put("next", scriptTargets.length()>0 ? "Confirme os destinos com script_design(placements) antes de procedural_apply." : "Confira os parâmetros e use procedural_apply com build_id.")
         .toString();
   }
 
@@ -293,6 +309,8 @@ final class StudioDeveloperEngine {
         if (i > build.next && op.optString("op").equals("terrain")) break;
         batch.put(op);
       }
+      run.requireScriptDesign(batch);
+      StudioAiScriptPolicy.check(batch, run.assetIds, host);
       try {
         StudioAiProjectEdit.operations(new JSONObject().put("operations", batch));
       } catch (IOException e) {

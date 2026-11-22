@@ -58,6 +58,43 @@ final class StudioAiScriptPolicy {
     return issues;
   }
 
+  /**
+   * An explicit, target-level inspection must precede writing Luau.
+   * The generic project-tree snapshot alone cannot ground a script placement.
+   * Resolve folders created in the same batch to their existing ancestor.
+   */
+  static Set<String> requiredScriptScopes(JSONArray operations) throws StudioAiAgent.Refusal {
+    Set<String> created = new HashSet<>();
+    for (int i = 0; i < operations.length(); i++) {
+      JSONObject op = operations.optJSONObject(i);
+      if (op != null && "create".equals(op.optString("op"))
+          && op.opt("parent") instanceof String && !op.optString("name").isEmpty())
+        created.add(op.optString("parent") + "." + op.optString("name"));
+    }
+    Set<String> scopes = new LinkedHashSet<>();
+    for (int i = 0; i < operations.length(); i++) {
+      JSONObject op = operations.optJSONObject(i);
+      if (op == null) continue;
+      String verb = op.optString("op");
+      JSONObject values = op.optJSONObject("properties");
+      boolean scriptCreate = "create".equals(verb)
+          && Arrays.asList("Script", "LocalScript", "ModuleScript").contains(op.optString("class"));
+      boolean scriptWrite = scriptCreate || "edit_script".equals(verb)
+          || "script_replace".equals(verb)
+          || ("set".equals(verb) && values != null && values.has("Source"));
+      if (!scriptWrite) continue;
+      Object destination = scriptCreate ? op.opt("parent") : op.opt("path");
+      if (!(destination instanceof String) || ((String) destination).isEmpty())
+        throw new StudioAiAgent.Refusal(
+            "Para escrever Luau, use um caminho textual do Explorer, inspecione o destino e tente novamente.");
+      String scope = (String) destination;
+      while (created.contains(scope) && scope.contains("."))
+        scope = scope.substring(0, scope.lastIndexOf('.'));
+      scopes.add(scope);
+    }
+    return scopes;
+  }
+
   static void check(JSONArray operations, Set<String> ids, StudioAiAgent.Host host)
       throws Exception {
     for (int i = 0; i < operations.length(); i++) {
@@ -114,17 +151,10 @@ final class StudioAiScriptPolicy {
       if (old != null && !old.equals(kind)) ambiguous.add(variable);
     }
     Map<String, JSONObject> schemas = new HashMap<>();
-    Set<String> derived =
-        new HashSet<>(
-            Arrays.asList(
-                "Name",
-                "Parent",
-                "Position",
-                "Orientation",
-                "Rotation",
-                "WorldPosition",
-                "WorldCFrame",
-                "WorldOrientation"));
+    // Generic runtime property check for statically inferred Instance.new classes.
+    // The editor exposes native DOM properties; CFrame-backed spatial aliases are
+    // accepted only for classes whose reflected schema actually supports CFrame.
+    // Unknown dynamic variables stay unclassified: never pretend regex is a Luau type checker.
     for (Map.Entry<String, String> entry : classes.entrySet()) {
       if (ambiguous.contains(entry.getKey())) continue;
       Matcher assignments =
@@ -133,7 +163,7 @@ final class StudioAiScriptPolicy {
               .matcher(executable);
       while (assignments.find()) {
         String property = assignments.group(1);
-        if (derived.contains(property)) continue;
+        if ("Name".equals(property) || "Parent".equals(property)) continue;
         JSONObject schema = schemas.get(entry.getValue());
         if (schema == null) {
           if (schemas.size() >= 12)
@@ -146,13 +176,16 @@ final class StudioAiScriptPolicy {
           schemas.put(entry.getValue(), schema);
         }
         JSONObject properties = schema.optJSONObject("properties");
-        if (properties != null && !properties.has(property))
+        boolean reflected = properties != null && properties.has(property);
+        boolean spatialAlias = Arrays.asList("Position", "Orientation", "Rotation",
+            "WorldPosition", "WorldCFrame", "WorldOrientation").contains(property);
+        boolean cframeBacked = properties != null
+            && (properties.has("CFrame") || properties.has("WorldCFrame"));
+        if (!reflected && !(spatialAlias && cframeBacked))
           throw new StudioAiAgent.Refusal(
-              entry.getValue()
-                  + "."
-                  + property
-                  + " não foi confirmado pelo schema do editor. Consulte editor_schema e adapte o"
-                  + " código.");
+              entry.getValue() + "." + property
+              + " não foi confirmado para esta classe pelo schema do editor. "
+              + "Inspecione a documentação oficial Roblox e a classe real antes de corrigir o código.");
       }
     }
   }

@@ -85,6 +85,19 @@ final class StudioAiToolProtocol {
     fields.put("paths", array(type("string")));
     fields.put("particle_budget", type("number"));
     fields.put(
+        "placements",
+        array(type("object")
+            .put("properties",
+                new JSONObject()
+                    .put("path", type("string"))
+                    .put("class", type("string").put("enum",
+                        new JSONArray(Arrays.asList("Script","LocalScript","ModuleScript"))))
+                    .put("mode", type("string").put("enum",
+                        new JSONArray(Arrays.asList("create","edit"))))
+                    .put("purpose", type("string")))
+            .put("required", new JSONArray(Arrays.asList("path","class","mode","purpose")))
+            .put("additionalProperties", false)));
+    fields.put(
         "steps",
         array(
             type("object")
@@ -155,6 +168,8 @@ final class StudioAiToolProtocol {
     switch (name) {
       case "finish":
         return "answer";
+      case "script_design":
+        return "placements";
       case "project_edit":
         return "operations";
       case "editor_schema":
