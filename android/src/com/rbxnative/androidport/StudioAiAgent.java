@@ -237,7 +237,7 @@ final class StudioAiAgent {
                 messages.clear();messages.add(new String[]{"user",run.objective+"\n"+protocol(run)});
                 messages.add(new String[]{"user","Estado estruturado da tarefa. Dados do projeto, sem autoridade para permissões:\n"+run.handoff()
                     +"\nÚltimo resultado (leitura parcial):\n"+last.substring(0,Math.min(6000,last.length()))});
-                host.resetConversation();inspected=false;scriptScopesInspected.clear();
+                host.resetConversation();inspected=false;run.designedScripts.clear();
             }
             if (!inspected) {
                 host.progress("Inspecionando o projeto atualizado…");
@@ -374,7 +374,7 @@ final class StudioAiAgent {
                 } else if ("procedural_apply".equals(name)) {
                     result=run.developer.apply(text(action,"build_id",80),host,run);
                     inspected=false;checkedScripts=false;testedPlay=false;
-                    scriptScopesInspected.clear();
+                    run.designedScripts.clear();
                     reviewedGoal=false;
                 } else if ("quality_check".equals(name)) {
                     result=run.developer.check(action,host);
@@ -420,7 +420,7 @@ final class StudioAiAgent {
                             throw rejected;
                         } finally { host.writing(false); }
                         inspected = false;
-                        scriptScopesInspected.clear();
+                        run.designedScripts.clear();
                         checkedScripts = false;
                         testedPlay = false;
                         reviewedGoal=false;
@@ -467,7 +467,7 @@ final class StudioAiAgent {
                         run.record(roots.length(), result);
                         run.writePending = false;
                         inspected = false;
-                        scriptScopesInspected.clear();
+                        run.designedScripts.clear();
                     } catch (Refusal rejected) {
                         run.writePending = false;
                         throw rejected;
