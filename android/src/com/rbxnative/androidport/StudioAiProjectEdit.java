@@ -25,7 +25,10 @@ final class StudioAiProjectEdit {
             "vetores separados por vírgulas, UDim2 em escalaX, offsetX, escalaY, offsetY. " +
             "Use CFrame com 3 componentes para posição ou 12 para posição e matriz. " +
             "Enum pelo nome do item. Referência: {\"ref\":\"Workspace.Model.Part\"} ou null para limpar. " +
-            "IDs reais podem ser usados como {\"instance_id\":42} durante a sessão. " +
+            "Use instance_id somente quando retornado por uma inspeção REAL da sessão. Nunca " +
+            "adivinhe o ID de um objeto novo nem incremente IDs após erro: previews não criam " +
+            "objetos no mapa. Dentro de um lote, referencie os objetos criados antes pelo " +
+            "caminho parent + nome, não por IDs numéricos previstos. " +
             "Para nomes existentes com pontos, envie caminhos como listas de segmentos. " +
             "attribute usa path, name, value e type opcional como Vector3 ou Color3. " +
             "tag usa path, name e enabled booleano. " +
@@ -38,6 +41,9 @@ final class StudioAiProjectEdit {
             "Terreno: {\"op\":\"terrain\",\"center\":[0,16,0],\"size\":[64,16,64],\"material\":\"Grass\"}; " +
             "até uma região por lote, entre 4 e 192 studs por eixo, replace pode indicar o material de origem. " +
             "Se a edição de scripts estiver autorizada, create aceita source com Luau puro, " +
+            "e set aceita properties.Source (S maiúsculo) com o código completo. Source é editável " +
+            "por essas ferramentas mesmo sendo separado do painel Properties. Leia scripts vazios " +
+            "como texto vazio e escreva a lógica neles; StringValue não executa código. " +
             "e edit_script aceita path, old (trecho literal único, leia antes) e new. " +
             "Use caminhos de mapa reais e confira containers antes de os usar. " +
             "O editor valida o lote e o aplica de uma vez de acordo com as permissões. " +
@@ -66,7 +72,27 @@ final class StudioAiProjectEdit {
                 list.toString().length() > 48000) {
             throw new StudioAiAgent.Refusal("Envie de 1 a 32 operações e até 48 mil caracteres.");
         }
-        return list;
+        try {
+            JSONArray normalized=new JSONArray(list.toString());
+            for(int i=0;i<normalized.length();i++){
+                JSONObject op=normalized.getJSONObject(i),props=op.optJSONObject("properties");
+                if(props!=null&&props.has("source")){
+                    Object lower=props.get("source");
+                    if(!(lower instanceof String))throw new StudioAiAgent.Refusal("Source deve ser uma string Luau.");
+                    if(props.has("Source")&&!lower.equals(props.get("Source")))throw new StudioAiAgent.Refusal("Source e source são diferentes.");
+                    props.put("Source",lower);props.remove("source");
+                }
+                if("set".equals(op.optString("op"))&&op.has("source")){
+                    Object code=op.get("source");if(!(code instanceof String))throw new StudioAiAgent.Refusal("source deve ser uma string Luau.");
+                    if(props==null){props=new JSONObject();op.put("properties",props);}
+                    if(props.has("Source")&&!code.equals(props.get("Source")))throw new StudioAiAgent.Refusal("Source e source são diferentes.");
+                    props.put("Source",code);op.remove("source");
+                }
+                if("create".equals(op.optString("op"))&&java.util.Arrays.asList("Script","LocalScript","ModuleScript").contains(op.optString("class"))
+                    &&!op.has("source")&&(props==null||!props.has("Source")))op.put("source","");
+            }
+            return normalized;
+        }catch(org.json.JSONException invalid){throw new StudioAiAgent.Refusal("Operações precisam ser objetos JSON tipados.");}
     }
 
     static StudioAiProjectEdit checkedPreview(JSONArray operations, String response) throws Exception {
@@ -79,6 +105,18 @@ final class StudioAiProjectEdit {
                 report(preview, operations.length()), preview.getBoolean("review"));
         result.highImpact=preview.optBoolean("high_impact",true);
         return result;
+    }
+
+    /** The native editing endpoint supports Source specially, separately from
+     * the generic Properties panel. Expose that existing capability accurately. */
+    static String toolSchema(String response)throws Exception {
+        JSONObject schema=new JSONObject(response);
+        if(java.util.Arrays.asList("Script","LocalScript","ModuleScript").contains(schema.optString("class"))){
+            JSONObject fields=schema.optJSONObject("properties");if(fields!=null)fields.put("Source","string");
+            schema.put("script_source",new JSONObject().put("requires_permission","allow_scripts").put("max_bytes",16000)
+                .put("create_field","source").put("set_field","properties.Source").put("empty_source_is_valid",true));
+        }
+        return schema.toString();
     }
 
     JSONObject arguments(boolean scriptsAllowed, boolean confirmDelete) throws Exception {

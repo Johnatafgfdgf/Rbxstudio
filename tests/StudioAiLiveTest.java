@@ -15,6 +15,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
   private final BufferedReader output;
   private StudioAiToolProtocol wire = new StudioAiToolProtocol();
   private int requests, inTokens, outTokens, retries,rateRetries;
+  private int confirmedWrites;
   private boolean plainTools;
   private final JSONArray trace = new JSONArray();
 
@@ -35,6 +36,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
   }
 
   public String model(List<String[]> messages, int budget) throws Exception {
+    if(confirmedWrites>=Integer.parseInt(System.getenv().getOrDefault("RBX_LIVE_STOP_AFTER_WRITES","999")))throw new IOException("Interrupção controlada após gravação real confirmada");
     if (requests >= Integer.parseInt(System.getenv().getOrDefault("RBX_LIVE_STOP_AFTER_REQUESTS","999")))throw new IOException("Interrupção controlada do teste de retomada");
     if (requests >= budget) throw new IOException("Live test request budget reached");
     long pacing=Long.parseLong(System.getenv().getOrDefault("RBX_LIVE_PACING_MS","6000"));
@@ -128,6 +130,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
     JSONObject result = new JSONObject(raw);
     if (result.has("error")) throw new StudioAiAgent.Refusal(result.getString("error"));
     trace.put(new JSONObject().put("editor_tool", tool).put("result", result.get("result")));
+    if(StudioAiProjectEdit.APPLY.equals(tool)&&result.optJSONObject("result")!=null&&result.getJSONObject("result").optBoolean("changed"))confirmedWrites++;
     Object v = result.get("result");
     return v instanceof String ? (String) v : v.toString();
   }
@@ -147,7 +150,6 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
 
   public void writing(boolean active) {}
 
-  @Override public void resetConversation() { wire=new StudioAiToolProtocol(); }
   public String loadTask()throws Exception {String path=System.getenv("RBX_LIVE_TASK_STATE");return path!=null&&Files.exists(Path.of(path))?Files.readString(Path.of(path)):"";}
   public void saveTask(String data)throws Exception {String path=System.getenv("RBX_LIVE_TASK_STATE");if(path!=null)Files.writeString(Path.of(path),data);}
 

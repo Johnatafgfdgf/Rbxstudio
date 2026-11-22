@@ -23,7 +23,9 @@ final class StudioDeveloperKnowledge {
         "ScreenGui no StarterGui copia para PlayerGui. Use escala UDim2, AnchorPoint, UIGridLayout,"
             + " UIListLayout, UIPadding e UISizeConstraint. ScrollingFrame trata conteúdo maior que"
             + " a tela. Botões precisam Activated e alvo de toque. Teste orientação, teclado e área"
-            + " segura; presença de GUI não comprova interação.");
+            + " segura. Separe botões fixos do container de itens; ClearAllChildren não deve apagar"
+            + " controles ou layouts permanentes. O botão de abrir precisa continuar visível quando"
+            + " o painel fecha. Atalhos E/F não substituem controles mobile. Presença de GUI não comprova interação.");
     add(
         "animation-direction",
         "https://create.roblox.com/docs/animation/editor",
@@ -44,7 +46,11 @@ final class StudioDeveloperKnowledge {
             + " Attachment0 e Attachment1. Combine emissão principal, secundária, ambiente, luz,"
             + " cor, tamanho e dissipação com sequências. Confira Enabled, textura, direção e"
             + " posição. Rate e Lifetime afetam custo. Sincronize som e animação por tempo"
-            + " explícito. Nenhuma presença de instância prova qualidade visual.");
+            + " explícito. Chuva, neve e gotas precisam de forma e textura adequadas: o fallback"
+            + " ParticleEmitter do renderer usa sparkles_main.dds, que parece brilho/estrelas."
+            + " Não apresente esse fallback como gotas realistas. Pesquise textura confirmada"
+            + " na Toolbox ou use geometria compatível, respeitando orçamento de objetos."
+            + " Sem asset autorizado, informe a limitação. Nenhuma presença de instância prova qualidade visual.");
     add(
         "terrain-performance",
         "https://create.roblox.com/docs/parts/terrain",

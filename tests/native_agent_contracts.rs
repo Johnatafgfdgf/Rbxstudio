@@ -6,6 +6,26 @@ mod tests {
     use crate::batch::apply_operations;
 
     #[test]
+    fn virtual_spatial_properties_preserve_the_other_half_of_cframe() {
+        let db=ReflectionDatabase::shared();let mut dom=WeakDom::new();
+        let world=dom.new_instance("Workspace","Workspace",None);
+        let ops=json!({"operations":[{"op":"create","parent":"Workspace","class":"Part","name":"Spatial","properties":{"CFrame":"1,2,3,0,0,1,0,1,0,-1,0,0"}}]});
+        apply_operations(&mut dom,db,&ops).unwrap();let part=crate::batch::lookup(&dom,&json!("Workspace.Spatial")).unwrap();
+        let Some(Variant::CFrame(before))=dom.get(part).unwrap().properties().get("CFrame").cloned() else{panic!()};
+        apply_operations(&mut dom,db,&json!({"operations":[{"op":"set","path":"Workspace.Spatial","properties":{"Position":"Vector3.new(5,6,7)"}}]})).unwrap();
+        let Some(Variant::CFrame(moved))=dom.get(part).unwrap().properties().get("CFrame").cloned() else{panic!()};
+        assert_eq!(before.rotation,moved.rotation);assert_eq!([moved.position.x,moved.position.y,moved.position.z],[5.,6.,7.]);
+        apply_operations(&mut dom,db,&json!({"operations":[{"op":"set","path":"Workspace.Spatial","properties":{"Orientation":"0,45,0"}}]})).unwrap();
+        let Some(Variant::CFrame(rotated))=dom.get(part).unwrap().properties().get("CFrame").cloned() else{panic!()};
+        assert_eq!(rotated.position,moved.position);assert!((rotated.rotation[0]-45f32.to_radians().cos()).abs()<1e-5);
+        let bytes=rbx_binary::serialize_with_defaults(&dom,|c,k|db.stored_default(c,k).cloned()).unwrap();let reopened=rbx_binary::deserialize(&bytes).unwrap();
+        let p=crate::batch::lookup(&reopened,&json!("Workspace.Spatial")).unwrap();assert_eq!(reopened.get(p).unwrap().properties().get("CFrame"),Some(&Variant::CFrame(rotated)));
+        assert!(apply_operations(&mut dom,db,&json!({"operations":[{"op":"set","path":"Workspace.Spatial","properties":{"Position":"NaN,0,0"}}]})).is_err());
+        assert!(apply_operations(&mut dom,db,&json!({"operations":[{"op":"set","path":"Workspace.Spatial","properties":{"Position":"1,2,3","CFrame":"0,0,0"}}]})).is_err());
+        assert!(crate::batch::schema(db,&json!({"class":"Part"})).unwrap()["properties"].get("Position").is_some());
+    }
+
+    #[test]
     fn inventory_cross_service_roundtrip_and_existing_object_ids() {
         let db=ReflectionDatabase::shared();
         let mut dom=WeakDom::new();

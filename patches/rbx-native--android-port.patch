@@ -1,61 +1,61 @@
 diff --git a/assets/icons/brand/rbx-mobile-B-face.svg b/assets/icons/brand/rbx-mobile-B-face.svg
 new file mode 100644
-index 0000000..c266462
+index 00000000..c2664624
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-B-face.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 625 646 L 856 629 L 931 720 L 861 813 L 944 863 L 888 985 L 610 1005 Z M 714 707 L 813 703 L 806 768 L 710 775 Z M 704 843 L 816 838 L 808 915 L 699 924 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-B-outline.svg b/assets/icons/brand/rbx-mobile-B-outline.svg
 new file mode 100644
-index 0000000..b330d8b
+index 00000000..b330d8bd
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-B-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 605 629 L 867 603 L 958 721 L 893 808 L 966 857 L 902 1008 L 590 1029 Z M 731 724 L 793 721 L 790 752 L 729 756 Z M 723 861 L 792 857 L 788 896 L 720 901 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-R-face.svg b/assets/icons/brand/rbx-mobile-R-face.svg
 new file mode 100644
-index 0000000..707b19f
+index 00000000..707b19f8
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-R-face.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 255 667 L 526 632 L 625 780 L 579 819 L 479 839 L 601 993 L 483 1006 L 400 854 L 384 857 L 399 967 L 299 989 Z M 368 722 L 459 707 L 469 786 L 378 801 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-R-outline.svg b/assets/icons/brand/rbx-mobile-R-outline.svg
 new file mode 100644
-index 0000000..f4f6c42
+index 00000000..f4f6c424
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-R-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 231 650 L 538 608 L 651 788 L 582 840 L 519 854 L 638 968 L 472 1033 L 413 925 L 421 985 L 281 1016 Z M 391 740 L 441 732 L 445 768 L 395 776 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-X-face.svg b/assets/icons/brand/rbx-mobile-X-face.svg
 new file mode 100644
-index 0000000..76c1583
+index 00000000..76c1583d
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-X-face.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 927 679 L 1016 644 L 1091 739 L 1177 630 L 1285 674 L 1165 819 L 1284 942 L 1182 1011 L 1094 902 L 1014 995 L 927 953 L 1018 819 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-X-outline.svg b/assets/icons/brand/rbx-mobile-X-outline.svg
 new file mode 100644
-index 0000000..8414498
+index 00000000..84144989
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-X-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 899 657 L 1028 615 L 1090 706 L 1173 602 L 1322 664 L 1195 817 L 1318 947 L 1176 1040 L 1095 936 L 1022 1021 L 898 954 L 991 817 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-bottom-outline.svg b/assets/icons/brand/rbx-mobile-bottom-outline.svg
 new file mode 100644
-index 0000000..2ef8e83
+index 00000000..2ef8e837
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-bottom-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 381 1016 L 435 1005 L 458 1046 L 875 1117 Q 888 1120 893 1109 L 933 1004 L 1017 1044 L 966 1190 Q 953 1229 918 1222 L 391 1128 Q 346 1118 360 1080 Z"/></svg>
 diff --git a/assets/icons/brand/rbx-mobile-top-outline.svg b/assets/icons/brand/rbx-mobile-top-outline.svg
 new file mode 100644
-index 0000000..0c1a796
+index 00000000..0c1a7961
 --- /dev/null
 +++ b/assets/icons/brand/rbx-mobile-top-outline.svg
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536"><path fill="#000000" fill-rule="evenodd" d="M 462 592 L 521 425 Q 533 377 582 388 L 1099 526 Q 1142 539 1130 579 L 1109 648 L 1092 670 L 1039 603 L 603 501 Q 593 499 589 509 L 558 598 L 549 586 Z"/></svg>
 diff --git a/assets/themes/default/manifest.json b/assets/themes/default/manifest.json
-index 08b8456..db21c8b 100644
+index 08b84568..db21c8bb 100644
 --- a/assets/themes/default/manifest.json
 +++ b/assets/themes/default/manifest.json
 @@ -1,7 +1,7 @@
@@ -68,7 +68,7 @@ index 08b8456..db21c8b 100644
    "preview": "preview.png"
  }
 diff --git a/assets/themes/default/theme.json b/assets/themes/default/theme.json
-index 2626a91..d938e11 100644
+index 2626a912..d938e11a 100644
 --- a/assets/themes/default/theme.json
 +++ b/assets/themes/default/theme.json
 @@ -1,30 +1,28 @@
@@ -216,7 +216,7 @@ index 2626a91..d938e11 100644
      "row_gap": 7,
      "row_padding": 4,
 diff --git a/assets/themes/default/widgets.json b/assets/themes/default/widgets.json
-index c80297a..32323b2 100644
+index c80297a9..32323b2c 100644
 --- a/assets/themes/default/widgets.json
 +++ b/assets/themes/default/widgets.json
 @@ -1,72 +1,72 @@
@@ -353,7 +353,7 @@ index c80297a..32323b2 100644
      }
    ]
 diff --git a/assets/themes/high-contrast/widgets.json b/assets/themes/high-contrast/widgets.json
-index c79c79a..5b75952 100644
+index c79c79a9..5b75952f 100644
 --- a/assets/themes/high-contrast/widgets.json
 +++ b/assets/themes/high-contrast/widgets.json
 @@ -1,9 +1,9 @@
@@ -370,7 +370,7 @@ index c79c79a..5b75952 100644
        "radius": 5,
        "radius.lg": 5,
 diff --git a/assets/themes/light/widgets.json b/assets/themes/light/widgets.json
-index 6471429..8ab8517 100644
+index 64714299..8ab85177 100644
 --- a/assets/themes/light/widgets.json
 +++ b/assets/themes/light/widgets.json
 @@ -1,9 +1,9 @@
@@ -387,7 +387,7 @@ index 6471429..8ab8517 100644
        "radius": 5,
        "radius.lg": 5,
 diff --git a/crates/rbx_assets/Cargo.toml b/crates/rbx_assets/Cargo.toml
-index 8f1a3f9..f58cbfa 100644
+index 8f1a3f9d..f58cbfa5 100644
 --- a/crates/rbx_assets/Cargo.toml
 +++ b/crates/rbx_assets/Cargo.toml
 @@ -6,6 +6,7 @@ rust-version.workspace = true
@@ -400,7 +400,7 @@ index 8f1a3f9..f58cbfa 100644
  thiserror = "2"
 diff --git a/crates/rbx_assets/src/android_content.rs b/crates/rbx_assets/src/android_content.rs
 new file mode 100644
-index 0000000..45d64ee
+index 00000000..45d64eea
 --- /dev/null
 +++ b/crates/rbx_assets/src/android_content.rs
 @@ -0,0 +1,34 @@
@@ -439,7 +439,7 @@ index 0000000..45d64ee
 + }
 +}
 diff --git a/crates/rbx_assets/src/error.rs b/crates/rbx_assets/src/error.rs
-index 0c6f13e..fca901c 100644
+index 0c6f13e9..fca901c8 100644
 --- a/crates/rbx_assets/src/error.rs
 +++ b/crates/rbx_assets/src/error.rs
 @@ -69,6 +69,8 @@ pub enum FetchError {
@@ -452,7 +452,7 @@ index 0c6f13e..fca901c 100644
      Empty,
  
 diff --git a/crates/rbx_assets/src/lib.rs b/crates/rbx_assets/src/lib.rs
-index 51a1624..a530eda 100644
+index 51a1624a..a530edad 100644
 --- a/crates/rbx_assets/src/lib.rs
 +++ b/crates/rbx_assets/src/lib.rs
 @@ -7,6 +7,8 @@
@@ -465,7 +465,7 @@ index 51a1624..a530eda 100644
  mod dds;
  mod decode;
 diff --git a/crates/rbx_assets/src/native.rs b/crates/rbx_assets/src/native.rs
-index bcf0ced..b6fc9ea 100644
+index bcf0ced2..b6fc9ea9 100644
 --- a/crates/rbx_assets/src/native.rs
 +++ b/crates/rbx_assets/src/native.rs
 @@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
@@ -540,7 +540,7 @@ index bcf0ced..b6fc9ea 100644
              return None;
          }
 diff --git a/crates/rbx_assets/src/resolver.rs b/crates/rbx_assets/src/resolver.rs
-index a996794..25288a4 100644
+index a996794a..25288a45 100644
 --- a/crates/rbx_assets/src/resolver.rs
 +++ b/crates/rbx_assets/src/resolver.rs
 @@ -69,6 +69,7 @@ impl AssetResolver {
@@ -552,7 +552,7 @@ index a996794..25288a4 100644
              return Ok(bytes);
          }
 diff --git a/crates/rbx_assets/src/sober.rs b/crates/rbx_assets/src/sober.rs
-index 7ef5358..0acf927 100644
+index 7ef5358b..0acf9275 100644
 --- a/crates/rbx_assets/src/sober.rs
 +++ b/crates/rbx_assets/src/sober.rs
 @@ -11,7 +11,7 @@
@@ -565,7 +565,7 @@ index 7ef5358..0acf927 100644
  
  use std::path::PathBuf;
 diff --git a/crates/rbx_assets/src/sober/apk.rs b/crates/rbx_assets/src/sober/apk.rs
-index 7e7e676..1603280 100644
+index 7e7e6765..16032805 100644
 --- a/crates/rbx_assets/src/sober/apk.rs
 +++ b/crates/rbx_assets/src/sober/apk.rs
 @@ -1,7 +1,7 @@
@@ -611,7 +611,7 @@ index 7e7e676..1603280 100644
  
  #[cfg(test)]
 diff --git a/crates/rbx_audit/src/lib.rs b/crates/rbx_audit/src/lib.rs
-index 151ca82..70fb62d 100644
+index 151ca820..70fb62db 100644
 --- a/crates/rbx_audit/src/lib.rs
 +++ b/crates/rbx_audit/src/lib.rs
 @@ -42,6 +42,7 @@
@@ -624,7 +624,7 @@ index 151ca82..70fb62d 100644
  mod walk;
 diff --git a/crates/rbx_audit/src/model_review.rs b/crates/rbx_audit/src/model_review.rs
 new file mode 100644
-index 0000000..8025b1b
+index 00000000..8025b1ba
 --- /dev/null
 +++ b/crates/rbx_audit/src/model_review.rs
 @@ -0,0 +1,225 @@
@@ -854,7 +854,7 @@ index 0000000..8025b1b
 +    }
 +}
 diff --git a/crates/rbx_audit/src/requires.rs b/crates/rbx_audit/src/requires.rs
-index 1acdffb..7b6d7bb 100644
+index 1acdffba..7b6d7bb1 100644
 --- a/crates/rbx_audit/src/requires.rs
 +++ b/crates/rbx_audit/src/requires.rs
 @@ -169,7 +169,7 @@ fn is_module(dom: &WeakDom, r: Ref) -> bool {
@@ -868,7 +868,7 @@ index 1acdffb..7b6d7bb 100644
              Target::Module(r)
 diff --git a/crates/rbx_cloud/src/asset_capabilities.rs b/crates/rbx_cloud/src/asset_capabilities.rs
 new file mode 100644
-index 0000000..092a854
+index 00000000..092a8547
 --- /dev/null
 +++ b/crates/rbx_cloud/src/asset_capabilities.rs
 @@ -0,0 +1,35 @@
@@ -908,7 +908,7 @@ index 0000000..092a854
 +    }
 +}
 diff --git a/crates/rbx_cloud/src/assets.rs b/crates/rbx_cloud/src/assets.rs
-index 66cb0cf..54d72a5 100644
+index 66cb0cfc..54d72a5a 100644
 --- a/crates/rbx_cloud/src/assets.rs
 +++ b/crates/rbx_cloud/src/assets.rs
 @@ -61,7 +61,29 @@ impl Client {
@@ -951,7 +951,7 @@ index 66cb0cf..54d72a5 100644
  
      pub fn asset_with_key(&self, asset_id: u64) -> Result<AssetContent, CloudError> {
 diff --git a/crates/rbx_cloud/src/lib.rs b/crates/rbx_cloud/src/lib.rs
-index 614c582..3da8f90 100644
+index 614c582e..3da8f908 100644
 --- a/crates/rbx_cloud/src/lib.rs
 +++ b/crates/rbx_cloud/src/lib.rs
 @@ -10,6 +10,8 @@
@@ -964,7 +964,7 @@ index 614c582..3da8f90 100644
  mod avatar;
  mod client;
 diff --git a/crates/rbx_cloud/src/publish.rs b/crates/rbx_cloud/src/publish.rs
-index df0e2ba..7fa6358 100644
+index df0e2ba4..7fa63588 100644
 --- a/crates/rbx_cloud/src/publish.rs
 +++ b/crates/rbx_cloud/src/publish.rs
 @@ -62,9 +62,19 @@ impl Client {
@@ -990,7 +990,7 @@ index df0e2ba..7fa6358 100644
              return Ok(());
          }
 diff --git a/crates/rbx_cloud/src/thumbnails.rs b/crates/rbx_cloud/src/thumbnails.rs
-index 1a58c98..9548c24 100644
+index 1a58c986..9548c24c 100644
 --- a/crates/rbx_cloud/src/thumbnails.rs
 +++ b/crates/rbx_cloud/src/thumbnails.rs
 @@ -13,6 +13,7 @@ use crate::error::{self, CloudError};
@@ -1031,7 +1031,7 @@ index 1a58c98..9548c24 100644
      /// one still rendering or moderated is left out rather than given a
      /// placeholder, so the caller draws its own.
 diff --git a/crates/rbx_cloud/src/toolbox.rs b/crates/rbx_cloud/src/toolbox.rs
-index 77cb2cd..a4b30d6 100644
+index 77cb2cdb..a4b30d69 100644
 --- a/crates/rbx_cloud/src/toolbox.rs
 +++ b/crates/rbx_cloud/src/toolbox.rs
 @@ -1,7 +1,7 @@
@@ -1063,7 +1063,7 @@ index 77cb2cd..a4b30d6 100644
              return Err(error::error_for_status(
                  &url,
 diff --git a/crates/rbx_loren/src/cli/help.rs b/crates/rbx_loren/src/cli/help.rs
-index c273f2c..511594c 100644
+index c273f2c0..511594c7 100644
 --- a/crates/rbx_loren/src/cli/help.rs
 +++ b/crates/rbx_loren/src/cli/help.rs
 @@ -50,7 +50,7 @@ fn arg_display(arg: &Arg) -> String {
@@ -1076,7 +1076,7 @@ index c273f2c..511594c 100644
      )
  }
 diff --git a/crates/rbx_loren/src/commands/serve.rs b/crates/rbx_loren/src/commands/serve.rs
-index 2449255..d169afc 100644
+index 2449255b..d169afc6 100644
 --- a/crates/rbx_loren/src/commands/serve.rs
 +++ b/crates/rbx_loren/src/commands/serve.rs
 @@ -23,12 +23,12 @@ pub fn serve_command(ctx: &Ctx, tool: Option<&str>) -> CmdResult {
@@ -1095,7 +1095,7 @@ index 2449255..d169afc 100644
      }
      ctx.log.info("In rbxstudio, open your place and press Connect in the Argon dock (or turn on Auto Connect).");
 diff --git a/crates/rbx_lua/src/runtime.rs b/crates/rbx_lua/src/runtime.rs
-index 0f76ba4..3996154 100644
+index 0f76ba4e..39961545 100644
 --- a/crates/rbx_lua/src/runtime.rs
 +++ b/crates/rbx_lua/src/runtime.rs
 @@ -91,6 +91,8 @@ pub struct Runtime {
@@ -1166,7 +1166,7 @@ index 0f76ba4..3996154 100644
          // Closing the VM drops every userdata still holding a handle on the DOM,
          // which is what makes the unwrap below the normal path.
 diff --git a/crates/rbx_lua/src/runtime/host.rs b/crates/rbx_lua/src/runtime/host.rs
-index 918ec67..cc531db 100644
+index 918ec67b..cc531dbd 100644
 --- a/crates/rbx_lua/src/runtime/host.rs
 +++ b/crates/rbx_lua/src/runtime/host.rs
 @@ -77,7 +77,9 @@ impl Host for CommandBar {
@@ -1211,7 +1211,7 @@ index 918ec67..cc531db 100644
              "HttpService" => http_member(lua, key),
              "CollectionService" => collection::member(lua, key),
 diff --git a/crates/rbx_lua/src/runtime/resume.rs b/crates/rbx_lua/src/runtime/resume.rs
-index 740e97b..3b996e3 100644
+index 740e97b2..3b996e36 100644
 --- a/crates/rbx_lua/src/runtime/resume.rs
 +++ b/crates/rbx_lua/src/runtime/resume.rs
 @@ -80,6 +80,44 @@ impl Runtime {
@@ -1260,7 +1260,7 @@ index 740e97b..3b996e3 100644
              if ran.is_err() {
                  break;
 diff --git a/crates/rbx_presence/src/client.rs b/crates/rbx_presence/src/client.rs
-index 2a2e25c..b750c0b 100644
+index 2a2e25c1..b750c0b8 100644
 --- a/crates/rbx_presence/src/client.rs
 +++ b/crates/rbx_presence/src/client.rs
 @@ -27,7 +27,7 @@ use crate::schema::{
@@ -1291,7 +1291,7 @@ index 2a2e25c..b750c0b 100644
                  }
              }
 diff --git a/crates/rbx_studio/Cargo.toml b/crates/rbx_studio/Cargo.toml
-index f32fd52..20bd147 100644
+index f32fd52d..20bd1471 100644
 --- a/crates/rbx_studio/Cargo.toml
 +++ b/crates/rbx_studio/Cargo.toml
 @@ -170,3 +170,9 @@ rbx_autorig = { path = "../rbx_autorig", features = ["test-humanoid"] }
@@ -1306,7 +1306,7 @@ index f32fd52..20bd147 100644
 +gpui-mobile = { package = "gpui-pre-mobile", path = "../../../gpui-mobile", default-features = false, features = ["clipboard", "url_launcher", "file_selector"] }
 diff --git a/crates/rbx_studio/src/android_play.rs b/crates/rbx_studio/src/android_play.rs
 new file mode 100644
-index 0000000..941a1b3
+index 00000000..941a1b3e
 --- /dev/null
 +++ b/crates/rbx_studio/src/android_play.rs
 @@ -0,0 +1,19 @@
@@ -1331,7 +1331,7 @@ index 0000000..941a1b3
 +}
 diff --git a/crates/rbx_studio/src/branding.rs b/crates/rbx_studio/src/branding.rs
 new file mode 100644
-index 0000000..de4d8f7
+index 00000000..de4d8f7c
 --- /dev/null
 +++ b/crates/rbx_studio/src/branding.rs
 @@ -0,0 +1,37 @@
@@ -1373,7 +1373,7 @@ index 0000000..de4d8f7
 +        .children((0..5).map(|index| layer(index, side, Transformation::default())))
 +}
 diff --git a/crates/rbx_studio/src/discord_presence.rs b/crates/rbx_studio/src/discord_presence.rs
-index 0de780c..dd4a99c 100644
+index 0de780c8..dd4a99c3 100644
 --- a/crates/rbx_studio/src/discord_presence.rs
 +++ b/crates/rbx_studio/src/discord_presence.rs
 @@ -165,7 +165,7 @@ fn read_reply(pipe: &mut ipc::Pipe) -> Result<String, ()> {
@@ -1404,7 +1404,7 @@ index 0de780c..dd4a99c 100644
      }
  
 diff --git a/crates/rbx_studio/src/history.rs b/crates/rbx_studio/src/history.rs
-index 1f735b3..f878171 100644
+index 1f735b32..f8781710 100644
 --- a/crates/rbx_studio/src/history.rs
 +++ b/crates/rbx_studio/src/history.rs
 @@ -80,6 +80,14 @@ pub(crate) struct History {
@@ -1423,7 +1423,7 @@ index 1f735b3..f878171 100644
          History {
              undo: Vec::new(),
 diff --git a/crates/rbx_studio/src/home.rs b/crates/rbx_studio/src/home.rs
-index 8d8531d..e42a805 100644
+index 8d8531d6..e42a8057 100644
 --- a/crates/rbx_studio/src/home.rs
 +++ b/crates/rbx_studio/src/home.rs
 @@ -167,6 +167,33 @@ pub(crate) fn link_of(path: &Path) -> Option<Link> {
@@ -1461,7 +1461,7 @@ index 8d8531d..e42a805 100644
  /// in from `links` when it doesn't. A link to the same place keeps the name
  /// it had when the new one comes without.
 diff --git a/crates/rbx_studio/src/launcher.rs b/crates/rbx_studio/src/launcher.rs
-index 76ed803..665f698 100644
+index 76ed803a..665f6981 100644
 --- a/crates/rbx_studio/src/launcher.rs
 +++ b/crates/rbx_studio/src/launcher.rs
 @@ -107,7 +107,7 @@ pub(crate) fn open_wizard(
@@ -1504,7 +1504,7 @@ index 76ed803..665f698 100644
      })
      .ok()
 diff --git a/crates/rbx_studio/src/launcher/cache.rs b/crates/rbx_studio/src/launcher/cache.rs
-index 9ccf071..1f54f77 100644
+index 9ccf071d..1f54f77b 100644
 --- a/crates/rbx_studio/src/launcher/cache.rs
 +++ b/crates/rbx_studio/src/launcher/cache.rs
 @@ -111,7 +111,7 @@ pub(super) fn write_icon(universe_id: u64, png: &[u8]) {
@@ -1517,7 +1517,7 @@ index 9ccf071..1f54f77 100644
          std::fs::create_dir_all(parent)?;
      }
 diff --git a/crates/rbx_studio/src/launcher/home_window.rs b/crates/rbx_studio/src/launcher/home_window.rs
-index a67cb9d..a049fa6 100644
+index a67cb9d9..a049fa67 100644
 --- a/crates/rbx_studio/src/launcher/home_window.rs
 +++ b/crates/rbx_studio/src/launcher/home_window.rs
 @@ -22,6 +22,7 @@ use crate::home::{self, RecentPlace};
@@ -1581,7 +1581,7 @@ index a67cb9d..a049fa6 100644
                  .push(cx.observe(&shell, move |this, shell, cx| {
                      let session = shell.read(cx).roblox_session();
 diff --git a/crates/rbx_studio/src/launcher/home_window/games.rs b/crates/rbx_studio/src/launcher/home_window/games.rs
-index 50e2f73..164e521 100644
+index 50e2f73e..164e521b 100644
 --- a/crates/rbx_studio/src/launcher/home_window/games.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/games.rs
 @@ -20,6 +20,9 @@ impl HomeWindow {
@@ -1649,7 +1649,7 @@ index 50e2f73..164e521 100644
          })
 diff --git a/crates/rbx_studio/src/launcher/home_window/images.rs b/crates/rbx_studio/src/launcher/home_window/images.rs
 new file mode 100644
-index 0000000..3b5d13e
+index 00000000..3b5d13eb
 --- /dev/null
 +++ b/crates/rbx_studio/src/launcher/home_window/images.rs
 @@ -0,0 +1,117 @@
@@ -1771,7 +1771,7 @@ index 0000000..3b5d13e
 +    crate::render_image::to_render_image(rgba.into_raw(), width, height)
 +}
 diff --git a/crates/rbx_studio/src/launcher/home_window/new_experience.rs b/crates/rbx_studio/src/launcher/home_window/new_experience.rs
-index 7959db1..63c3ce7 100644
+index 7959db11..63c3ce79 100644
 --- a/crates/rbx_studio/src/launcher/home_window/new_experience.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/new_experience.rs
 @@ -121,7 +121,7 @@ fn create_failure(err: &rbx_cloud::CloudError) -> String {
@@ -1784,7 +1784,7 @@ index 7959db1..63c3ce7 100644
          form.name
              .update(cx, |input, cx| input.set_value("", window, cx));
 diff --git a/crates/rbx_studio/src/launcher/home_window/open.rs b/crates/rbx_studio/src/launcher/home_window/open.rs
-index 9fd59e0..86a2f57 100644
+index 9fd59e08..86a2f579 100644
 --- a/crates/rbx_studio/src/launcher/home_window/open.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/open.rs
 @@ -157,6 +157,9 @@ impl HomeWindow {
@@ -1928,7 +1928,7 @@ index 9fd59e0..86a2f57 100644
              .ok_or_else(|| "no config directory to create the place in".to_string())
              .and_then(|path| template.create(&path).map(|()| path));
 diff --git a/crates/rbx_studio/src/launcher/home_window/view.rs b/crates/rbx_studio/src/launcher/home_window/view.rs
-index 7a9fec1..d1ad3ff 100644
+index 7a9fec14..d1ad3ff2 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view.rs
 @@ -23,9 +23,9 @@ use gpui_kit::prelude::FluentBuilder;
@@ -2248,7 +2248,7 @@ index 7a9fec1..d1ad3ff 100644
  }
  
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/dialogs.rs b/crates/rbx_studio/src/launcher/home_window/view/dialogs.rs
-index 318f48a..bdc45f3 100644
+index 318f48ac..bdc45f38 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/dialogs.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/dialogs.rs
 @@ -6,14 +6,63 @@ use gpui_kit::*;
@@ -2317,7 +2317,7 @@ index 318f48a..bdc45f3 100644
                  place,
                  restore,
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/pages.rs b/crates/rbx_studio/src/launcher/home_window/view/pages.rs
-index d5f11b3..f7fe1db 100644
+index d5f11b34..f7fe1db2 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/pages.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/pages.rs
 @@ -9,7 +9,7 @@ use super::*;
@@ -2508,7 +2508,7 @@ index d5f11b3..f7fe1db 100644
                      .on_click(cx.listener(|this, _, _, cx| this.open_file(cx))),
              )
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/recent.rs b/crates/rbx_studio/src/launcher/home_window/view/recent.rs
-index fb324e9..0007f0c 100644
+index fb324e94..0007f0cd 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/recent.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/recent.rs
 @@ -51,7 +51,7 @@ impl HomeWindow {
@@ -2521,7 +2521,7 @@ index fb324e9..0007f0c 100644
              .into_any_element()
      }
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs b/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
-index 38fefdf..e40012b 100644
+index 38fefdf2..e40012b1 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/recent_menu.rs
 @@ -8,10 +8,10 @@ use crate::home::RecentPlace;
@@ -2565,7 +2565,7 @@ index 38fefdf..e40012b 100644
              )
              .with_priority(1)
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/recovered.rs b/crates/rbx_studio/src/launcher/home_window/view/recovered.rs
-index aa53ab0..de18e78 100644
+index aa53ab02..de18e788 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/recovered.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/recovered.rs
 @@ -9,7 +9,7 @@ use super::*;
@@ -2731,7 +2731,7 @@ index aa53ab0..de18e78 100644
  
  fn written_label(left: &Leftover) -> String {
 diff --git a/crates/rbx_studio/src/launcher/home_window/view/sidebar.rs b/crates/rbx_studio/src/launcher/home_window/view/sidebar.rs
-index 6c46eac..8d4d118 100644
+index 6c46eac5..8d4d118e 100644
 --- a/crates/rbx_studio/src/launcher/home_window/view/sidebar.rs
 +++ b/crates/rbx_studio/src/launcher/home_window/view/sidebar.rs
 @@ -11,7 +11,15 @@ use crate::launcher::ui::{self};
@@ -2813,7 +2813,7 @@ index 6c46eac..8d4d118 100644
              .child(
                  v_flex()
 diff --git a/crates/rbx_studio/src/launcher/publishing.rs b/crates/rbx_studio/src/launcher/publishing.rs
-index 58f5306..69c5d16 100644
+index 58f53066..69c5d168 100644
 --- a/crates/rbx_studio/src/launcher/publishing.rs
 +++ b/crates/rbx_studio/src/launcher/publishing.rs
 @@ -228,7 +228,7 @@ impl Publishing {
@@ -2886,7 +2886,7 @@ index 58f5306..69c5d16 100644
      }
  }
 diff --git a/crates/rbx_studio/src/launcher/ui.rs b/crates/rbx_studio/src/launcher/ui.rs
-index a669dbc..cb2426f 100644
+index a669dbc8..cb2426f4 100644
 --- a/crates/rbx_studio/src/launcher/ui.rs
 +++ b/crates/rbx_studio/src/launcher/ui.rs
 @@ -7,7 +7,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -3009,7 +3009,7 @@ index a669dbc..cb2426f 100644
          .child(gpui_base::occlusion::probe())
  }
 diff --git a/crates/rbx_studio/src/launcher/wizard.rs b/crates/rbx_studio/src/launcher/wizard.rs
-index 63813da..1d13772 100644
+index 63813da5..1d137724 100644
 --- a/crates/rbx_studio/src/launcher/wizard.rs
 +++ b/crates/rbx_studio/src/launcher/wizard.rs
 @@ -35,8 +35,17 @@ impl Step {
@@ -3157,7 +3157,7 @@ index 63813da..1d13772 100644
      }
  }
 diff --git a/crates/rbx_studio/src/launcher/wizard/create.rs b/crates/rbx_studio/src/launcher/wizard/create.rs
-index d6e4d31..638e11f 100644
+index d6e4d31a..638e11f4 100644
 --- a/crates/rbx_studio/src/launcher/wizard/create.rs
 +++ b/crates/rbx_studio/src/launcher/wizard/create.rs
 @@ -14,7 +14,7 @@ impl Wizard {
@@ -3179,7 +3179,7 @@ index d6e4d31..638e11f 100644
                                  "Required",
                                  h_flex()
 diff --git a/crates/rbx_studio/src/launcher/wizard/frame.rs b/crates/rbx_studio/src/launcher/wizard/frame.rs
-index e450e38..7de2417 100644
+index e450e388..7de24177 100644
 --- a/crates/rbx_studio/src/launcher/wizard/frame.rs
 +++ b/crates/rbx_studio/src/launcher/wizard/frame.rs
 @@ -8,8 +8,38 @@ use gpui_kit::prelude::FluentBuilder;
@@ -3273,7 +3273,7 @@ index e450e38..7de2417 100644
                  )
              })
 diff --git a/crates/rbx_studio/src/launcher/wizard/sign_in.rs b/crates/rbx_studio/src/launcher/wizard/sign_in.rs
-index 0923cf4..c077bc2 100644
+index 0923cf4b..c077bc27 100644
 --- a/crates/rbx_studio/src/launcher/wizard/sign_in.rs
 +++ b/crates/rbx_studio/src/launcher/wizard/sign_in.rs
 @@ -158,7 +158,7 @@ impl Wizard {
@@ -3286,7 +3286,7 @@ index 0923cf4..c077bc2 100644
              ))
              .child(content)
 diff --git a/crates/rbx_studio/src/login_flow.rs b/crates/rbx_studio/src/login_flow.rs
-index 98dd99c..01aae00 100644
+index 98dd99c7..01aae006 100644
 --- a/crates/rbx_studio/src/login_flow.rs
 +++ b/crates/rbx_studio/src/login_flow.rs
 @@ -14,6 +14,7 @@
@@ -3386,7 +3386,7 @@ index 98dd99c..01aae00 100644
                          .child(right)
                          .into_any_element(),
 diff --git a/crates/rbx_studio/src/main.rs b/crates/rbx_studio/src/main.rs
-index fe79aba..26ce17c 100644
+index fe79abab..26ce17ca 100644
 --- a/crates/rbx_studio/src/main.rs
 +++ b/crates/rbx_studio/src/main.rs
 @@ -1,3 +1,4 @@
@@ -3601,7 +3601,7 @@ index fe79aba..26ce17c 100644
 +#[cfg(target_os = "android")]
 +pub mod android_play;
 diff --git a/crates/rbx_studio/src/mcp.rs b/crates/rbx_studio/src/mcp.rs
-index 9b472c9..892bca0 100644
+index 9b472c93..892bca07 100644
 --- a/crates/rbx_studio/src/mcp.rs
 +++ b/crates/rbx_studio/src/mcp.rs
 @@ -38,7 +38,7 @@ use rbx_dom::WeakDom;
@@ -3614,7 +3614,7 @@ index 9b472c9..892bca0 100644
  /// The command-line flag that turns `rbxstudio` into the [`bridge`].
  pub(crate) const BRIDGE_FLAG: &str = "--mcp";
 diff --git a/crates/rbx_studio/src/mcp/broker/tests.rs b/crates/rbx_studio/src/mcp/broker/tests.rs
-index c640a08..44be8ff 100644
+index c640a08f..44be8ff5 100644
 --- a/crates/rbx_studio/src/mcp/broker/tests.rs
 +++ b/crates/rbx_studio/src/mcp/broker/tests.rs
 @@ -129,7 +129,7 @@ fn with_no_editor_the_protocol_still_answers_and_tools_say_why_not() {
@@ -3627,7 +3627,7 @@ index c640a08..44be8ff 100644
      assert!(list["result"]["tools"].as_array().unwrap().len() > 5);
      assert_eq!(studios(&mut broker), json!([]));
 diff --git a/crates/rbx_studio/src/mcp/endpoint.rs b/crates/rbx_studio/src/mcp/endpoint.rs
-index b2b66d5..5953fec 100644
+index b2b66d5c..5953fecd 100644
 --- a/crates/rbx_studio/src/mcp/endpoint.rs
 +++ b/crates/rbx_studio/src/mcp/endpoint.rs
 @@ -63,6 +63,7 @@ pub(crate) fn file_of(dir: &Path, studio_id: &str) -> PathBuf {
@@ -3766,7 +3766,7 @@ index b2b66d5..5953fec 100644
  
  /// `a == b` in a time that does not depend on where they first differ.
 diff --git a/crates/rbx_studio/src/mcp/protocol.rs b/crates/rbx_studio/src/mcp/protocol.rs
-index 62e3317..a55895b 100644
+index 62e3317b..a55895b1 100644
 --- a/crates/rbx_studio/src/mcp/protocol.rs
 +++ b/crates/rbx_studio/src/mcp/protocol.rs
 @@ -182,8 +182,8 @@ fn initialize(params: &Value) -> Value {
@@ -3781,7 +3781,7 @@ index 62e3317..a55895b 100644
              them with multi_edit, each call one undo step. Runs Luau in the edited place or, \
              during a playtest, in its Client or Server, starts and stops play, reads the \
 diff --git a/crates/rbx_studio/src/mcp/protocol/tests.rs b/crates/rbx_studio/src/mcp/protocol/tests.rs
-index 3788b91..44e674b 100644
+index 3788b918..44e674bf 100644
 --- a/crates/rbx_studio/src/mcp/protocol/tests.rs
 +++ b/crates/rbx_studio/src/mcp/protocol/tests.rs
 @@ -27,7 +27,7 @@ fn initialize_answers_the_version_asked_for_when_it_is_known() {
@@ -3795,7 +3795,7 @@ index 3788b91..44e674b 100644
  
 diff --git a/crates/rbx_studio/src/mcp/skills/mobile-gameplay-check.md b/crates/rbx_studio/src/mcp/skills/mobile-gameplay-check.md
 new file mode 100644
-index 0000000..3ca40a0
+index 00000000..3ca40a03
 --- /dev/null
 +++ b/crates/rbx_studio/src/mcp/skills/mobile-gameplay-check.md
 @@ -0,0 +1,16 @@
@@ -3817,7 +3817,7 @@ index 0000000..3ca40a0
 +Fontes de consulta: https://create.roblox.com/docs/luau ; https://create.roblox.com/docs/scripting ; https://create.roblox.com/docs/scripting/security/security-tactics ; https://github.com/JohnnyMorganz/luau-lsp ; https://github.com/rojo-rbx/rojo ; https://github.com/UpliftGames/wally
 diff --git a/crates/rbx_studio/src/mcp/skills/mobile-studio-agent.md b/crates/rbx_studio/src/mcp/skills/mobile-studio-agent.md
 new file mode 100644
-index 0000000..7008876
+index 00000000..70088760
 --- /dev/null
 +++ b/crates/rbx_studio/src/mcp/skills/mobile-studio-agent.md
 @@ -0,0 +1,43 @@
@@ -3866,7 +3866,7 @@ index 0000000..7008876
 +Este editor expõe ferramentas via MCP e não incorpora necessariamente um modelo de linguagem. Um cliente MCP deve ser conectado explicitamente. Recursos exclusivos da geração da IA do Roblox Studio oficial, como gerar mesh/texture/material, podem não ter backend público e devem responder honestamente que estão indisponíveis. Não anuncie capacidade que não foi testada.
 diff --git a/crates/rbx_studio/src/mcp/skills/mobile-toolbox-safety.md b/crates/rbx_studio/src/mcp/skills/mobile-toolbox-safety.md
 new file mode 100644
-index 0000000..0e222f9
+index 00000000..0e222f95
 --- /dev/null
 +++ b/crates/rbx_studio/src/mcp/skills/mobile-toolbox-safety.md
 @@ -0,0 +1,22 @@
@@ -3894,7 +3894,7 @@ index 0000000..0e222f9
 +Fonte: https://create.roblox.com/docs/scripting/security/security-tactics
 diff --git a/crates/rbx_studio/src/mcp/skills/mobile-ui-builder.md b/crates/rbx_studio/src/mcp/skills/mobile-ui-builder.md
 new file mode 100644
-index 0000000..0013efe
+index 00000000..0013efea
 --- /dev/null
 +++ b/crates/rbx_studio/src/mcp/skills/mobile-ui-builder.md
 @@ -0,0 +1,16 @@
@@ -3915,7 +3915,7 @@ index 0000000..0013efe
 +
 +Referências: https://create.roblox.com/docs/ui ; https://create.roblox.com/docs/ui/position-and-size ; https://create.roblox.com/docs/projects/external-tools
 diff --git a/crates/rbx_studio/src/mcp/tools.rs b/crates/rbx_studio/src/mcp/tools.rs
-index 37bef7d..530f764 100644
+index 37bef7d7..530f764a 100644
 --- a/crates/rbx_studio/src/mcp/tools.rs
 +++ b/crates/rbx_studio/src/mcp/tools.rs
 @@ -23,7 +23,7 @@ use super::protocol::{Failure, INVALID_PARAMS};
@@ -3937,7 +3937,7 @@ index 37bef7d..530f764 100644
          input::KEYBOARD => input::keyboard(arguments, session),
          input::MOUSE => input::mouse(arguments, session),
 diff --git a/crates/rbx_studio/src/mcp/tools/assets.rs b/crates/rbx_studio/src/mcp/tools/assets.rs
-index ee9bde0..f7b1a1d 100644
+index ee9bde00..f7b1a1da 100644
 --- a/crates/rbx_studio/src/mcp/tools/assets.rs
 +++ b/crates/rbx_studio/src/mcp/tools/assets.rs
 @@ -9,6 +9,7 @@
@@ -3967,7 +3967,7 @@ index ee9bde0..f7b1a1d 100644
              generate::mesh_edit(name, session.dom, &session.selection, arguments)
 diff --git a/crates/rbx_studio/src/mcp/tools/assets/animations.rs b/crates/rbx_studio/src/mcp/tools/assets/animations.rs
 new file mode 100644
-index 0000000..66b87e4
+index 00000000..66b87e4a
 --- /dev/null
 +++ b/crates/rbx_studio/src/mcp/tools/assets/animations.rs
 @@ -0,0 +1,94 @@
@@ -4066,7 +4066,7 @@ index 0000000..66b87e4
 +        .map_err(|err| format!("Não foi possível serializar a animação .rbxm: {err}"))
 +}
 diff --git a/crates/rbx_studio/src/mcp/tools/assets/generate.rs b/crates/rbx_studio/src/mcp/tools/assets/generate.rs
-index be8fbad..a5e745c 100644
+index be8fbad6..a5e745c2 100644
 --- a/crates/rbx_studio/src/mcp/tools/assets/generate.rs
 +++ b/crates/rbx_studio/src/mcp/tools/assets/generate.rs
 @@ -59,7 +59,7 @@ pub(super) fn refuse(name: &str) -> Outcome {
@@ -4088,7 +4088,7 @@ index be8fbad..a5e745c 100644
      ))
  }
 diff --git a/crates/rbx_studio/src/mcp/tools/assets/insert.rs b/crates/rbx_studio/src/mcp/tools/assets/insert.rs
-index 2c975b5..0bf86c1 100644
+index 2c975b5b..0bf86c1c 100644
 --- a/crates/rbx_studio/src/mcp/tools/assets/insert.rs
 +++ b/crates/rbx_studio/src/mcp/tools/assets/insert.rs
 @@ -112,6 +112,13 @@ pub(super) fn run(arguments: &Value, session: &mut Session) -> Outcome {
@@ -4159,7 +4159,7 @@ index 2c975b5..0bf86c1 100644
      format!("Assistant:{guid}")
  }
 diff --git a/crates/rbx_studio/src/mcp/tools/edit.rs b/crates/rbx_studio/src/mcp/tools/edit.rs
-index 4dd4fd3..ecfdbf7 100644
+index 4dd4fd3b..ecfdbf75 100644
 --- a/crates/rbx_studio/src/mcp/tools/edit.rs
 +++ b/crates/rbx_studio/src/mcp/tools/edit.rs
 @@ -12,7 +12,7 @@ mod tests;
@@ -4378,7 +4378,7 @@ index 4dd4fd3..ecfdbf7 100644
  
  fn replacements(arguments: &Value) -> Result<Vec<Replacement>, String> {
 diff --git a/crates/rbx_studio/src/mcp/tools/edit/tests.rs b/crates/rbx_studio/src/mcp/tools/edit/tests.rs
-index 04fc518..8fd67f3 100644
+index 04fc518e..8fd67f36 100644
 --- a/crates/rbx_studio/src/mcp/tools/edit/tests.rs
 +++ b/crates/rbx_studio/src/mcp/tools/edit/tests.rs
 @@ -323,3 +323,32 @@ fn a_name_that_differs_only_in_case_is_a_script_of_its_own() {
@@ -4415,7 +4415,7 @@ index 04fc518..8fd67f3 100644
 +    assert!(failed && edit_plan.is_none());
 +}
 diff --git a/crates/rbx_studio/src/mcp/tools/extra_tools.json b/crates/rbx_studio/src/mcp/tools/extra_tools.json
-index 5d60f11..e206954 100644
+index 5d60f11b..e2069544 100644
 --- a/crates/rbx_studio/src/mcp/tools/extra_tools.json
 +++ b/crates/rbx_studio/src/mcp/tools/extra_tools.json
 @@ -2,7 +2,7 @@
@@ -4475,7 +4475,7 @@ index 5d60f11..e206954 100644
    }
  ]
 diff --git a/crates/rbx_studio/src/mcp/tools/skills.rs b/crates/rbx_studio/src/mcp/tools/skills.rs
-index 330bf4c..7d9f986 100644
+index 330bf4c0..7d9f986a 100644
 --- a/crates/rbx_studio/src/mcp/tools/skills.rs
 +++ b/crates/rbx_studio/src/mcp/tools/skills.rs
 @@ -17,6 +17,10 @@ const SKILL_NAME: &str = "skill_name";
@@ -4499,7 +4499,7 @@ index 330bf4c..7d9f986 100644
                  skill.name, skill.description
              )
 diff --git a/crates/rbx_studio/src/mcp/tools/tree.rs b/crates/rbx_studio/src/mcp/tools/tree.rs
-index 86a7c31..69a8291 100644
+index 86a7c312..69a82914 100644
 --- a/crates/rbx_studio/src/mcp/tools/tree.rs
 +++ b/crates/rbx_studio/src/mcp/tools/tree.rs
 @@ -206,6 +206,12 @@ fn report(dom: &WeakDom, reference: Ref, session: &Session) -> Value {
@@ -4524,7 +4524,7 @@ index 86a7c31..69a8291 100644
          "children": {
              "immediateChildren": immediate,
 diff --git a/crates/rbx_studio/src/menu_bar.rs b/crates/rbx_studio/src/menu_bar.rs
-index aabc6e7..9a80b27 100644
+index aabc6e74..9a80b279 100644
 --- a/crates/rbx_studio/src/menu_bar.rs
 +++ b/crates/rbx_studio/src/menu_bar.rs
 @@ -74,6 +74,7 @@ actions!(
@@ -4561,7 +4561,7 @@ index aabc6e7..9a80b27 100644
                      MenuItem::action("Output", MenuToggleOutput),
                      MenuItem::action("Viewport", MenuToggleViewport),
 diff --git a/crates/rbx_studio/src/menu_bar/actions.rs b/crates/rbx_studio/src/menu_bar/actions.rs
-index 797ef45..3df8ed3 100644
+index 797ef459..3df8ed31 100644
 --- a/crates/rbx_studio/src/menu_bar/actions.rs
 +++ b/crates/rbx_studio/src/menu_bar/actions.rs
 @@ -72,6 +72,10 @@ pub(super) fn install(shell: &Entity<Shell>, cx: &mut App) {
@@ -4592,7 +4592,7 @@ index 797ef45..3df8ed3 100644
  panel_toggle!(MenuToggleOutput);
  panel_toggle!(MenuToggleViewport);
 diff --git a/crates/rbx_studio/src/menu_bar/bar.rs b/crates/rbx_studio/src/menu_bar/bar.rs
-index 1b2b2f6..b75a0e4 100644
+index 1b2b2f66..b75a0e4e 100644
 --- a/crates/rbx_studio/src/menu_bar/bar.rs
 +++ b/crates/rbx_studio/src/menu_bar/bar.rs
 @@ -193,6 +193,16 @@ impl MenuBar {
@@ -4724,7 +4724,7 @@ index 1b2b2f6..b75a0e4 100644
              .children(titles)
      }
 diff --git a/crates/rbx_studio/src/menu_bar/popup.rs b/crates/rbx_studio/src/menu_bar/popup.rs
-index 2f85049..43d10be 100644
+index 2f850492..43d10be5 100644
 --- a/crates/rbx_studio/src/menu_bar/popup.rs
 +++ b/crates/rbx_studio/src/menu_bar/popup.rs
 @@ -44,7 +44,7 @@ pub(super) fn dropdown(
@@ -4769,7 +4769,7 @@ index 2f85049..43d10be 100644
  }
 diff --git a/crates/rbx_studio/src/mobile_style.rs b/crates/rbx_studio/src/mobile_style.rs
 new file mode 100644
-index 0000000..d79ea99
+index 00000000..d79ea996
 --- /dev/null
 +++ b/crates/rbx_studio/src/mobile_style.rs
 @@ -0,0 +1,192 @@
@@ -4966,7 +4966,7 @@ index 0000000..d79ea99
 +    }
 +}
 diff --git a/crates/rbx_studio/src/recovery.rs b/crates/rbx_studio/src/recovery.rs
-index cbb6bbf..34594ea 100644
+index cbb6bbf9..34594ea7 100644
 --- a/crates/rbx_studio/src/recovery.rs
 +++ b/crates/rbx_studio/src/recovery.rs
 @@ -145,6 +145,20 @@ pub(crate) struct Leftover {
@@ -5064,7 +5064,7 @@ index cbb6bbf..34594ea 100644
          assert_eq!(leftovers(&folder).len(), 1);
          let _ = std::fs::remove_dir_all(&folder);
 diff --git a/crates/rbx_studio/src/save.rs b/crates/rbx_studio/src/save.rs
-index b1fdd0d..174d797 100644
+index b1fdd0d0..174d797b 100644
 --- a/crates/rbx_studio/src/save.rs
 +++ b/crates/rbx_studio/src/save.rs
 @@ -119,7 +119,10 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -5080,7 +5080,7 @@ index b1fdd0d..174d797 100644
  
  #[cfg(test)]
 diff --git a/crates/rbx_studio/src/settings.rs b/crates/rbx_studio/src/settings.rs
-index ca801d0..342272c 100644
+index ca801d0e..342272c9 100644
 --- a/crates/rbx_studio/src/settings.rs
 +++ b/crates/rbx_studio/src/settings.rs
 @@ -17,6 +17,7 @@ use rbx_viewer::QualityLevel;
@@ -5169,7 +5169,7 @@ index ca801d0..342272c 100644
          "service_overrides": settings.service_overrides,
          "orthographic": settings.orthographic,
 diff --git a/crates/rbx_studio/src/shell.rs b/crates/rbx_studio/src/shell.rs
-index 8bedd34..f43ce90 100644
+index 8bedd347..f43ce902 100644
 --- a/crates/rbx_studio/src/shell.rs
 +++ b/crates/rbx_studio/src/shell.rs
 @@ -52,6 +52,9 @@ mod output;
@@ -5500,7 +5500,7 @@ index 8bedd34..f43ce90 100644
              .children(self.animation_publish_overlay(cx))
 diff --git a/crates/rbx_studio/src/shell/ai_permissions.rs b/crates/rbx_studio/src/shell/ai_permissions.rs
 new file mode 100644
-index 0000000..ac492a1
+index 00000000..ac492a1b
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/ai_permissions.rs
 @@ -0,0 +1,67 @@
@@ -5572,7 +5572,7 @@ index 0000000..ac492a1
 +    }
 +}
 diff --git a/crates/rbx_studio/src/shell/animation/view.rs b/crates/rbx_studio/src/shell/animation/view.rs
-index 3abd203..96d33b3 100644
+index 3abd2037..96d33b3f 100644
 --- a/crates/rbx_studio/src/shell/animation/view.rs
 +++ b/crates/rbx_studio/src/shell/animation/view.rs
 @@ -75,7 +75,7 @@ impl Shell {
@@ -5585,7 +5585,7 @@ index 3abd203..96d33b3 100644
              .child(
                  h_flex()
 diff --git a/crates/rbx_studio/src/shell/argon_dock.rs b/crates/rbx_studio/src/shell/argon_dock.rs
-index 259dd58..c92da21 100644
+index 259dd588..c92da21c 100644
 --- a/crates/rbx_studio/src/shell/argon_dock.rs
 +++ b/crates/rbx_studio/src/shell/argon_dock.rs
 @@ -296,6 +296,8 @@ impl Shell {
@@ -5598,7 +5598,7 @@ index 259dd58..c92da21 100644
              .track_scroll(&self.argon_ui.body_scroll)
              .scrollbar_y(&self.argon_ui.body_scroll)
 diff --git a/crates/rbx_studio/src/shell/argon_dock/actions.rs b/crates/rbx_studio/src/shell/argon_dock/actions.rs
-index 95a97ab..4c1696f 100644
+index 95a97abc..4c1696f2 100644
 --- a/crates/rbx_studio/src/shell/argon_dock/actions.rs
 +++ b/crates/rbx_studio/src/shell/argon_dock/actions.rs
 @@ -5,9 +5,11 @@
@@ -5639,7 +5639,7 @@ index 95a97ab..4c1696f 100644
          .child(label)
  }
 diff --git a/crates/rbx_studio/src/shell/avatar_dock/view.rs b/crates/rbx_studio/src/shell/avatar_dock/view.rs
-index bedf574..8228c9c 100644
+index bedf574e..8228c9ce 100644
 --- a/crates/rbx_studio/src/shell/avatar_dock/view.rs
 +++ b/crates/rbx_studio/src/shell/avatar_dock/view.rs
 @@ -7,7 +7,7 @@ use gpui_kit::prelude::FluentBuilder as _;
@@ -5754,7 +5754,7 @@ index bedf574..8228c9c 100644
              .child(entry(Tab::Body, IconName::PersonStanding, cx))
              .child(entry(Tab::Clothing, IconName::Shirt, cx))
 diff --git a/crates/rbx_studio/src/shell/chrome.rs b/crates/rbx_studio/src/shell/chrome.rs
-index c3419fa..e07c5a5 100644
+index c3419fab..e07c5a55 100644
 --- a/crates/rbx_studio/src/shell/chrome.rs
 +++ b/crates/rbx_studio/src/shell/chrome.rs
 @@ -4,7 +4,7 @@
@@ -5981,7 +5981,7 @@ index c3419fa..e07c5a5 100644
  }
  
 diff --git a/crates/rbx_studio/src/shell/clipboard.rs b/crates/rbx_studio/src/shell/clipboard.rs
-index 128db63..aab4ea7 100644
+index 128db634..aab4ea73 100644
 --- a/crates/rbx_studio/src/shell/clipboard.rs
 +++ b/crates/rbx_studio/src/shell/clipboard.rs
 @@ -288,6 +288,17 @@ pub(super) fn graft(dom: &mut WeakDom, source: &WeakDom, root: Ref, parent: Ref)
@@ -6003,7 +6003,7 @@ index 128db63..aab4ea7 100644
      dom: &mut WeakDom,
      node: &Clipped,
 diff --git a/crates/rbx_studio/src/shell/close_place.rs b/crates/rbx_studio/src/shell/close_place.rs
-index 2b4eef5..746bd3e 100644
+index 2b4eef59..746bd3ee 100644
 --- a/crates/rbx_studio/src/shell/close_place.rs
 +++ b/crates/rbx_studio/src/shell/close_place.rs
 @@ -199,7 +199,7 @@ impl Shell {
@@ -6016,7 +6016,7 @@ index 2b4eef5..746bd3e 100644
                          _ => "Your changes will be lost if you close the place without saving them.",
                      }
 diff --git a/crates/rbx_studio/src/shell/controller_emulator/drawing/parts.rs b/crates/rbx_studio/src/shell/controller_emulator/drawing/parts.rs
-index 8e08929..8b44f2f 100644
+index 8e089296..8b44f2f8 100644
 --- a/crates/rbx_studio/src/shell/controller_emulator/drawing/parts.rs
 +++ b/crates/rbx_studio/src/shell/controller_emulator/drawing/parts.rs
 @@ -61,7 +61,7 @@ pub(super) fn caption(items: &mut Vec<AnyElement>, text: Option<String>, x: f32,
@@ -6029,7 +6029,7 @@ index 8e08929..8b44f2f 100644
                  .child(text)
                  .into_any_element(),
 diff --git a/crates/rbx_studio/src/shell/controller_emulator/editor.rs b/crates/rbx_studio/src/shell/controller_emulator/editor.rs
-index 6858c4b..36fa814 100644
+index 6858c4b2..36fa8140 100644
 --- a/crates/rbx_studio/src/shell/controller_emulator/editor.rs
 +++ b/crates/rbx_studio/src/shell/controller_emulator/editor.rs
 @@ -80,7 +80,7 @@ fn row(
@@ -6042,7 +6042,7 @@ index 6858c4b..36fa814 100644
          .text_color(color)
          .child(text);
 diff --git a/crates/rbx_studio/src/shell/datastores/view.rs b/crates/rbx_studio/src/shell/datastores/view.rs
-index 37c3182..5080d42 100644
+index 37c31825..5080d426 100644
 --- a/crates/rbx_studio/src/shell/datastores/view.rs
 +++ b/crates/rbx_studio/src/shell/datastores/view.rs
 @@ -6,7 +6,7 @@ use gpui_kit::prelude::FluentBuilder as _;
@@ -6116,7 +6116,7 @@ index 37c3182..5080d42 100644
                      .on_click(cx.listener(move |this, _, _, cx| this.set_section(section, cx)))
              }))
 diff --git a/crates/rbx_studio/src/shell/datastores/view/entry.rs b/crates/rbx_studio/src/shell/datastores/view/entry.rs
-index 65d904e..fcbeac8 100644
+index 65d904e0..fcbeac87 100644
 --- a/crates/rbx_studio/src/shell/datastores/view/entry.rs
 +++ b/crates/rbx_studio/src/shell/datastores/view/entry.rs
 @@ -86,6 +86,8 @@ impl DataStoresWindow {
@@ -6129,7 +6129,7 @@ index 65d904e..fcbeac8 100644
              .overflow_y_scroll()
              .p(px(16.))
 diff --git a/crates/rbx_studio/src/shell/datastores/view/standard.rs b/crates/rbx_studio/src/shell/datastores/view/standard.rs
-index e3a89bd..7684191 100644
+index e3a89bd0..76841916 100644
 --- a/crates/rbx_studio/src/shell/datastores/view/standard.rs
 +++ b/crates/rbx_studio/src/shell/datastores/view/standard.rs
 @@ -20,8 +20,10 @@ impl DataStoresWindow {
@@ -6144,7 +6144,7 @@ index e3a89bd..7684191 100644
              .child(keys)
              .child(entry)
 diff --git a/crates/rbx_studio/src/shell/debugging/panels.rs b/crates/rbx_studio/src/shell/debugging/panels.rs
-index ded9acd..eaff427 100644
+index ded9acd7..eaff427f 100644
 --- a/crates/rbx_studio/src/shell/debugging/panels.rs
 +++ b/crates/rbx_studio/src/shell/debugging/panels.rs
 @@ -14,7 +14,7 @@ use gpui_kit::prelude::FluentBuilder as _;
@@ -6200,7 +6200,7 @@ index ded9acd..eaff427 100644
              div()
                  .w(relative(0.35))
 diff --git a/crates/rbx_studio/src/shell/explorer_edit.rs b/crates/rbx_studio/src/shell/explorer_edit.rs
-index 087f281..c20f78c 100644
+index 087f2816..c20f78cf 100644
 --- a/crates/rbx_studio/src/shell/explorer_edit.rs
 +++ b/crates/rbx_studio/src/shell/explorer_edit.rs
 @@ -39,12 +39,17 @@ mod tests;
@@ -6236,7 +6236,7 @@ index 087f281..c20f78c 100644
          ]
          .into_iter()
 diff --git a/crates/rbx_studio/src/shell/explorer_edit/menu.rs b/crates/rbx_studio/src/shell/explorer_edit/menu.rs
-index 36466e8..8d0a96e 100644
+index 36466e8f..8d0a96e2 100644
 --- a/crates/rbx_studio/src/shell/explorer_edit/menu.rs
 +++ b/crates/rbx_studio/src/shell/explorer_edit/menu.rs
 @@ -39,7 +39,7 @@ use super::super::roving::Move;
@@ -6377,7 +6377,7 @@ index 36466e8..8d0a96e 100644
          })
  }
 diff --git a/crates/rbx_studio/src/shell/explorer_edit/picker.rs b/crates/rbx_studio/src/shell/explorer_edit/picker.rs
-index 9ad0184..9269958 100644
+index 9ad01844..92699580 100644
 --- a/crates/rbx_studio/src/shell/explorer_edit/picker.rs
 +++ b/crates/rbx_studio/src/shell/explorer_edit/picker.rs
 @@ -150,7 +150,10 @@ impl Shell {
@@ -6512,7 +6512,7 @@ index 9ad0184..9269958 100644
              deferred(
                  anchored()
 diff --git a/crates/rbx_studio/src/shell/explorer_edit/picker/row.rs b/crates/rbx_studio/src/shell/explorer_edit/picker/row.rs
-index 0c81afb..241c36a 100644
+index 0c81afb6..241c36ad 100644
 --- a/crates/rbx_studio/src/shell/explorer_edit/picker/row.rs
 +++ b/crates/rbx_studio/src/shell/explorer_edit/picker/row.rs
 @@ -93,6 +93,7 @@ pub(super) fn class_row(
@@ -6524,7 +6524,7 @@ index 0c81afb..241c36a 100644
          .items_center()
          .gap(px(6.))
 diff --git a/crates/rbx_studio/src/shell/game/workspace.rs b/crates/rbx_studio/src/shell/game/workspace.rs
-index e1d08ad..2c7b85c 100644
+index e1d08adc..2c7b85c5 100644
 --- a/crates/rbx_studio/src/shell/game/workspace.rs
 +++ b/crates/rbx_studio/src/shell/game/workspace.rs
 @@ -175,7 +175,7 @@ impl GameWorkspace {
@@ -6546,7 +6546,7 @@ index e1d08ad..2c7b85c 100644
                  opened = Some((index, place));
                  break;
 diff --git a/crates/rbx_studio/src/shell/game_settings/view.rs b/crates/rbx_studio/src/shell/game_settings/view.rs
-index 752307a..310fcda 100644
+index 752307a3..310fcdac 100644
 --- a/crates/rbx_studio/src/shell/game_settings/view.rs
 +++ b/crates/rbx_studio/src/shell/game_settings/view.rs
 @@ -11,6 +11,7 @@ use gpui_kit::prelude::FluentBuilder as _;
@@ -6680,7 +6680,7 @@ index 752307a..310fcda 100644
          )
  }
 diff --git a/crates/rbx_studio/src/shell/game_settings/view/rows.rs b/crates/rbx_studio/src/shell/game_settings/view/rows.rs
-index 5ef39c1..7ca799b 100644
+index 5ef39c11..7ca799bc 100644
 --- a/crates/rbx_studio/src/shell/game_settings/view/rows.rs
 +++ b/crates/rbx_studio/src/shell/game_settings/view/rows.rs
 @@ -289,10 +289,13 @@ pub(super) fn row(
@@ -6698,7 +6698,7 @@ index 5ef39c1..7ca799b 100644
                          .child(
                              h_flex()
 diff --git a/crates/rbx_studio/src/shell/history.rs b/crates/rbx_studio/src/shell/history.rs
-index f9863bb..331ac71 100644
+index f9863bba..331ac717 100644
 --- a/crates/rbx_studio/src/shell/history.rs
 +++ b/crates/rbx_studio/src/shell/history.rs
 @@ -152,7 +152,7 @@ impl Shell {
@@ -6711,7 +6711,7 @@ index f9863bb..331ac71 100644
          // (a plugin's parked widgets, see `shell::plugins`): its allocator
          // must never hand their referents out again.
 diff --git a/crates/rbx_studio/src/shell/input_panel.rs b/crates/rbx_studio/src/shell/input_panel.rs
-index 503cfcd..9d388b3 100644
+index 503cfcd4..9d388b31 100644
 --- a/crates/rbx_studio/src/shell/input_panel.rs
 +++ b/crates/rbx_studio/src/shell/input_panel.rs
 @@ -23,6 +23,7 @@ use std::collections::{HashMap, HashSet};
@@ -6735,7 +6735,7 @@ index 503cfcd..9d388b3 100644
              )
              .into_any_element();
 diff --git a/crates/rbx_studio/src/shell/input_panel/inspector.rs b/crates/rbx_studio/src/shell/input_panel/inspector.rs
-index 243e79d..12336f1 100644
+index 243e79d6..12336f14 100644
 --- a/crates/rbx_studio/src/shell/input_panel/inspector.rs
 +++ b/crates/rbx_studio/src/shell/input_panel/inspector.rs
 @@ -135,6 +135,8 @@ impl Shell {
@@ -6748,7 +6748,7 @@ index 243e79d..12336f1 100644
                  .children(warnings)
                  .child(
 diff --git a/crates/rbx_studio/src/shell/input_panel/table.rs b/crates/rbx_studio/src/shell/input_panel/table.rs
-index c863055..2dec433 100644
+index c8630556..2dec4332 100644
 --- a/crates/rbx_studio/src/shell/input_panel/table.rs
 +++ b/crates/rbx_studio/src/shell/input_panel/table.rs
 @@ -99,8 +99,13 @@ impl Shell {
@@ -6777,7 +6777,7 @@ index c863055..2dec433 100644
                  MouseButton::Left,
                  cx.listener(move |shell, _, _, cx| shell.select(referent, cx)),
 diff --git a/crates/rbx_studio/src/shell/input_panel/toolbar.rs b/crates/rbx_studio/src/shell/input_panel/toolbar.rs
-index 0295e33..44368a1 100644
+index 0295e333..44368a1c 100644
 --- a/crates/rbx_studio/src/shell/input_panel/toolbar.rs
 +++ b/crates/rbx_studio/src/shell/input_panel/toolbar.rs
 @@ -3,6 +3,7 @@
@@ -6820,7 +6820,7 @@ index 0295e33..44368a1 100644
      }
  }
 diff --git a/crates/rbx_studio/src/shell/keys.rs b/crates/rbx_studio/src/shell/keys.rs
-index 2ce6347..f9b7584 100644
+index 2ce63473..f9b75845 100644
 --- a/crates/rbx_studio/src/shell/keys.rs
 +++ b/crates/rbx_studio/src/shell/keys.rs
 @@ -374,7 +374,7 @@ pub(super) const PART_TYPE_CYLINDER: u32 = 2;
@@ -6842,7 +6842,7 @@ index 2ce6347..f9b7584 100644
          let _ = dom.set_property(referent, key, value);
      }
 diff --git a/crates/rbx_studio/src/shell/layers_panel.rs b/crates/rbx_studio/src/shell/layers_panel.rs
-index d835c8d..097f889 100644
+index d835c8db..097f8899 100644
 --- a/crates/rbx_studio/src/shell/layers_panel.rs
 +++ b/crates/rbx_studio/src/shell/layers_panel.rs
 @@ -159,6 +159,7 @@ impl Shell {
@@ -6862,7 +6862,7 @@ index d835c8d..097f889 100644
                  chrome::button("layers-add", "+ Layer", false)
                      .track_focus(&self.tab_order.claim(cx))
 diff --git a/crates/rbx_studio/src/shell/layers_panel/rows.rs b/crates/rbx_studio/src/shell/layers_panel/rows.rs
-index c33bcb5..d1c8fdf 100644
+index c33bcb5b..d1c8fdfe 100644
 --- a/crates/rbx_studio/src/shell/layers_panel/rows.rs
 +++ b/crates/rbx_studio/src/shell/layers_panel/rows.rs
 @@ -198,6 +198,8 @@ impl Shell {
@@ -6875,7 +6875,7 @@ index c33bcb5..d1c8fdf 100644
              .on_click(cx.listener(move |shell, event: &ClickEvent, window, cx| {
                  shell.layers.active = Some(row_id.clone());
 diff --git a/crates/rbx_studio/src/shell/layout.rs b/crates/rbx_studio/src/shell/layout.rs
-index 34a2d76..d1b4354 100644
+index 34a2d76f..d1b43540 100644
 --- a/crates/rbx_studio/src/shell/layout.rs
 +++ b/crates/rbx_studio/src/shell/layout.rs
 @@ -100,6 +100,7 @@ impl Edge {
@@ -6947,7 +6947,7 @@ index 34a2d76..d1b4354 100644
              None => groups.push(Group::new(panel)),
          }
 diff --git a/crates/rbx_studio/src/shell/localization.rs b/crates/rbx_studio/src/shell/localization.rs
-index 0ca08d5..a912188 100644
+index 0ca08d5a..a9121887 100644
 --- a/crates/rbx_studio/src/shell/localization.rs
 +++ b/crates/rbx_studio/src/shell/localization.rs
 @@ -186,9 +186,11 @@ impl Shell {
@@ -6963,7 +6963,7 @@ index 0ca08d5..a912188 100644
                  "localization-tab-overflow",
                  format!("Overflow {}", overflowing.len()),
 diff --git a/crates/rbx_studio/src/shell/loren_panel/view.rs b/crates/rbx_studio/src/shell/loren_panel/view.rs
-index f36dbb0..35cae80 100644
+index f36dbb0a..35cae80b 100644
 --- a/crates/rbx_studio/src/shell/loren_panel/view.rs
 +++ b/crates/rbx_studio/src/shell/loren_panel/view.rs
 @@ -2,11 +2,12 @@
@@ -7020,7 +7020,7 @@ index f36dbb0..35cae80 100644
  }
  
 diff --git a/crates/rbx_studio/src/shell/mcp.rs b/crates/rbx_studio/src/shell/mcp.rs
-index 38c9fd9..62b41e8 100644
+index 38c9fd93..62b41e80 100644
 --- a/crates/rbx_studio/src/shell/mcp.rs
 +++ b/crates/rbx_studio/src/shell/mcp.rs
 @@ -9,8 +9,10 @@ use std::time::Duration;
@@ -7447,7 +7447,7 @@ index 38c9fd9..62b41e8 100644
 +    request.answer(Some(protocol::answer(id, Err(reason.to_owned()))));
 +}
 diff --git a/crates/rbx_studio/src/shell/mcp/jobs.rs b/crates/rbx_studio/src/shell/mcp/jobs.rs
-index 93d1440..0ff08ca 100644
+index 93d14406..0ff08ca8 100644
 --- a/crates/rbx_studio/src/shell/mcp/jobs.rs
 +++ b/crates/rbx_studio/src/shell/mcp/jobs.rs
 @@ -229,6 +229,9 @@ impl Shell {
@@ -7462,7 +7462,7 @@ index 93d1440..0ff08ca 100644
                          if let Wait::PlayStart { begun } = &mut pending.wait {
 diff --git a/crates/rbx_studio/src/shell/mcp/lighting.rs b/crates/rbx_studio/src/shell/mcp/lighting.rs
 new file mode 100644
-index 0000000..2358246
+index 00000000..23582467
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mcp/lighting.rs
 @@ -0,0 +1,100 @@
@@ -7568,10 +7568,10 @@ index 0000000..2358246
 +}
 diff --git a/crates/rbx_studio/src/shell/mcp/project_edit.rs b/crates/rbx_studio/src/shell/mcp/project_edit.rs
 new file mode 100644
-index 0000000..228d6ab
+index 00000000..a460de08
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mcp/project_edit.rs
-@@ -0,0 +1,643 @@
+@@ -0,0 +1,662 @@
 +//! Atomic, typed changes to the open Android project's Edit DOM.
 +use gpui_kit::Context;
 +use rbx_dom::{Ref, Variant, WeakDom};
@@ -7668,6 +7668,8 @@ index 0000000..228d6ab
 +}
 +
 +fn editable(db: &ReflectionDatabase, class: &str, name: &str) -> bool {
++    if matches!(name,"Position"|"Orientation") &&
++        (db.is_subclass_of(class,"BasePart")||db.is_subclass_of(class,"Attachment")) {return true;}
 +    if (name=="Font" && db.resolve_property(class,"FontFace").is_some()) ||
 +        (class=="UICorner" && name=="CornerRadius") ||
 +        (db.is_subclass_of(class,"ScreenGui") && name=="IgnoreGuiInset") {return true;}
@@ -7746,7 +7748,24 @@ index 0000000..228d6ab
 +    let props = props.as_object().filter(|p| p.len() <= 32)
 +        .ok_or("Expected at most 32 named properties")?;
 +    let class = dom.get(target).ok_or("Object missing")?.class().to_owned();
++    let spatial=db.is_subclass_of(&class,"BasePart")||db.is_subclass_of(&class,"Attachment");
++    if spatial&&props.contains_key("CFrame")&&(props.contains_key("Position")||props.contains_key("Orientation")) {
++        return Err("Use CFrame or Position/Orientation in one operation, not conflicting transform fields".into());
++    }
 +    for (key, raw) in props {
++        if spatial&&matches!(key.as_str(),"Position"|"Orientation") {
++            let text=normalize_literal("Vector3",&property_text(dom,raw)?)?;
++            let zero=Variant::Vector3(rbx_dom::Vector3Data{x:0.,y:0.,z:0.});
++            let Variant::Vector3(v)=edit::parse(&zero,db,&class,key,&text)? else{return Err("Expected Vector3 transform".into());};
++            if ![v.x,v.y,v.z].iter().all(|n|n.is_finite()){return Err("Transform must be finite".into());}
++            let value=if key=="Position" {format!("{}, {}, {}",v.x,v.y,v.z)} else {
++                let current=dom.get(target).and_then(|i|i.properties().get("CFrame")).or_else(||db.stored_default(&class,"CFrame"));
++                let Some(Variant::CFrame(frame))=current else{return Err("CFrame default missing for spatial object".into());};
++                format!("{}, {}, {}, {}, {}, {}",frame.position.x,frame.position.y,frame.position.z,v.x,v.y,v.z)
++            };
++            edit::commit(dom,db,target,"CFrame",&value)?;
++            continue;
++        }
 +        if key=="Font" && db.resolve_property(&class,"FontFace").is_some() {
 +            let value=normalize_literal("Font",&property_text(dom,raw)?)?;
 +            let parsed=edit::parse(&Variant::Enum(0),db,&class,key,&value)?;
@@ -8216,7 +8235,7 @@ index 0000000..228d6ab
 +    }
 +}
 diff --git a/crates/rbx_studio/src/shell/menu.rs b/crates/rbx_studio/src/shell/menu.rs
-index bdb7f0e..191ac32 100644
+index bdb7f0e2..191ac32d 100644
 --- a/crates/rbx_studio/src/shell/menu.rs
 +++ b/crates/rbx_studio/src/shell/menu.rs
 @@ -31,7 +31,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -8435,7 +8454,7 @@ index bdb7f0e..191ac32 100644
          .gap(px(6.))
 diff --git a/crates/rbx_studio/src/shell/mobile.rs b/crates/rbx_studio/src/shell/mobile.rs
 new file mode 100644
-index 0000000..7391de1
+index 00000000..7391de1e
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile.rs
 @@ -0,0 +1,403 @@
@@ -8844,7 +8863,7 @@ index 0000000..7391de1
 +}
 diff --git a/crates/rbx_studio/src/shell/mobile/ai.rs b/crates/rbx_studio/src/shell/mobile/ai.rs
 new file mode 100644
-index 0000000..ceccdf6
+index 00000000..ceccdf6a
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/ai.rs
 @@ -0,0 +1,203 @@
@@ -9053,7 +9072,7 @@ index 0000000..ceccdf6
 +}
 diff --git a/crates/rbx_studio/src/shell/mobile/dock.rs b/crates/rbx_studio/src/shell/mobile/dock.rs
 new file mode 100644
-index 0000000..bf46ff2
+index 00000000..bf46ff2c
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile/dock.rs
 @@ -0,0 +1,328 @@
@@ -9387,7 +9406,7 @@ index 0000000..bf46ff2
 +}
 diff --git a/crates/rbx_studio/src/shell/mobile_metrics.rs b/crates/rbx_studio/src/shell/mobile_metrics.rs
 new file mode 100644
-index 0000000..acd3f5a
+index 00000000..acd3f5a0
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/mobile_metrics.rs
 @@ -0,0 +1,22 @@
@@ -9414,7 +9433,7 @@ index 0000000..acd3f5a
 +    preferred.clamp(min, height * 0.88)
 +}
 diff --git a/crates/rbx_studio/src/shell/output.rs b/crates/rbx_studio/src/shell/output.rs
-index d4eba18..6533097 100644
+index d4eba18c..65330979 100644
 --- a/crates/rbx_studio/src/shell/output.rs
 +++ b/crates/rbx_studio/src/shell/output.rs
 @@ -24,6 +24,7 @@ use rbx_lua::PrintPart;
@@ -9437,7 +9456,7 @@ index d4eba18..6533097 100644
                  .pr(super::chrome::SCROLLBAR_GUTTER)
                  .child(list)
 diff --git a/crates/rbx_studio/src/shell/output/controls.rs b/crates/rbx_studio/src/shell/output/controls.rs
-index 7874eb3..0f8e539 100644
+index 7874eb3c..0f8e5398 100644
 --- a/crates/rbx_studio/src/shell/output/controls.rs
 +++ b/crates/rbx_studio/src/shell/output/controls.rs
 @@ -6,7 +6,7 @@ use gpui_kit::component::{h_flex, Icon};
@@ -9507,7 +9526,7 @@ index 7874eb3..0f8e539 100644
              .child(current.label())
              .child(Icon::new(IconName::ChevronDown).size(px(10.)));
 diff --git a/crates/rbx_studio/src/shell/palette/focus.rs b/crates/rbx_studio/src/shell/palette/focus.rs
-index 36b9521..67d365f 100644
+index 36b95213..67d365fb 100644
 --- a/crates/rbx_studio/src/shell/palette/focus.rs
 +++ b/crates/rbx_studio/src/shell/palette/focus.rs
 @@ -46,7 +46,7 @@ pub(super) fn entry(panel: Panel) -> Option<Entry> {
@@ -9520,7 +9539,7 @@ index 36b9521..67d365f 100644
  }
  
 diff --git a/crates/rbx_studio/src/shell/panels.rs b/crates/rbx_studio/src/shell/panels.rs
-index 050a436..d953411 100644
+index 050a436f..d9534113 100644
 --- a/crates/rbx_studio/src/shell/panels.rs
 +++ b/crates/rbx_studio/src/shell/panels.rs
 @@ -39,6 +39,7 @@ impl Shell {
@@ -9612,7 +9631,7 @@ index 050a436..d953411 100644
                                          section_header(
                                              SharedString::from(category),
 diff --git a/crates/rbx_studio/src/shell/play.rs b/crates/rbx_studio/src/shell/play.rs
-index 4090742..878dd7d 100644
+index 40907428..878dd7db 100644
 --- a/crates/rbx_studio/src/shell/play.rs
 +++ b/crates/rbx_studio/src/shell/play.rs
 @@ -42,6 +42,12 @@
@@ -9704,7 +9723,7 @@ index 4090742..878dd7d 100644
          cx.notify();
 diff --git a/crates/rbx_studio/src/shell/play/android.rs b/crates/rbx_studio/src/shell/play/android.rs
 new file mode 100644
-index 0000000..3f7992b
+index 00000000..3f7992b3
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/play/android.rs
 @@ -0,0 +1,82 @@
@@ -9792,7 +9811,7 @@ index 0000000..3f7992b
 +}
 diff --git a/crates/rbx_studio/src/shell/play/destination.rs b/crates/rbx_studio/src/shell/play/destination.rs
 new file mode 100644
-index 0000000..75d3bd4
+index 00000000..75d3bd41
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/play/destination.rs
 @@ -0,0 +1,50 @@
@@ -9848,7 +9867,7 @@ index 0000000..75d3bd4
 +}
 diff --git a/crates/rbx_studio/src/shell/play/external.rs b/crates/rbx_studio/src/shell/play/external.rs
 new file mode 100644
-index 0000000..e755a6a
+index 00000000..e755a6a2
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/play/external.rs
 @@ -0,0 +1,368 @@
@@ -10221,7 +10240,7 @@ index 0000000..e755a6a
 +    }
 +}
 diff --git a/crates/rbx_studio/src/shell/playtests/dock.rs b/crates/rbx_studio/src/shell/playtests/dock.rs
-index d0deb7d..cb95ea8 100644
+index d0deb7d9..cb95ea88 100644
 --- a/crates/rbx_studio/src/shell/playtests/dock.rs
 +++ b/crates/rbx_studio/src/shell/playtests/dock.rs
 @@ -3,6 +3,7 @@
@@ -10274,7 +10293,7 @@ index d0deb7d..cb95ea8 100644
                      ("playtests-visible", i),
                      visible,
 diff --git a/crates/rbx_studio/src/shell/plugins/ribbon.rs b/crates/rbx_studio/src/shell/plugins/ribbon.rs
-index 4b57a65..2e378f9 100644
+index 4b57a654..2e378f97 100644
 --- a/crates/rbx_studio/src/shell/plugins/ribbon.rs
 +++ b/crates/rbx_studio/src/shell/plugins/ribbon.rs
 @@ -163,6 +163,9 @@ fn plugin_tile(
@@ -10288,7 +10307,7 @@ index 4b57a65..2e378f9 100644
          .line_height(tokens::line_xs())
          .map(|this| {
 diff --git a/crates/rbx_studio/src/shell/plugins/widgets.rs b/crates/rbx_studio/src/shell/plugins/widgets.rs
-index 3bf299e..ab9ca32 100644
+index 3bf299e6..ab9ca322 100644
 --- a/crates/rbx_studio/src/shell/plugins/widgets.rs
 +++ b/crates/rbx_studio/src/shell/plugins/widgets.rs
 @@ -10,6 +10,7 @@ use std::rc::Rc;
@@ -10372,7 +10391,7 @@ index 3bf299e..ab9ca32 100644
              .child(div().flex_1().min_h_0().w_full().child(surface));
          (None, Some(content.into_any_element()))
 diff --git a/crates/rbx_studio/src/shell/query_select.rs b/crates/rbx_studio/src/shell/query_select.rs
-index 98c13da..64a8b8f 100644
+index 98c13daf..64a8b8fb 100644
 --- a/crates/rbx_studio/src/shell/query_select.rs
 +++ b/crates/rbx_studio/src/shell/query_select.rs
 @@ -94,14 +94,18 @@ impl Shell {
@@ -10403,7 +10422,7 @@ index 98c13da..64a8b8f 100644
  
      /// The line under the field in query mode: the match count with a
 diff --git a/crates/rbx_studio/src/shell/recovery.rs b/crates/rbx_studio/src/shell/recovery.rs
-index a6b7e5a..825ad1d 100644
+index a6b7e5a9..825ad1d6 100644
 --- a/crates/rbx_studio/src/shell/recovery.rs
 +++ b/crates/rbx_studio/src/shell/recovery.rs
 @@ -249,13 +249,35 @@ impl Shell {
@@ -10470,7 +10489,7 @@ index a6b7e5a..825ad1d 100644
  }
  
 diff --git a/crates/rbx_studio/src/shell/reparent.rs b/crates/rbx_studio/src/shell/reparent.rs
-index 130c61a..6451ef2 100644
+index 130c61a3..6451ef21 100644
 --- a/crates/rbx_studio/src/shell/reparent.rs
 +++ b/crates/rbx_studio/src/shell/reparent.rs
 @@ -157,7 +157,8 @@ pub(super) fn draggable_row(
@@ -10499,7 +10518,7 @@ index 130c61a..6451ef2 100644
                  });
 diff --git a/crates/rbx_studio/src/shell/revision_cache.rs b/crates/rbx_studio/src/shell/revision_cache.rs
 new file mode 100644
-index 0000000..ae0fd2d
+index 00000000..ae0fd2d5
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/revision_cache.rs
 @@ -0,0 +1,15 @@
@@ -10519,7 +10538,7 @@ index 0000000..ae0fd2d
 +    }
 +}
 diff --git a/crates/rbx_studio/src/shell/ribbon.rs b/crates/rbx_studio/src/shell/ribbon.rs
-index 2a48a62..3cdd4cc 100644
+index 2a48a622..3cdd4cce 100644
 --- a/crates/rbx_studio/src/shell/ribbon.rs
 +++ b/crates/rbx_studio/src/shell/ribbon.rs
 @@ -91,14 +91,17 @@ impl Shell {
@@ -10713,7 +10732,7 @@ index 2a48a62..3cdd4cc 100644
          .flex_none()
          .w(tokens::stack_width())
 diff --git a/crates/rbx_studio/src/shell/roblox_publish.rs b/crates/rbx_studio/src/shell/roblox_publish.rs
-index c1fe54f..a4e07c3 100644
+index c1fe54f9..a4e07c3c 100644
 --- a/crates/rbx_studio/src/shell/roblox_publish.rs
 +++ b/crates/rbx_studio/src/shell/roblox_publish.rs
 @@ -48,6 +48,8 @@ pub(super) use dialog::{Dialog, Failure};
@@ -10726,7 +10745,7 @@ index c1fe54f..a4e07c3 100644
  const MOCK_VARIABLE: &str = "RBX_STUDIO_PUBLISH_MOCK";
  pub(super) const OPEN_VARIABLE: &str = "RBX_STUDIO_ROBLOX";
 diff --git a/crates/rbx_studio/src/shell/roblox_publish/upload.rs b/crates/rbx_studio/src/shell/roblox_publish/upload.rs
-index 9bd6c9c..c2db454 100644
+index 9bd6c9cb..c2db4549 100644
 --- a/crates/rbx_studio/src/shell/roblox_publish/upload.rs
 +++ b/crates/rbx_studio/src/shell/roblox_publish/upload.rs
 @@ -29,7 +29,7 @@ const NOT_UPDATED_BY_PUBLISH: [&str; 9] = [
@@ -10739,7 +10758,7 @@ index 9bd6c9c..c2db454 100644
      let mut stack = dom.root_refs().to_vec();
      while let Some(instance) = stack.pop().and_then(|r| dom.get(r)) {
 diff --git a/crates/rbx_studio/src/shell/rows.rs b/crates/rbx_studio/src/shell/rows.rs
-index af8d699..83ffd55 100644
+index af8d6994..83ffd552 100644
 --- a/crates/rbx_studio/src/shell/rows.rs
 +++ b/crates/rbx_studio/src/shell/rows.rs
 @@ -30,7 +30,7 @@ use super::explorer_edit::RowWidgets;
@@ -10949,7 +10968,7 @@ index af8d699..83ffd55 100644
  
  #[cfg(test)]
 diff --git a/crates/rbx_studio/src/shell/save.rs b/crates/rbx_studio/src/shell/save.rs
-index 28cfa27..61a9e7d 100644
+index 28cfa272..61a9e7db 100644
 --- a/crates/rbx_studio/src/shell/save.rs
 +++ b/crates/rbx_studio/src/shell/save.rs
 @@ -55,6 +55,11 @@ impl Shell {
@@ -10994,7 +11013,7 @@ index 28cfa27..61a9e7d 100644
          let _ = self.folder_colors.save();
          self.title = path
 diff --git a/crates/rbx_studio/src/shell/script_analysis.rs b/crates/rbx_studio/src/shell/script_analysis.rs
-index be7c229..6babdc0 100644
+index be7c229c..6babdc0f 100644
 --- a/crates/rbx_studio/src/shell/script_analysis.rs
 +++ b/crates/rbx_studio/src/shell/script_analysis.rs
 @@ -15,7 +15,7 @@ use lsp_types::{Diagnostic, DiagnosticSeverity};
@@ -11049,7 +11068,7 @@ index be7c229..6babdc0 100644
                  .child(problem.message.clone()),
          )
 diff --git a/crates/rbx_studio/src/shell/script_panel.rs b/crates/rbx_studio/src/shell/script_panel.rs
-index 3bd81a5..766391f 100644
+index 3bd81a5e..766391f2 100644
 --- a/crates/rbx_studio/src/shell/script_panel.rs
 +++ b/crates/rbx_studio/src/shell/script_panel.rs
 @@ -39,9 +39,16 @@ impl Shell {
@@ -11117,7 +11136,7 @@ index 3bd81a5..766391f 100644
          )
  }
 diff --git a/crates/rbx_studio/src/shell/script_toolbar.rs b/crates/rbx_studio/src/shell/script_toolbar.rs
-index 438e798..326789e 100644
+index 438e7986..326789e8 100644
 --- a/crates/rbx_studio/src/shell/script_toolbar.rs
 +++ b/crates/rbx_studio/src/shell/script_toolbar.rs
 @@ -18,6 +18,37 @@ use crate::script_editor::tabs::View;
@@ -11159,7 +11178,7 @@ index 438e798..326789e 100644
          &mut self,
          active: Ref,
 diff --git a/crates/rbx_studio/src/shell/security_audit.rs b/crates/rbx_studio/src/shell/security_audit.rs
-index 95ca5c1..03aa887 100644
+index 95ca5c12..03aa8871 100644
 --- a/crates/rbx_studio/src/shell/security_audit.rs
 +++ b/crates/rbx_studio/src/shell/security_audit.rs
 @@ -15,13 +15,14 @@
@@ -11232,7 +11251,7 @@ index 95ca5c1..03aa887 100644
  
  /// A finding's message with its `code` spans set in the code font and their
 diff --git a/crates/rbx_studio/src/shell/selection.rs b/crates/rbx_studio/src/shell/selection.rs
-index 12608f4..2b5aeb3 100644
+index 12608f4a..2b5aeb37 100644
 --- a/crates/rbx_studio/src/shell/selection.rs
 +++ b/crates/rbx_studio/src/shell/selection.rs
 @@ -89,7 +89,9 @@ impl Shell {
@@ -11258,7 +11277,7 @@ index 12608f4..2b5aeb3 100644
              viewport.set_targets(targets);
          });
 diff --git a/crates/rbx_studio/src/shell/settings_window.rs b/crates/rbx_studio/src/shell/settings_window.rs
-index 2f00d2c..ed4b859 100644
+index 2f00d2c4..ed4b859c 100644
 --- a/crates/rbx_studio/src/shell/settings_window.rs
 +++ b/crates/rbx_studio/src/shell/settings_window.rs
 @@ -14,6 +14,7 @@ use std::rc::Rc;
@@ -11353,7 +11372,7 @@ index 2f00d2c..ed4b859 100644
              .children(picker)
      }
 diff --git a/crates/rbx_studio/src/shell/settings_window/files_account.rs b/crates/rbx_studio/src/shell/settings_window/files_account.rs
-index 2951191..80c43c1 100644
+index 2951191b..80c43c15 100644
 --- a/crates/rbx_studio/src/shell/settings_window/files_account.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/files_account.rs
 @@ -24,6 +24,7 @@ pub(super) struct RecoveryControls {
@@ -11681,7 +11700,7 @@ index 2951191..80c43c1 100644
      }
  }
 diff --git a/crates/rbx_studio/src/shell/settings_window/kit.rs b/crates/rbx_studio/src/shell/settings_window/kit.rs
-index 6672f1c..8cf018f 100644
+index 6672f1c5..8cf018f1 100644
 --- a/crates/rbx_studio/src/shell/settings_window/kit.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/kit.rs
 @@ -5,6 +5,7 @@
@@ -11710,7 +11729,7 @@ index 6672f1c..8cf018f 100644
          .child(label);
      match on_click {
 diff --git a/crates/rbx_studio/src/shell/settings_window/kit/controls.rs b/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
-index 304a49e..98233c5 100644
+index 304a49e6..98233c52 100644
 --- a/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/kit/controls.rs
 @@ -9,7 +9,7 @@ use gpui_kit::component::slider::SliderState;
@@ -11796,7 +11815,7 @@ index 304a49e..98233c5 100644
                          .child(label)
                  }),
 diff --git a/crates/rbx_studio/src/shell/settings_window/kit/row.rs b/crates/rbx_studio/src/shell/settings_window/kit/row.rs
-index 55cf518..938c4ca 100644
+index 55cf5184..938c4cad 100644
 --- a/crates/rbx_studio/src/shell/settings_window/kit/row.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/kit/row.rs
 @@ -240,10 +240,12 @@ fn render_row(
@@ -11813,7 +11832,7 @@ index 55cf518..938c4ca 100644
                          .child(
                              h_flex()
 diff --git a/crates/rbx_studio/src/shell/settings_window/nav.rs b/crates/rbx_studio/src/shell/settings_window/nav.rs
-index f6a2d8e..ad7d3f3 100644
+index f6a2d8e6..ad7d3f30 100644
 --- a/crates/rbx_studio/src/shell/settings_window/nav.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/nav.rs
 @@ -5,7 +5,7 @@ use gpui_kit::component::{h_flex, v_flex};
@@ -11969,7 +11988,7 @@ index f6a2d8e..ad7d3f3 100644
          .child(div().flex_1().child(label))
  }
 diff --git a/crates/rbx_studio/src/shell/settings_window/page.rs b/crates/rbx_studio/src/shell/settings_window/page.rs
-index ffee0d6..b196655 100644
+index ffee0d6e..b196655c 100644
 --- a/crates/rbx_studio/src/shell/settings_window/page.rs
 +++ b/crates/rbx_studio/src/shell/settings_window/page.rs
 @@ -26,6 +26,7 @@ impl SettingsWindow {
@@ -12000,7 +12019,7 @@ index ffee0d6..b196655 100644
                      .child(
                          h_flex()
 diff --git a/crates/rbx_studio/src/shell/team_presence/panel.rs b/crates/rbx_studio/src/shell/team_presence/panel.rs
-index ce1ef04..49d0ed8 100644
+index ce1ef045..49d0ed8a 100644
 --- a/crates/rbx_studio/src/shell/team_presence/panel.rs
 +++ b/crates/rbx_studio/src/shell/team_presence/panel.rs
 @@ -14,7 +14,7 @@ use super::super::Shell;
@@ -12059,7 +12078,7 @@ index ce1ef04..49d0ed8 100644
                  ),
          );
 diff --git a/crates/rbx_studio/src/shell/templates_window/dialogs.rs b/crates/rbx_studio/src/shell/templates_window/dialogs.rs
-index 28fc9c7..2cdc34e 100644
+index 28fc9c7c..2cdc34eb 100644
 --- a/crates/rbx_studio/src/shell/templates_window/dialogs.rs
 +++ b/crates/rbx_studio/src/shell/templates_window/dialogs.rs
 @@ -54,7 +54,7 @@ impl TemplatesWindow {
@@ -12072,7 +12091,7 @@ index 28fc9c7..2cdc34e 100644
                  "triangle-alert",
              ),
 diff --git a/crates/rbx_studio/src/shell/templates_window/pane.rs b/crates/rbx_studio/src/shell/templates_window/pane.rs
-index ad3182e..6224e98 100644
+index ad3182ee..6224e980 100644
 --- a/crates/rbx_studio/src/shell/templates_window/pane.rs
 +++ b/crates/rbx_studio/src/shell/templates_window/pane.rs
 @@ -247,7 +247,7 @@ impl TemplatesWindow {
@@ -12085,7 +12104,7 @@ index ad3182e..6224e98 100644
                      Part::File("Default.luau"),
                      Part::Plain(", which replaces the built-in one.".into()),
 diff --git a/crates/rbx_studio/src/shell/templates_window/skipped.rs b/crates/rbx_studio/src/shell/templates_window/skipped.rs
-index 04caaea..864e7c1 100644
+index 04caaea6..864e7c13 100644
 --- a/crates/rbx_studio/src/shell/templates_window/skipped.rs
 +++ b/crates/rbx_studio/src/shell/templates_window/skipped.rs
 @@ -24,7 +24,7 @@ fn reason(skipped: &Skipped) -> String {
@@ -12098,7 +12117,7 @@ index 04caaea..864e7c1 100644
              .to_owned(),
      }
 diff --git a/crates/rbx_studio/src/shell/terrain/panel.rs b/crates/rbx_studio/src/shell/terrain/panel.rs
-index fe66aa9..fe4f5aa 100644
+index fe66aa98..fe4f5aa4 100644
 --- a/crates/rbx_studio/src/shell/terrain/panel.rs
 +++ b/crates/rbx_studio/src/shell/terrain/panel.rs
 @@ -15,7 +15,7 @@ use gpui_kit::*;
@@ -12121,7 +12140,7 @@ index fe66aa9..fe4f5aa 100644
                      .focus_visible(|this| this.shadow(tokens::focus_ring(tokens::dock())))
                      .tooltip(move |window, cx| super::super::tooltip::text(tool.hint(), window, cx))
 diff --git a/crates/rbx_studio/src/shell/terrain/panel/controls.rs b/crates/rbx_studio/src/shell/terrain/panel/controls.rs
-index 7f3c67c..05145e5 100644
+index 7f3c67cf..05145e5b 100644
 --- a/crates/rbx_studio/src/shell/terrain/panel/controls.rs
 +++ b/crates/rbx_studio/src/shell/terrain/panel/controls.rs
 @@ -8,7 +8,7 @@ use gpui_kit::component::{h_flex, v_flex};
@@ -12177,7 +12196,7 @@ index 7f3c67c..05145e5 100644
              tokens::hover_fx(this).bg(if primary {
                  tokens::accent_hover()
 diff --git a/crates/rbx_studio/src/shell/tests_dock.rs b/crates/rbx_studio/src/shell/tests_dock.rs
-index c655e22..f663018 100644
+index c655e221..f6630180 100644
 --- a/crates/rbx_studio/src/shell/tests_dock.rs
 +++ b/crates/rbx_studio/src/shell/tests_dock.rs
 @@ -25,7 +25,7 @@ use rbx_lua::test_runner::{
@@ -12252,7 +12271,7 @@ index c655e22..f663018 100644
                      .on_click(cx.listener(move |shell, _, _, cx| {
                          cx.stop_propagation();
 diff --git a/crates/rbx_studio/src/shell/toolbar.rs b/crates/rbx_studio/src/shell/toolbar.rs
-index fdc1fd7..7727bd6 100644
+index fdc1fd72..7727bd63 100644
 --- a/crates/rbx_studio/src/shell/toolbar.rs
 +++ b/crates/rbx_studio/src/shell/toolbar.rs
 @@ -91,8 +91,11 @@ impl Shell {
@@ -12270,7 +12289,7 @@ index fdc1fd7..7727bd6 100644
          self.redraw_terrain_overlay(cx);
          if matches!(action, Action::SetIncrement(..) | Action::TogglePivotSnap) {
 diff --git a/crates/rbx_studio/src/shell/toolbar/snap.rs b/crates/rbx_studio/src/shell/toolbar/snap.rs
-index ee6770c..ab52477 100644
+index ee6770c3..ab524775 100644
 --- a/crates/rbx_studio/src/shell/toolbar/snap.rs
 +++ b/crates/rbx_studio/src/shell/toolbar/snap.rs
 @@ -296,7 +296,7 @@ impl Shell {
@@ -12284,7 +12303,7 @@ index ee6770c..ab52477 100644
              .w(px(248.))
 diff --git a/crates/rbx_studio/src/shell/toolbox.rs b/crates/rbx_studio/src/shell/toolbox.rs
 new file mode 100644
-index 0000000..092620b
+index 00000000..092620bc
 --- /dev/null
 +++ b/crates/rbx_studio/src/shell/toolbox.rs
 @@ -0,0 +1,1153 @@
@@ -13442,7 +13461,7 @@ index 0000000..092620b
 +    )
 +}
 diff --git a/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs b/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
-index db68727..bd3fec1 100644
+index db687279..bd3fec1d 100644
 --- a/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
 +++ b/crates/rbx_studio/src/shell/ugc/upload_window/fees.rs
 @@ -91,7 +91,7 @@ pub(super) fn fees_view(kind: ItemKind, emissive: Option<bool>) -> AnyElement {
@@ -13455,7 +13474,7 @@ index db68727..bd3fec1 100644
                      "Free".to_string(),
                  ))
 diff --git a/crates/rbx_studio/src/shell/ui_editor.rs b/crates/rbx_studio/src/shell/ui_editor.rs
-index 5884c85..3dcc8a7 100644
+index 5884c859..3dcc8a7a 100644
 --- a/crates/rbx_studio/src/shell/ui_editor.rs
 +++ b/crates/rbx_studio/src/shell/ui_editor.rs
 @@ -247,6 +247,17 @@ impl Shell {
@@ -13486,7 +13505,7 @@ index 5884c85..3dcc8a7 100644
              .child(div().flex_1().overflow_hidden().child(body))
              .into_any_element()
 diff --git a/crates/rbx_studio/src/shell/viewport_dock.rs b/crates/rbx_studio/src/shell/viewport_dock.rs
-index 677fb10..7077f27 100644
+index 677fb105..7077f279 100644
 --- a/crates/rbx_studio/src/shell/viewport_dock.rs
 +++ b/crates/rbx_studio/src/shell/viewport_dock.rs
 @@ -112,7 +112,7 @@ impl Shell {
@@ -13522,7 +13541,7 @@ index 677fb10..7077f27 100644
          );
          let camera = rows::section("CAMERA", switches(self, camera, cx));
 diff --git a/crates/rbx_studio/src/shell/viewport_dock/rows.rs b/crates/rbx_studio/src/shell/viewport_dock/rows.rs
-index 80823fe..6c1dc78 100644
+index 80823fe9..6c1dc78e 100644
 --- a/crates/rbx_studio/src/shell/viewport_dock/rows.rs
 +++ b/crates/rbx_studio/src/shell/viewport_dock/rows.rs
 @@ -10,7 +10,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon, IndexPath, Sizable as _};
@@ -13605,7 +13624,7 @@ index 80823fe..6c1dc78 100644
      /// the editor's own box. A Tab stop of its own: `SelectState` is
      /// `Focusable`, and its handle is the one `Select` itself focuses, so
 diff --git a/crates/rbx_studio/src/shell/wally_dock/rail.rs b/crates/rbx_studio/src/shell/wally_dock/rail.rs
-index 933358f..217e11d 100644
+index 933358f9..217e11d6 100644
 --- a/crates/rbx_studio/src/shell/wally_dock/rail.rs
 +++ b/crates/rbx_studio/src/shell/wally_dock/rail.rs
 @@ -7,7 +7,7 @@ use gpui_kit::component::{h_flex, v_flex, Icon};
@@ -13651,7 +13670,7 @@ index 933358f..217e11d 100644
                      .items_center()
                      .justify_center()
 diff --git a/crates/rbx_studio/src/shell/workspace.rs b/crates/rbx_studio/src/shell/workspace.rs
-index e0d7689..be85866 100644
+index e0d7689a..be85866d 100644
 --- a/crates/rbx_studio/src/shell/workspace.rs
 +++ b/crates/rbx_studio/src/shell/workspace.rs
 @@ -20,6 +20,7 @@
@@ -13914,7 +13933,7 @@ index e0d7689..be85866 100644
 +        ))
  }
 diff --git a/crates/rbx_studio/src/splash.rs b/crates/rbx_studio/src/splash.rs
-index 7c86ba1..c6d9c76 100644
+index 7c86ba1d..c6d9c76d 100644
 --- a/crates/rbx_studio/src/splash.rs
 +++ b/crates/rbx_studio/src/splash.rs
 @@ -1,96 +1,53 @@
@@ -14159,7 +14178,7 @@ index 7c86ba1..c6d9c76 100644
      }
  }
 diff --git a/crates/rbx_studio/src/sun.rs b/crates/rbx_studio/src/sun.rs
-index 5401357..c1bb802 100644
+index 5401357a..c1bb8023 100644
 --- a/crates/rbx_studio/src/sun.rs
 +++ b/crates/rbx_studio/src/sun.rs
 @@ -286,7 +286,7 @@ fn number_like(current: Option<&Variant>, value: f32) -> Variant {
@@ -14172,7 +14191,7 @@ index 5401357..c1bb802 100644
      format!(
          "{:02}:{:02}:{:02}",
 diff --git a/crates/rbx_studio/src/theme/apply.rs b/crates/rbx_studio/src/theme/apply.rs
-index 2fc69fa..75530d0 100644
+index 2fc69fa9..75530d04 100644
 --- a/crates/rbx_studio/src/theme/apply.rs
 +++ b/crates/rbx_studio/src/theme/apply.rs
 @@ -42,9 +42,38 @@ pub(crate) fn apply(pack: &ThemePack, overrides: &Overrides, cx: &mut App) {
@@ -14217,7 +14236,7 @@ index 2fc69fa..75530d0 100644
      let mode = pack.palette.mode;
      let theme = Theme::global_mut(cx);
 diff --git a/crates/rbx_studio/src/tokens.rs b/crates/rbx_studio/src/tokens.rs
-index eecd7a1..858354a 100644
+index eecd7a15..858354aa 100644
 --- a/crates/rbx_studio/src/tokens.rs
 +++ b/crates/rbx_studio/src/tokens.rs
 @@ -974,7 +974,7 @@ pub(crate) fn separator_height() -> Pixels {
@@ -14239,7 +14258,7 @@ index eecd7a1..858354a 100644
  
  /// A text field, a select trigger, a stepper, the search box at the top of
 diff --git a/crates/rbx_studio/src/workspace_view.rs b/crates/rbx_studio/src/workspace_view.rs
-index 73c1a6c..a3c25f1 100644
+index 73c1a6cf..a3c25f1e 100644
 --- a/crates/rbx_studio/src/workspace_view.rs
 +++ b/crates/rbx_studio/src/workspace_view.rs
 @@ -10,6 +10,10 @@
@@ -14538,7 +14557,7 @@ index 73c1a6c..a3c25f1 100644
                              cx.stop_propagation();
 diff --git a/crates/rbx_studio/src/workspace_view/android_input.rs b/crates/rbx_studio/src/workspace_view/android_input.rs
 new file mode 100644
-index 0000000..f82976e
+index 00000000..f82976e7
 --- /dev/null
 +++ b/crates/rbx_studio/src/workspace_view/android_input.rs
 @@ -0,0 +1,454 @@
@@ -14997,7 +15016,7 @@ index 0000000..f82976e
 +    }
 +}
 diff --git a/crates/rbx_studio/src/workspace_view/gizmo.rs b/crates/rbx_studio/src/workspace_view/gizmo.rs
-index fbf61d6..791bc21 100644
+index fbf61d6d..791bc219 100644
 --- a/crates/rbx_studio/src/workspace_view/gizmo.rs
 +++ b/crates/rbx_studio/src/workspace_view/gizmo.rs
 @@ -331,6 +331,27 @@ impl WorkspaceView {
@@ -15136,7 +15155,7 @@ index fbf61d6..791bc21 100644
              // The running total is kept exact and only the angle *applied* is
              // rounded: rounding each step before adding it up would let a
 diff --git a/crates/rbx_studio/src/workspace_view/pivot.rs b/crates/rbx_studio/src/workspace_view/pivot.rs
-index bd7d659..2228dbb 100644
+index bd7d659e..2228dbb4 100644
 --- a/crates/rbx_studio/src/workspace_view/pivot.rs
 +++ b/crates/rbx_studio/src/workspace_view/pivot.rs
 @@ -4,7 +4,7 @@
@@ -15175,7 +15194,7 @@ index bd7d659..2228dbb 100644
          };
          self.drag = Some(drag);
 diff --git a/crates/rbx_studio/src/workspace_view/pump.rs b/crates/rbx_studio/src/workspace_view/pump.rs
-index 6bacc59..50deedb 100644
+index 6bacc596..50deedb3 100644
 --- a/crates/rbx_studio/src/workspace_view/pump.rs
 +++ b/crates/rbx_studio/src/workspace_view/pump.rs
 @@ -15,7 +15,7 @@
@@ -15420,7 +15439,7 @@ index 6bacc59..50deedb 100644
                  level,
              })
 diff --git a/crates/rbx_studio/src/workspace_view/quality.rs b/crates/rbx_studio/src/workspace_view/quality.rs
-index a2c9d70..4968a98 100644
+index a2c9d70b..4968a983 100644
 --- a/crates/rbx_studio/src/workspace_view/quality.rs
 +++ b/crates/rbx_studio/src/workspace_view/quality.rs
 @@ -46,8 +46,8 @@ impl Quality {
@@ -15436,7 +15455,7 @@ index a2c9d70..4968a98 100644
          match mode {
 diff --git a/crates/rbx_studio/src/workspace_view/resolution.rs b/crates/rbx_studio/src/workspace_view/resolution.rs
 new file mode 100644
-index 0000000..d845ec6
+index 00000000..d845ec62
 --- /dev/null
 +++ b/crates/rbx_studio/src/workspace_view/resolution.rs
 @@ -0,0 +1,52 @@
@@ -15493,7 +15512,7 @@ index 0000000..d845ec6
 +    }
 +}
 diff --git a/crates/rbx_studio/src/workspace_view/scroll.rs b/crates/rbx_studio/src/workspace_view/scroll.rs
-index 02fff88..9b4edce 100644
+index 02fff881..9b4edcea 100644
 --- a/crates/rbx_studio/src/workspace_view/scroll.rs
 +++ b/crates/rbx_studio/src/workspace_view/scroll.rs
 @@ -94,10 +94,12 @@ impl WorkspaceView {
@@ -15514,7 +15533,7 @@ index 02fff88..9b4edce 100644
              .wheel(at, wheel_scroll(delta, shift), wheel_notches(delta));
 diff --git a/crates/rbx_studio/src/workspace_view/touch_geometry.rs b/crates/rbx_studio/src/workspace_view/touch_geometry.rs
 new file mode 100644
-index 0000000..421f124
+index 00000000..421f124c
 --- /dev/null
 +++ b/crates/rbx_studio/src/workspace_view/touch_geometry.rs
 @@ -0,0 +1,92 @@
@@ -15611,7 +15630,7 @@ index 0000000..421f124
 +    }
 +}
 diff --git a/crates/rbx_viewer/Cargo.toml b/crates/rbx_viewer/Cargo.toml
-index 9f102ec..ee17f59 100644
+index 9f102ec1..ee17f591 100644
 --- a/crates/rbx_viewer/Cargo.toml
 +++ b/crates/rbx_viewer/Cargo.toml
 @@ -20,6 +20,7 @@ path = "examples/bench/main.rs"
@@ -15623,7 +15642,7 @@ index 9f102ec..ee17f59 100644
  rbx_binary = { path = "../rbx_binary" }
  # Sniffed alongside rbx_binary in load::read_place: a place file may be either
 diff --git a/crates/rbx_viewer/src/assets.rs b/crates/rbx_viewer/src/assets.rs
-index 8976707..ac28a37 100644
+index 8976707f..ac28a37f 100644
 --- a/crates/rbx_viewer/src/assets.rs
 +++ b/crates/rbx_viewer/src/assets.rs
 @@ -123,7 +123,7 @@ impl Failure {
@@ -15651,7 +15670,7 @@ index 8976707..ac28a37 100644
      inner.filter(|inner| *inner != AssetRef::Empty)
  }
 diff --git a/crates/rbx_viewer/src/capture.rs b/crates/rbx_viewer/src/capture.rs
-index aa52b3b..da28f2e 100644
+index aa52b3bf..da28f2e1 100644
 --- a/crates/rbx_viewer/src/capture.rs
 +++ b/crates/rbx_viewer/src/capture.rs
 @@ -27,6 +27,7 @@ use readback::{Pending, Target, FORMAT};
@@ -15699,7 +15718,7 @@ index aa52b3b..da28f2e 100644
              readback: waited.elapsed(),
          }))
 diff --git a/crates/rbx_viewer/src/controller.rs b/crates/rbx_viewer/src/controller.rs
-index e520a04..16693d6 100644
+index e520a049..16693d69 100644
 --- a/crates/rbx_viewer/src/controller.rs
 +++ b/crates/rbx_viewer/src/controller.rs
 @@ -299,8 +299,13 @@ fn free_update(
@@ -15732,7 +15751,7 @@ index e520a04..16693d6 100644
      let notches = input.take_wheel_notches();
      if notches != 0.0 {
 diff --git a/crates/rbx_viewer/src/controller/tests.rs b/crates/rbx_viewer/src/controller/tests.rs
-index fc52725..0206c02 100644
+index fc527252..0206c02d 100644
 --- a/crates/rbx_viewer/src/controller/tests.rs
 +++ b/crates/rbx_viewer/src/controller/tests.rs
 @@ -213,6 +213,16 @@ fn moving_the_mouse_up_looks_up_not_down() {
@@ -15753,7 +15772,7 @@ index fc52725..0206c02 100644
  fn the_mouse_only_turns_the_view_while_the_look_button_is_held() {
      let mut input = Input::default();
 diff --git a/crates/rbx_viewer/src/gizmo.rs b/crates/rbx_viewer/src/gizmo.rs
-index 8ce74b5..6180435 100644
+index 8ce74b5f..61804355 100644
 --- a/crates/rbx_viewer/src/gizmo.rs
 +++ b/crates/rbx_viewer/src/gizmo.rs
 @@ -216,6 +216,11 @@ impl Handles {
@@ -15778,7 +15797,7 @@ index 8ce74b5..6180435 100644
              .into_iter()
              .filter_map(|axis| {
 diff --git a/crates/rbx_viewer/src/gpu.rs b/crates/rbx_viewer/src/gpu.rs
-index 1e6e26d..126d7cb 100644
+index 1e6e26d4..126d7cb2 100644
 --- a/crates/rbx_viewer/src/gpu.rs
 +++ b/crates/rbx_viewer/src/gpu.rs
 @@ -2,7 +2,14 @@
@@ -15812,7 +15831,7 @@ index 1e6e26d..126d7cb 100644
          // the renderer's own allocations are a few large textures made at
          // load, and the default left a small place holding ~4x what it
 diff --git a/crates/rbx_viewer/src/headless.rs b/crates/rbx_viewer/src/headless.rs
-index 0cbd45a..56b0e93 100644
+index 0cbd45a4..56b0e93b 100644
 --- a/crates/rbx_viewer/src/headless.rs
 +++ b/crates/rbx_viewer/src/headless.rs
 @@ -142,9 +142,21 @@ impl Headless {
@@ -15962,7 +15981,7 @@ index 0cbd45a..56b0e93 100644
      /// WebGL, which has no compute), then re-uploads every rig to match.
      fn sync_skinning(&mut self) {
 diff --git a/crates/rbx_viewer/src/headless/park.rs b/crates/rbx_viewer/src/headless/park.rs
-index 23ee3a6..5c83d88 100644
+index 23ee3a64..5c83d88b 100644
 --- a/crates/rbx_viewer/src/headless/park.rs
 +++ b/crates/rbx_viewer/src/headless/park.rs
 @@ -51,7 +51,7 @@ impl Parked {
@@ -15975,7 +15994,7 @@ index 23ee3a6..5c83d88 100644
          headless.set_quality(self.quality);
          headless.feel = self.feel;
 diff --git a/crates/rbx_viewer/src/input.rs b/crates/rbx_viewer/src/input.rs
-index 6a8ad63..9f2384f 100644
+index 6a8ad632..9f2384fe 100644
 --- a/crates/rbx_viewer/src/input.rs
 +++ b/crates/rbx_viewer/src/input.rs
 @@ -43,6 +43,13 @@ pub enum CameraInput {
@@ -16066,7 +16085,7 @@ index 6a8ad63..9f2384f 100644
  
      fn set_key(&mut self, key: CameraKey, pressed: bool) {
 diff --git a/crates/rbx_viewer/src/lib.rs b/crates/rbx_viewer/src/lib.rs
-index 7c0b222..20b652c 100644
+index 7c0b2227..20b652cf 100644
 --- a/crates/rbx_viewer/src/lib.rs
 +++ b/crates/rbx_viewer/src/lib.rs
 @@ -43,6 +43,7 @@ mod headless;
@@ -16078,7 +16097,7 @@ index 7c0b222..20b652c 100644
  mod pacing;
  pub mod pick;
 diff --git a/crates/rbx_viewer/src/lighting.rs b/crates/rbx_viewer/src/lighting.rs
-index 9302605..9bbabc5 100644
+index 93026059..9bbabc52 100644
 --- a/crates/rbx_viewer/src/lighting.rs
 +++ b/crates/rbx_viewer/src/lighting.rs
 @@ -355,7 +355,7 @@ impl Lighting {
@@ -16091,7 +16110,7 @@ index 9302605..9bbabc5 100644
          return hours;
      }
 diff --git a/crates/rbx_viewer/src/load.rs b/crates/rbx_viewer/src/load.rs
-index d2cbeef..b665447 100644
+index d2cbeefe..b665447d 100644
 --- a/crates/rbx_viewer/src/load.rs
 +++ b/crates/rbx_viewer/src/load.rs
 @@ -11,7 +11,7 @@ use std::path::Path;
@@ -16155,7 +16174,7 @@ index d2cbeef..b665447 100644
  /// one place property a command line may force.
  #[derive(Clone, Copy, Debug)]
 diff --git a/crates/rbx_viewer/src/load/resident.rs b/crates/rbx_viewer/src/load/resident.rs
-index 24cecdd..10fe323 100644
+index 24cecdd4..10fe3230 100644
 --- a/crates/rbx_viewer/src/load/resident.rs
 +++ b/crates/rbx_viewer/src/load/resident.rs
 @@ -165,7 +165,7 @@ impl Resident {
@@ -16179,7 +16198,7 @@ index 24cecdd..10fe323 100644
  
      /// [`Resident::images`] for the raw bytes of a legacy union asset. Handed
 diff --git a/crates/rbx_viewer/src/quality.rs b/crates/rbx_viewer/src/quality.rs
-index 1325b8e..df5cb97 100644
+index 1325b8eb..df5cb971 100644
 --- a/crates/rbx_viewer/src/quality.rs
 +++ b/crates/rbx_viewer/src/quality.rs
 @@ -33,6 +33,13 @@ impl QualityLevel {
@@ -16197,7 +16216,7 @@ index 1325b8e..df5cb97 100644
      /// screen displays.
      ///
 diff --git a/crates/rbx_viewer/src/quality/auto.rs b/crates/rbx_viewer/src/quality/auto.rs
-index a2bda65..7d553f2 100644
+index a2bda65b..7d553f25 100644
 --- a/crates/rbx_viewer/src/quality/auto.rs
 +++ b/crates/rbx_viewer/src/quality/auto.rs
 @@ -23,8 +23,9 @@ use std::time::Duration;
@@ -16229,7 +16248,7 @@ index a2bda65..7d553f2 100644
              windowed: Duration::ZERO,
              skip: WARMUP_FRAMES,
 diff --git a/crates/rbx_viewer/src/renderer/particles.rs b/crates/rbx_viewer/src/renderer/particles.rs
-index be4a3aa..a6ddcbe 100644
+index be4a3aad..a6ddcbea 100644
 --- a/crates/rbx_viewer/src/renderer/particles.rs
 +++ b/crates/rbx_viewer/src/renderer/particles.rs
 @@ -335,18 +335,20 @@ impl Particles {
@@ -16269,7 +16288,7 @@ index be4a3aa..a6ddcbe 100644
                          })
                      })
 diff --git a/crates/rbx_viewer/src/renderer/particles.wgsl b/crates/rbx_viewer/src/renderer/particles.wgsl
-index f0fedbd..0c522ee 100644
+index f0fedbd7..0c522eea 100644
 --- a/crates/rbx_viewer/src/renderer/particles.wgsl
 +++ b/crates/rbx_viewer/src/renderer/particles.wgsl
 @@ -19,11 +19,14 @@ struct VertexInput {
@@ -16327,7 +16346,7 @@ index f0fedbd..0c522ee 100644
      out.alpha = in.alpha;
      out.light_emission = in.light_emission;
 diff --git a/crates/rbx_viewer/src/renderer/particles/patch.rs b/crates/rbx_viewer/src/renderer/particles/patch.rs
-index a7a2809..1f00d4d 100644
+index a7a28097..1f00d4d2 100644
 --- a/crates/rbx_viewer/src/renderer/particles/patch.rs
 +++ b/crates/rbx_viewer/src/renderer/particles/patch.rs
 @@ -45,19 +45,25 @@ fn carry_over(
@@ -16364,7 +16383,7 @@ index a7a2809..1f00d4d 100644
                  emitter: emitter.clone(),
                  simulation,
 diff --git a/crates/rbx_viewer/src/renderer/particles/pipeline.rs b/crates/rbx_viewer/src/renderer/particles/pipeline.rs
-index b0ec245..a3bb47f 100644
+index b0ec2457..a3bb47f0 100644
 --- a/crates/rbx_viewer/src/renderer/particles/pipeline.rs
 +++ b/crates/rbx_viewer/src/renderer/particles/pipeline.rs
 @@ -11,13 +11,16 @@ use super::super::pipeline::{Target, DEPTH_FORMAT};
@@ -16403,7 +16422,7 @@ index b0ec245..a3bb47f 100644
  
  /// Blended with a premultiplied `(One, OneMinusSrcAlpha)` state on both
 diff --git a/crates/rbx_viewer/src/renderer/particles/tests.rs b/crates/rbx_viewer/src/renderer/particles/tests.rs
-index 2a740c4..8be86a9 100644
+index 2a740c49..8be86a9b 100644
 --- a/crates/rbx_viewer/src/renderer/particles/tests.rs
 +++ b/crates/rbx_viewer/src/renderer/particles/tests.rs
 @@ -25,6 +25,9 @@ pub(super) fn emitter(texture: rbx_assets::AssetRef) -> Emitter {
@@ -16417,7 +16436,7 @@ index 2a740c4..8be86a9 100644
          transparency: flat,
          color: ColorSequence {
 diff --git a/crates/rbx_viewer/src/renderer/switch.rs b/crates/rbx_viewer/src/renderer/switch.rs
-index a7d3fa2..d8e4f78 100644
+index a7d3fa2f..d8e4f782 100644
 --- a/crates/rbx_viewer/src/renderer/switch.rs
 +++ b/crates/rbx_viewer/src/renderer/switch.rs
 @@ -86,6 +86,8 @@ impl Renderer {
@@ -16430,7 +16449,7 @@ index a7d3fa2..d8e4f78 100644
          self.beams.set_target(device, target);
          self.trails.set_target(device, target);
 diff --git a/crates/rbx_viewer/src/scene/beam/attachment.rs b/crates/rbx_viewer/src/scene/beam/attachment.rs
-index a24f96b..45f24a9 100644
+index a24f96b7..45f24a9c 100644
 --- a/crates/rbx_viewer/src/scene/beam/attachment.rs
 +++ b/crates/rbx_viewer/src/scene/beam/attachment.rs
 @@ -37,11 +37,16 @@ impl<'a> ParentMap<'a> {
@@ -16456,7 +16475,7 @@ index a24f96b..45f24a9 100644
  
  fn frame_of(instance: &Instance) -> Option<Mat4> {
 diff --git a/crates/rbx_viewer/src/scene/beam/instance.rs b/crates/rbx_viewer/src/scene/beam/instance.rs
-index f4ac614..eb5934c 100644
+index f4ac614a..eb5934c5 100644
 --- a/crates/rbx_viewer/src/scene/beam/instance.rs
 +++ b/crates/rbx_viewer/src/scene/beam/instance.rs
 @@ -16,7 +16,7 @@ use rbx_reflection::ReflectionDatabase;
@@ -16494,7 +16513,7 @@ index f4ac614..eb5934c 100644
  #[cfg(test)]
  #[path = "instance/tests.rs"]
 diff --git a/crates/rbx_viewer/src/scene/gui/plan/starter.rs b/crates/rbx_viewer/src/scene/gui/plan/starter.rs
-index d2802be..d967d23 100644
+index d2802bed..d967d235 100644
 --- a/crates/rbx_viewer/src/scene/gui/plan/starter.rs
 +++ b/crates/rbx_viewer/src/scene/gui/plan/starter.rs
 @@ -35,6 +35,13 @@ pub(in crate::scene::gui) fn hides_contents(
@@ -16512,7 +16531,7 @@ index d2802be..d967d23 100644
              return database.is_subclass_of(instance.class(), STARTER_GUI_CLASS);
          }
 diff --git a/crates/rbx_viewer/src/scene/particles/emitter.rs b/crates/rbx_viewer/src/scene/particles/emitter.rs
-index 108dd3d..680c7d8 100644
+index 108dd3d8..680c7d8e 100644
 --- a/crates/rbx_viewer/src/scene/particles/emitter.rs
 +++ b/crates/rbx_viewer/src/scene/particles/emitter.rs
 @@ -8,14 +8,14 @@ use std::collections::HashMap;
@@ -16812,7 +16831,7 @@ index 108dd3d..680c7d8 100644
  
  #[cfg(test)]
 diff --git a/crates/rbx_viewer/src/scene/particles/legacy.rs b/crates/rbx_viewer/src/scene/particles/legacy.rs
-index 19a5110..f871691 100644
+index 19a5110a..f8716910 100644
 --- a/crates/rbx_viewer/src/scene/particles/legacy.rs
 +++ b/crates/rbx_viewer/src/scene/particles/legacy.rs
 @@ -160,6 +160,9 @@ fn fire(
@@ -16846,7 +16865,7 @@ index 19a5110..f871691 100644
              (0.0, 0.0),
              (0.3, SPARKLE_STUDS),
 diff --git a/crates/rbx_viewer/src/scene/particles/rng.rs b/crates/rbx_viewer/src/scene/particles/rng.rs
-index c1b60f8..a0485c8 100644
+index c1b60f86..a0485c8d 100644
 --- a/crates/rbx_viewer/src/scene/particles/rng.rs
 +++ b/crates/rbx_viewer/src/scene/particles/rng.rs
 @@ -24,7 +24,7 @@ impl Rng {
@@ -16859,7 +16878,7 @@ index c1b60f8..a0485c8 100644
      }
  
 diff --git a/crates/rbx_viewer/src/scene/particles/sim.rs b/crates/rbx_viewer/src/scene/particles/sim.rs
-index eed0f47..65b3344 100644
+index eed0f47c..65b33443 100644
 --- a/crates/rbx_viewer/src/scene/particles/sim.rs
 +++ b/crates/rbx_viewer/src/scene/particles/sim.rs
 @@ -6,7 +6,7 @@ use glam::{Quat, Vec3};
@@ -17054,7 +17073,7 @@ index eed0f47..65b3344 100644
              transparency: flat(0.0),
              color: rbx_dom::ColorSequence {
 diff --git a/crates/rbx_viewer/src/scene/trail/instance.rs b/crates/rbx_viewer/src/scene/trail/instance.rs
-index 2a63fb2..a0949ec 100644
+index 2a63fb2f..a0949ece 100644
 --- a/crates/rbx_viewer/src/scene/trail/instance.rs
 +++ b/crates/rbx_viewer/src/scene/trail/instance.rs
 @@ -16,7 +16,7 @@ use rbx_reflection::ReflectionDatabase;
@@ -17092,7 +17111,7 @@ index 2a63fb2..a0949ec 100644
  #[cfg(test)]
  #[path = "instance/tests.rs"]
 diff --git a/crates/rbx_viewer/src/textures.rs b/crates/rbx_viewer/src/textures.rs
-index ab152f3..63b0c87 100644
+index ab152f3b..63b0c875 100644
 --- a/crates/rbx_viewer/src/textures.rs
 +++ b/crates/rbx_viewer/src/textures.rs
 @@ -21,11 +21,20 @@ use std::collections::HashMap;
@@ -17130,7 +17149,7 @@ index ab152f3..63b0c87 100644
      Plan {
          faces,
 diff --git a/crates/rbx_viewer/src/textures/sky.rs b/crates/rbx_viewer/src/textures/sky.rs
-index 4bbcc2f..a3e4445 100644
+index 4bbcc2f7..a3e44451 100644
 --- a/crates/rbx_viewer/src/textures/sky.rs
 +++ b/crates/rbx_viewer/src/textures/sky.rs
 @@ -6,7 +6,7 @@ pub(super) mod default;
@@ -17195,7 +17214,7 @@ index 4bbcc2f..a3e4445 100644
          .collect()
  }
 diff --git a/crates/rbx_viewer/src/textures/sky/default.rs b/crates/rbx_viewer/src/textures/sky/default.rs
-index 7d1f8a4..80a1ac0 100644
+index 7d1f8a4e..80a1ac00 100644
 --- a/crates/rbx_viewer/src/textures/sky/default.rs
 +++ b/crates/rbx_viewer/src/textures/sky/default.rs
 @@ -3,8 +3,7 @@
@@ -17255,7 +17274,7 @@ diff --git a/scripts/shots.sh b/scripts/shots.sh
 old mode 100755
 new mode 100644
 diff --git a/vendor/gpui-base/src/input/base/element.rs b/vendor/gpui-base/src/input/base/element.rs
-index 87789d3..0189823 100644
+index 87789d3e..0189823e 100644
 --- a/vendor/gpui-base/src/input/base/element.rs
 +++ b/vendor/gpui-base/src/input/base/element.rs
 @@ -526,7 +526,8 @@ impl<M: InputModeKind> TextElement<M> {
@@ -17297,7 +17316,7 @@ index 87789d3..0189823 100644
                  || state.input_bounds != input_bounds
                  || state.scroll_size != prepaint.scroll_size
 diff --git a/vendor/gpui-base/src/input/base/state.rs b/vendor/gpui-base/src/input/base/state.rs
-index 669def4..7672a29 100644
+index 669def47..7672a294 100644
 --- a/vendor/gpui-base/src/input/base/state.rs
 +++ b/vendor/gpui-base/src/input/base/state.rs
 @@ -2296,6 +2296,13 @@ impl<M: InputModeKind> InputBaseState<M> {
@@ -17400,7 +17419,7 @@ index 669def4..7672a29 100644
      }
  
 diff --git a/vendor/gpui-base/src/popover.rs b/vendor/gpui-base/src/popover.rs
-index 383898d..1f8b637 100644
+index 383898dd..1f8b6374 100644
 --- a/vendor/gpui-base/src/popover.rs
 +++ b/vendor/gpui-base/src/popover.rs
 @@ -3,7 +3,7 @@ use std::rc::Rc;
@@ -17517,7 +17536,7 @@ index 383898d..1f8b637 100644
  }
  
 diff --git a/vendor/gpui-base/src/popup.rs b/vendor/gpui-base/src/popup.rs
-index 6cfc78e..0c7a79d 100644
+index 6cfc78ed..0c7a79d9 100644
 --- a/vendor/gpui-base/src/popup.rs
 +++ b/vendor/gpui-base/src/popup.rs
 @@ -1,5 +1,3 @@
@@ -17621,7 +17640,7 @@ index 6cfc78e..0c7a79d 100644
      use gpui::{Context, Render, px};
  
 diff --git a/vendor/gpui-base/src/tree.rs b/vendor/gpui-base/src/tree.rs
-index 4a6d8aa..d65b8df 100644
+index 4a6d8aa6..d65b8df1 100644
 --- a/vendor/gpui-base/src/tree.rs
 +++ b/vendor/gpui-base/src/tree.rs
 @@ -195,6 +195,7 @@ type RenderItem = dyn Fn(usize, &TreeEntry, TreeEntryState, &mut Window, &mut Ap
@@ -17653,7 +17672,7 @@ index 4a6d8aa..d65b8df 100644
          for item in items {
              self.add_entry(item, 0);
 diff --git a/vendor/gpui-pre/src/elements/div.rs b/vendor/gpui-pre/src/elements/div.rs
-index cba8487..1ae9345 100644
+index cba84870..1ae93451 100644
 --- a/vendor/gpui-pre/src/elements/div.rs
 +++ b/vendor/gpui-pre/src/elements/div.rs
 @@ -378,6 +378,18 @@ impl Interactivity {
@@ -17853,7 +17872,7 @@ index cba8487..1ae9345 100644
                  }
              });
 diff --git a/vendor/gpui-pre/src/elements/list.rs b/vendor/gpui-pre/src/elements/list.rs
-index fa21d10..eb62df3 100644
+index fa21d107..eb62df3b 100644
 --- a/vendor/gpui-pre/src/elements/list.rs
 +++ b/vendor/gpui-pre/src/elements/list.rs
 @@ -1602,14 +1602,17 @@ impl Element for List {
@@ -17883,7 +17902,7 @@ index fa21d10..eb62df3 100644
          });
  
 diff --git a/vendor/gpui-pre/src/gestures.rs b/vendor/gpui-pre/src/gestures.rs
-index ec61157..a5693f1 100644
+index ec611576..a5693f14 100644
 --- a/vendor/gpui-pre/src/gestures.rs
 +++ b/vendor/gpui-pre/src/gestures.rs
 @@ -127,6 +127,8 @@ pub struct GestureTuning {
@@ -17913,7 +17932,7 @@ index ec61157..a5693f1 100644
                          if !duration.is_zero() {
                              let total_distance =
 diff --git a/vendor/gpui-pre/src/window.rs b/vendor/gpui-pre/src/window.rs
-index cf8eded..3ec7dd8 100644
+index cf8eded7..3ec7dd83 100644
 --- a/vendor/gpui-pre/src/window.rs
 +++ b/vendor/gpui-pre/src/window.rs
 @@ -2218,6 +2218,12 @@ impl Window {

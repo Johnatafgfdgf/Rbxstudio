@@ -1,0 +1,21 @@
+{
+  "operations": [
+    {
+      "op": "create",
+      "parent": "Workspace",
+      "class": "Model",
+      "name": "TerracoComJardim"
+    },
+    {
+      "op": "create",
+      "parent": "Workspace.TerracoComJardim",
+      "class": "Part",
+      "name": "Deck",
+      "properties": {
+        "Size": "32, 1, 24",
+        "Position": "0, 4, 0",
+        "Anchored": true
+      }
+    }
+  ]
+}

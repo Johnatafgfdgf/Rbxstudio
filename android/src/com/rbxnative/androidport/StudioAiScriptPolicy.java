@@ -21,6 +21,17 @@ final class StudioAiScriptPolicy {
     return issues;
   }
 
+  /** A concrete mobile input gap, not a claim that a touch binding works in Play. */
+  static JSONArray mobileInputSignals(String code)throws Exception {
+    JSONArray issues=new JSONArray();String executable=mask(code,true);
+    boolean keyboard=Pattern.compile("\\b(?:InputBegan|IsKeyDown)\\b").matcher(executable).find()
+        &&Pattern.compile("\\bEnum\\s*\\.\\s*KeyCode\\s*\\.").matcher(executable).find();
+    boolean touch=Pattern.compile("\\.\\s*(?:Activated|MouseButton1Click|MouseButton1Down|TouchTap|TouchStarted|TouchMoved|TouchEnded)\\s*:").matcher(executable).find()
+        ||Pattern.compile(":\\s*BindAction(?:AtPriority)?\\s*\\([^,]+,[\\s\\S]{0,1200}?,\\s*true\\s*,").matcher(executable).find();
+    if(keyboard&&!touch)issues.put("Entrada apenas por teclado identificada (InputBegan/IsKeyDown e Enum.KeyCode), sem ligação de toque confirmada neste script. O alvo é Android: adicione botões funcionais com Activated/MouseButton1Click ou BindAction com createTouchButton=true, reutilizando a mesma lógica. Comentários e botões sem callback não resolvem essa lacuna. Esta análise estática não substitui Play.");
+    return issues;
+  }
+
   /** Literal local references only; runtime-created objects remain unknown. */
   static JSONArray missingLocalReferences(String scriptPath,String code,StudioAiAgent.Host host)throws Exception {
     JSONArray issues=new JSONArray();Map<String,String> aliases=new HashMap<>();aliases.put("script",scriptPath);

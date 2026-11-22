@@ -249,6 +249,10 @@ public final class StudioDeveloperEngineTest {
   }
 
   public static void main(String[] args) throws Exception {
+        yes(java.util.Arrays.equals(StudioAiPopupBounds.safePadding(0,0,720,1200,0,0,720,1128),new int[]{0,0,0,72}));
+        yes(java.util.Arrays.equals(StudioAiPopupBounds.safePadding(0,0,1280,240,0,0,1280,240),new int[4]));
+        yes(java.util.Arrays.equals(StudioAiPopupBounds.safePadding(0,0,1280,600,0,0,1280,240),new int[]{0,0,0,360}));
+        yes(java.util.Arrays.equals(StudioAiPopupBounds.safePadding(0,36,720,1092,0,36,720,1128),new int[4]));
     if (args.length > 0 && args[0].equals("resources")) {
       JSONArray evidence = new JSONArray();
       for (String repo :

@@ -5006,14 +5006,11 @@ public final class StudioAiHub extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             getWindow().setDecorFitsSystemWindows(false);
             chatHost.setOnApplyWindowInsetsListener((v, insets) -> {
-                android.graphics.Insets safe = insets.getInsets(
-                        android.view.WindowInsets.Type.systemBars()
-                        | android.view.WindowInsets.Type.displayCutout()
-                        | android.view.WindowInsets.Type.ime());
-                v.setPadding(safe.left, safe.top, safe.right, safe.bottom);
-                resizeChat();
+                v.post(this::resizeChat);
                 return android.view.WindowInsets.CONSUMED;
             });
+        } else {
+            chatHost.setOnApplyWindowInsetsListener((v,insets)->{v.post(this::resizeChat);return insets;});
         }
 
         LinearLayout header = chatRow();
@@ -5220,6 +5217,7 @@ public final class StudioAiHub extends Activity {
 
     private void resizeChat() {
         if (chatHost == null || chatPanel == null || chatHost.getHeight() == 0) return;
+        applyChatSafeArea();
         int width = chatHost.getWidth() - chatHost.getPaddingLeft() - chatHost.getPaddingRight();
         int height = chatHost.getHeight() - chatHost.getPaddingTop() - chatHost.getPaddingBottom();
         int availableWidth = Math.max(1, width - dp(16));
@@ -5244,6 +5242,19 @@ public final class StudioAiHub extends Activity {
             if(chatPopup!=null && chatPopup.isShowing() && chatPopupAnchor!=null)
                 chatPanel.post(() -> {if(chatPopup!=null && chatPopup.isShowing() && chatPopupAnchor.isShown())positionChatPopup(chatPopupAnchor,chatPopupAbove);});
         }
+    }
+
+    private void applyChatSafeArea(){
+        android.graphics.Rect safe=new android.graphics.Rect();
+        if(android.os.Build.VERSION.SDK_INT>=30&&chatHost.getRootWindowInsets()!=null){
+            safe.set(getWindowManager().getCurrentWindowMetrics().getBounds());
+            android.graphics.Insets bars=chatHost.getRootWindowInsets().getInsets(android.view.WindowInsets.Type.systemBars()
+                |android.view.WindowInsets.Type.displayCutout()|android.view.WindowInsets.Type.ime());
+            safe.left+=bars.left;safe.top+=bars.top;safe.right-=bars.right;safe.bottom-=bars.bottom;
+        }else chatHost.getWindowVisibleDisplayFrame(safe);
+        int[] at=new int[2];chatHost.getLocationOnScreen(at);
+        int[] p=StudioAiPopupBounds.safePadding(at[0],at[1],chatHost.getWidth(),chatHost.getHeight(),safe.left,safe.top,safe.right,safe.bottom);
+        if(chatHost.getPaddingLeft()!=p[0]||chatHost.getPaddingTop()!=p[1]||chatHost.getPaddingRight()!=p[2]||chatHost.getPaddingBottom()!=p[3])chatHost.setPadding(p[0],p[1],p[2],p[3]);
     }
 
     private boolean chatSettingsOpen() {
@@ -6500,7 +6511,9 @@ public final class StudioAiHub extends Activity {
         // An empty Script.Source is a valid script_read result, not a failed RPC.
         if (text.isEmpty() && "script_read".equals(tool)) return "";
         if (text.isEmpty()) throw new IOException("Resposta MCP vazia");
-        return text.substring(0, Math.min(text.length(), 12000));
+        // The socket already enforces a byte budget. Cutting serialized JSON
+        // here corrupts schemas/trees and prevents the agent from inspecting.
+        return text;
     }
 
     private String readExplorerViaMcp(String paired, int depth) throws Exception {

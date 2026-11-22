@@ -11,6 +11,14 @@ final class StudioAiPopupBounds {
     height = h;
   }
 
+  /** Insets of the safe screen rectangle relative to an already measured host.
+   * A host resized above IME receives zero extra bottom padding. */
+  static int[] safePadding(int x,int y,int w,int h,int left,int top,int right,int bottom){
+    if(w<=0||h<=0||right<=left||bottom<=top||right<=x||bottom<=y||left>=x+w||top>=y+h)return new int[4];
+    int l=Math.max(0,left-x),t=Math.max(0,top-y),r=Math.max(0,x+w-right),b=Math.max(0,y+h-bottom);
+    return new int[]{Math.min(l,w-1),Math.min(t,h-1),Math.min(r,Math.max(0,w-l-1)),Math.min(b,Math.max(0,h-t-1))};
+  }
+
   static StudioAiPopupBounds place(
       int left,
       int top,
