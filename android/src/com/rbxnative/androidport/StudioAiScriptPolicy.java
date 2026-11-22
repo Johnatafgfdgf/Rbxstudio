@@ -58,6 +58,43 @@ final class StudioAiScriptPolicy {
     return issues;
   }
 
+  /**
+   * An explicit, target-level inspection must precede writing Luau.
+   * The generic project-tree snapshot alone cannot ground a script placement.
+   * Resolve folders created in the same batch to their existing ancestor.
+   */
+  static Set<String> requiredScriptScopes(JSONArray operations) throws StudioAiAgent.Refusal {
+    Set<String> created = new HashSet<>();
+    for (int i = 0; i < operations.length(); i++) {
+      JSONObject op = operations.optJSONObject(i);
+      if (op != null && "create".equals(op.optString("op"))
+          && op.opt("parent") instanceof String && !op.optString("name").isEmpty())
+        created.add(op.optString("parent") + "." + op.optString("name"));
+    }
+    Set<String> scopes = new LinkedHashSet<>();
+    for (int i = 0; i < operations.length(); i++) {
+      JSONObject op = operations.optJSONObject(i);
+      if (op == null) continue;
+      String verb = op.optString("op");
+      JSONObject values = op.optJSONObject("properties");
+      boolean scriptCreate = "create".equals(verb)
+          && Arrays.asList("Script", "LocalScript", "ModuleScript").contains(op.optString("class"));
+      boolean scriptWrite = scriptCreate || "edit_script".equals(verb)
+          || "script_replace".equals(verb)
+          || ("set".equals(verb) && values != null && values.has("Source"));
+      if (!scriptWrite) continue;
+      Object destination = scriptCreate ? op.opt("parent") : op.opt("path");
+      if (!(destination instanceof String) || ((String) destination).isEmpty())
+        throw new StudioAiAgent.Refusal(
+            "Para escrever Luau, use um caminho textual do Explorer, inspecione o destino e tente novamente.");
+      String scope = (String) destination;
+      while (created.contains(scope) && scope.contains("."))
+        scope = scope.substring(0, scope.lastIndexOf('.'));
+      scopes.add(scope);
+    }
+    return scopes;
+  }
+
   static void check(JSONArray operations, Set<String> ids, StudioAiAgent.Host host)
       throws Exception {
     for (int i = 0; i < operations.length(); i++) {
@@ -127,12 +164,35 @@ final class StudioAiScriptPolicy {
                 "WorldOrientation"));
     for (Map.Entry<String, String> entry : classes.entrySet()) {
       if (ambiguous.contains(entry.getKey())) continue;
+      // A ParticleEmitter emits from its BasePart/Attachment parent; it cannot be moved.
+      if ("ParticleEmitter".equals(entry.getValue())) {
+        Matcher parents = Pattern.compile(
+            "\\b" + Pattern.quote(entry.getKey()) + "\\.Parent\\s*=\\s*([A-Za-z_][A-Za-z0-9_]*)\\b")
+            .matcher(executable);
+        while (parents.find()) {
+          String variable = parents.group(1);
+          String kind = classes.get(variable);
+          if (kind != null && !ambiguous.contains(variable)
+              && !Arrays.asList("Attachment", "Part", "MeshPart", "WedgePart",
+                  "CornerWedgePart", "UnionOperation", "TrussPart", "SpawnLocation",
+                  "Seat", "VehicleSeat", "Terrain").contains(kind))
+            throw new StudioAiAgent.Refusal(
+                "ParticleEmitter.Parent não pode ser " + kind
+                + ". Use Attachment ou BasePart como emissor espacial.");
+        }
+      }
       Matcher assignments =
           Pattern.compile(
                   "\\b" + Pattern.quote(entry.getKey()) + "\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=(?!=)")
               .matcher(executable);
       while (assignments.find()) {
         String property = assignments.group(1);
+        if ("ParticleEmitter".equals(entry.getValue())
+            && Arrays.asList("Position", "WorldPosition", "CFrame", "WorldCFrame")
+                .contains(property))
+          throw new StudioAiAgent.Refusal(
+              "ParticleEmitter." + property
+              + " não existe na API Roblox. Mova o Attachment ou BasePart pai.");
         if (derived.contains(property)) continue;
         JSONObject schema = schemas.get(entry.getValue());
         if (schema == null) {
