@@ -1,0 +1,75 @@
+{
+  "date": "2026-11-22",
+  "commit_tested": "5bdafed67d16bbca039136fc1b8e292502dd1fc6",
+  "unit_suites": {
+    "passed": 29,
+    "total": 29,
+    "raw_report": "ci-regressions/report.json"
+  },
+  "native_dom_tests": {
+    "passed": 20,
+    "total": 20,
+    "raw_log": "ci-contracts.log",
+    "scope": "Production DOM/reflection/Luau/binary persistence; not Android MCP socket, renderer or Play"
+  },
+  "compiled_android_java_sources": 53,
+  "android_chat_ui": {
+    "scope": "Production Java Activity in Android 29 software emulator using a UI-only APK; no native viewport, MCP, Play or user keys",
+    "plus_landscape": "passed",
+    "scroll_to_last_item": "passed",
+    "keyboard": "captured",
+    "plus_portrait": "passed",
+    "android_keystore_restart": "passed"
+  },
+  "android_keyboard_targets_independently_checked": [
+    {
+      "name": "Modelos e anexos",
+      "bounds": [
+        32,
+        150,
+        98,
+        213
+      ]
+    },
+    {
+      "name": "Enviar mensagem",
+      "bounds": [
+        621,
+        150,
+        687,
+        213
+      ]
+    }
+  ],
+  "android_keystore": {
+    "scope": "Production connection registry and credential backend using real Android Keystore, synthetic secrets, app process restart, CRUD and task-state storage. No live provider or user keys.",
+    "write": "passed",
+    "restart_read": "passed",
+    "edit_delete": "passed",
+    "plaintext_absence": "passed"
+  },
+  "runs": {
+    "contracts": "https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/45045180861",
+    "android_ui": "https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/45045180860"
+  },
+  "ci_artifact_sha256": {
+    "contracts": "5ef7fc0b4884e561118f550ca2015984122c71a20821c37f142d72a9701a55c5",
+    "android_ui": "d9cba3092df97ba85c8f231e662ff8c779c3a8375bb3442e1fa41f07db131c84"
+  },
+  "apk": "8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06",
+  "api_scope": "Prior real Gemini 3.1/3.5 tests. Earlier tracked API traces remain available; newest post-checkpoint traces/maps were lost in workspace restart. No new live provider calls in this closing recovery.",
+  "prior_session_observed_results_not_recovered_as_raw_files": {
+    "gui_operations": 13,
+    "gui_edit_operations": 8,
+    "luau_repair_operations": 1,
+    "localized_rain_operations": 6,
+    "handoff_cumulative_operations": 19,
+    "directed_inventory_repair_operations_before_503": 9
+  },
+  "inventory_verdict": "partial; no gameplay approval, Tool/Handle and requested ServerStorage placement still pending",
+  "physical_poco_x6_5g": "not_tested",
+  "native_android_mcp_or_viewport": "not_tested",
+  "official_roblox_play_and_publication": "not_tested",
+  "automatic_live_failover_across_keys_or_providers": "not_tested",
+  "completion": "Incremental R10 delivery, not complete autonomy or zero bugs"
+}

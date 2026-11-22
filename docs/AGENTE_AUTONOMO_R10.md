@@ -77,8 +77,8 @@ Os resultados atuais e seus arquivos estão em `docs/evidence/r10/`. Um `complet
 
 | Verificação | Alcance |
 |---|---|
-| Regressões | 29/29 suítes passaram novamente em 22/11: contratos Java, protocolos, permissões, assets, geradores e limites. Não são 29 testes funcionais Android. |
-| Nativo | 20/20 casos passaram: DOM, reflexão, Luau, snapshots, aliases GUI/espaciais, persistência binária e geradores. Transporte sem renderer/JNI/socket Android. |
+| Regressões | 29/29 suítes passaram novamente no GitHub Actions em 22/11, commit 5bdafed: contratos Java, protocolos, permissões, assets, geradores e limites. Não são 29 testes funcionais Android. Relatório em ci-regressions/report.json. |
+| Nativo | 20/20 casos passaram novamente no mesmo CI: DOM, reflexão, Luau, snapshots, aliases GUI/espaciais, persistência binária e geradores. Transporte sem renderer/JNI/socket Android. Log em ci-contracts.log. |
 | Java | Todos os 53 arquivos embarcados compilaram com SDK 35/Java 11. |
 | API | Catálogo oficial Gemini HTTP 200. Novas tarefas em Gemini 3.1 e 3.5 Flash Lite; outros provedores têm contratos, não testes online com chaves reais nesta sessão. |
 | GUI | Nova configuração futurista: 13 operações; edição posterior: 8 operações, preservando ScreenGui e adaptando Source. Salvas e reabertas; não testadas em Play/renderização. |
@@ -86,8 +86,8 @@ Os resultados atuais e seus arquivos estão em `docs/evidence/r10/`. Um `complet
 | Chuva localizada | 16 chamadas Gemini 3.1, 6 operações confirmadas, mapa salvo. Script/efeitos estruturais criados; aparência, som e gameplay não verificados. Tentativas anteriores que falharam estão preservadas. |
 | Retomada | Gemini 3.5 aplicou e salvou 19 operações; interrupção controlada após escrita confirmada. Gemini 3.1 retomou o mapa e Task State persistidos, concluiu sem novo lote e sem duplicar operações. Mesma chave/provedor; não é teste online de failover entre contas. |
 | Android Keystore | Conexões múltiplas, seleção/modelo, alteração/exclusão e Task State passaram em Android 29 após force-stop/reabertura real. Segredos sintéticos, backend AES-GCM/Keystore real e inspeção de ausência de texto claro. Não houve chamada a provedores nesse teste. |
-| Android | Capturas/reporte da execução atual, quando disponíveis, em `android-ui/`; Activity Java em APK de teste sem viewport nativo. Não é certificação do APK ARM64 completo. |
-| Build ARM64 | Resultado, hashes e assinatura em `apk-inspection.json` quando produzido. Editor nativo recompilado; player local preservado da R9. |
+| Android | CI aprovado: menu + horizontal/vertical dentro da tela, rolagem até o último item, anexos/enviar com alvos inteiros de 63 px acima do teclado e Keystore após reinício de processo. Novas capturas reais inspecionadas em android-ui-ci/. Activity Java em APK exclusivo de teste sem viewport nativo. Não é certificação do APK ARM64 completo. |
+| Build ARM64 | APK preservado e hash conferido; assinatura v3 revalidada com a biblioteca oficial apksig, mesmo certificado da R9. As três bibliotecas AArch64 possuem segmentos LOAD alinhados em 16 KiB. Editor nativo recompilado na sessão anterior; player preservado da R9. Hashes e inspeção em apk-inspection.json e apk-signature-recovered.log. |
 | Dispositivo físico | POCO X6 5G indisponível: sem medição de FPS, bateria, memória ou estabilidade real nesse aparelho. |
 
 O teste de inventário gerou fontes reais e salvou o mapa, mas a leitura independente encontrou falhas funcionais: controles I/F sem toque, coleta fora do contêiner percorrido, Tool sem Handle confirmado e ausência da entrega/equipagem pedida. O retorno `completed:true` dessas tentativas NÃO é aprovação do sistema. A barreira mobile foi ampliada após essa evidência; o resultado final está no resumo de validação. A revisão estática de remotes/referências é limitada e não substitui segurança e testes de gameplay. Builds que avisam sobre ausência de cloudflared/Luau-LSP Android não incluem esses binários automaticamente.
@@ -97,6 +97,14 @@ Na sessão anterior, uma correção dirigida pelo diagnóstico independente, com
 O chat foi exercitado no emulador Android 29: menus dentro da tela, rolagem, Keystore após reinício de processo e teclado. A inspeção de capturas encontrou dois defeitos reais: corte do alvo na navegação vertical e corte parcial do composer com IME. Os insets estáveis e o layout compacto foram corrigidos. O teste final exigiu largura/altura mínima de 60 px nos botões de anexos/enviar e observou 63 px. As capturas locais dessa execução foram perdidas; a nova execução em CI e seus artefatos devem ser consultados separadamente. Isso não foi um teste do viewport nativo ou de Play no POCO.
 
 O CI inicial de contratos falhou antes dos testes porque setup-android tentou instalar o pacote obsoleto `tools`. A configuração passou a solicitar `platform-tools` explicitamente. O workflow de compatibilidade do engine passou naquele commit. Nenhuma falha de preparação é contabilizada como teste funcional aprovado.
+
+A nova execução de [contratos e DOM](https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/45045180861) passou integralmente; o [teste Android do chat](https://github.com/Johnatafgfdgf/Rbxstudio/actions/runs/45045180860) também passou. Seus artefatos foram baixados e conferidos pelo SHA-256 fornecido pelo GitHub. As novas capturas foram inspecionadas e estão disponíveis no pacote de evidências. O teste inclui callbacks/taps de menus, XML de acessibilidade e armazenamento Android real com segredos sintéticos. Não usa chaves de API do usuário, nem testa o renderer, MCP Android ou gameplay.
+
+![Campo e botões inteiros acima do teclado Android](evidence/r10/android-ui-ci/chat-keyboard.png)
+
+![Menu do chat com acesso à última opção](evidence/r10/android-ui-ci/menu-after-scroll.png)
+
+APK: `RBX-Studio-0.6.11-Agente-R10-ARM64.apk`, versão 26 / 0.6.11-r10, pacote `com.rbxnative.androidport.experimental.aichat.r8`. SHA-256: `8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06`. Código e revisão no [PR #3 em rascunho](https://github.com/Johnatafgfdgf/Rbxstudio/pull/3). O resumo legível por máquina é `docs/evidence/r10/validation-summary.json`.
 
 ## Pendências
 

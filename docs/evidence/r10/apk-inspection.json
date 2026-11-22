@@ -1,0 +1,98 @@
+{
+  "scope": "Actual preserved APK hash, native ELF and current recovered source inspection; no device launch",
+  "apk_sha256": "8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06",
+  "bytes": 66503755,
+  "libraries": [
+    {
+      "name": "lib/arm64-v8a/librbx_android_studio.so",
+      "sha256": "fcf978d596baf15706fe8e38ff76f3c83a6aaef57527d40ac482e8a004fd8f14",
+      "bytes": 158630320,
+      "machine": 183,
+      "load_alignment": [
+        16384,
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "name": "lib/arm64-v8a/librbx_android_player.so",
+      "sha256": "239d235fad88c571307dc913ccec3f3d1f67a574a2176df6d97104fdabe011cb",
+      "bytes": 44375968,
+      "machine": 183,
+      "load_alignment": [
+        16384,
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "name": "lib/arm64-v8a/libc++_shared.so",
+      "sha256": "ab4e6c71b96b851de45a8a9bd86369e7dbc2130a44b3b4520564be94847910f2",
+      "bytes": 9236352,
+      "machine": 183,
+      "load_alignment": [
+        16384,
+        16384,
+        16384,
+        16384
+      ]
+    }
+  ],
+  "java_source_sha256": {
+    "android/src/com/rbxnative/androidport/StudioServices.java": "a1dc6be7e532851e6260b3bf8258b3e566d5c8ced729d9db9ee01f1f5485f27d",
+    "android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java": "edb4b6ba543827d1b1a8833d724e4ea272fa4effb165892de931525087efc66a",
+    "android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java": "9cea64e0a1f57814d59139248d9c6fb6b1214c424a967bdfd98a6027670e156f",
+    "android/src/com/rbxnative/androidport/StudioRoblox.java": "b4e4bc9602359ed6cf3803ff8930b5b685a1122f8db105aac05c7f57f733e11f",
+    "android/src/com/rbxnative/androidport/StudioRobloxDecalPlacement.java": "df3606708bc391139c9eac57edaf677e6dace2aa3e31df0e54caf99a2d65b977",
+    "android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java": "1dbf984e0830d16b5e641be43cb50a121f99a7a97d1cf9656d0b675ab1a4dd31",
+    "android/src/com/rbxnative/androidport/RbxGeometry.java": "6bbffeea267e0652d09d10645bddb238d19b76f91e5854681b76cef98adfa054",
+    "android/src/com/rbxnative/androidport/StudioRobloxCapabilities.java": "bf259a28378f70dc32a2069f478e68d11ef5249ee6e136507440102ac0baa452",
+    "android/src/com/rbxnative/androidport/StudioAiVisualBuilder.java": "1fe3695c2cfd5f0f55e8d7364e8de21b7a07056581e1667b4b4c241f083ea9fc",
+    "android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java": "34b5ef29d52af7f8f6b48c05799a3e31d766e920b47eb107e8eea1f2a94a2b29",
+    "android/src/com/rbxnative/androidport/StudioAiUsage.java": "951e16ab4fa9750494875bd2cc1626b047906d6cfec40f391ef685da6f71ac39",
+    "android/src/com/rbxnative/androidport/StudioAiReferences.java": "75a6aa5dbefee69045649e8e77575c15c64ffde082deea3384261ae12b2eab8f",
+    "android/src/com/rbxnative/androidport/StudioAiScriptResult.java": "228c113a090ab1e236a5cb6a6b4a671f3092e5c02f6baf03f7db36f56725315b",
+    "android/src/com/rbxnative/androidport/StudioAiPopupBounds.java": "1a247a5565ea17640d0fe2eb7491255f300d46873102b90919fe098b4ccdfedb",
+    "android/src/com/rbxnative/androidport/StudioAiHub.java": "17fff3ffb79b5421168059a56301664f5dad28716708db4d81d44c1528dcf0b3",
+    "android/src/com/rbxnative/androidport/StudioAiConversation.java": "4e9f839cf30e28626ad4fba763a8b1dd8e654bc131473b9f0a12854bf111ca89",
+    "android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java": "c2234e763b0c73259ae33bb1a54b57ed9a8e381d48b4d76066c1a01a01479c3b",
+    "android/src/com/rbxnative/androidport/StudioDecalVisualReview.java": "39cd6dda2fcffef42db50279704ecdc5ebfa442e3667c3aef8a0973cf3a11803",
+    "android/src/com/rbxnative/androidport/StudioPlayFrameRules.java": "723bae05d197ca18c71ddaeb7421594e26e2e373175b8dd0fcb669a0d07ce543",
+    "android/src/com/rbxnative/androidport/StudioProceduralCompiler.java": "7798d740182dbbf0c8eadaf4d019f53a81110860e295c422c9c02624f01d48aa",
+    "android/src/com/rbxnative/androidport/StudioGeminiModels.java": "a3b3605d6bf42bee331341551be5179a94a55422e55ec65f75775d3d5a5f5a63",
+    "android/src/com/rbxnative/androidport/StudioDocuments.java": "ed818f2f1b30bb3bc3cd202ff93ecf9fe1576a9ba2f4c4813b14ab79573e6662",
+    "android/src/com/rbxnative/androidport/StudioAssetInspector.java": "c1f111a7666df9fe830f7018314c4f935a2da22c433933d09eacb5b96136132f",
+    "android/src/com/rbxnative/androidport/RookPlayerActivity.java": "3b7aac58b1282ca4bdf2292bee3c4bfc91bcb8c6f72fbc96864490dba6d9be82",
+    "android/src/com/rbxnative/androidport/StudioDeveloperEngine.java": "d7f2421e684ba4c9ed8aaaf6a0d4b272fcf4218e6a31b0f9f3b5a750ae9033b3",
+    "android/src/com/rbxnative/androidport/StudioPlayer.java": "c39f1836caf8a6ca5e057d90b3685f8bd07f38809311b22d0b2227c169d94267",
+    "android/src/com/rbxnative/androidport/StudioAiStoredDocument.java": "b5502571602efa6c867e4522e66a9a046bf772f47ee487764baa4084bfd1fa01",
+    "android/src/com/rbxnative/androidport/StudioVisualReview.java": "759935a6e4cb2f7d3343c8f54e61c572ef1da56dbe8c43d7ea4d081eb13dc541",
+    "android/src/com/rbxnative/androidport/StudioAiProjectEdit.java": "24a1c0084bc333739f18733fcc96be26e1155c30447ce071d640cb2fd2773df1",
+    "android/src/com/rbxnative/androidport/PlayLoadingView.java": "531fc4152f022babd8b86e391deab78463758e6297783a34a9d18ec1cb2e9394",
+    "android/src/com/rbxnative/androidport/StudioVisualCompare.java": "d1e4ddb511db2d8f1bb61fd6912f1e0fba4cf86f3ea78015eef283964f4c34b9",
+    "android/src/com/rbxnative/androidport/StudioAiAgent.java": "c52a1e5d8fbddd080d22b561b14141d93ea958633586ef458a3925def0583c0d",
+    "android/src/com/rbxnative/androidport/StudioAiAttachment.java": "823a1f411aa748769306b7e32c77804b29439cf706bf8f25982231bc66ca4bcd",
+    "android/src/com/rbxnative/androidport/RbxBrand.java": "b04637befc4d1cfea1dad7f237e51d2859687dc72eea24ad183d916bb6fd1c42",
+    "android/src/com/rbxnative/androidport/StudioAiScriptPolicy.java": "bf26e36025f0afc6d71916f9f586b239b778b1fca2b06afbaffb6cf5878a9493",
+    "android/src/com/rbxnative/androidport/StudioWindow.java": "9e64192ae41c36b0c080ad4f1b0bc57362b97100a9f59ee6b4f812bad38935b1",
+    "android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java": "09f9bcc460ca96105f7e3e183a8c4c56c4e0be7dbb98ecf3e6f34fe04cc1d20f",
+    "android/src/com/rbxnative/androidport/StudioDeveloperKnowledge.java": "9292a94c41ea738fffc16bff1c48323497c577036b72baeeaa21a750888a5568",
+    "android/src/com/rbxnative/androidport/StudioAiToolProtocol.java": "60b3289afc34e826ea0a1a475794c0a764ea17d86c406c66716af3d812ba7ecf",
+    "android/src/com/rbxnative/androidport/StudioResourceHub.java": "14023ed0fcc1af8b26aff0216f3262b8e42607a987fec46a5944c866b251a748",
+    "android/src/com/rbxnative/androidport/StudioAiConnections.java": "59117806d0789c29b1425d6cb044d2c344cf71a1a3a342535ab8c385aa2c51de",
+    "android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java": "5d8ca76fe205376af0c1b01b618b2a7d995a92fcef10e27f29d2ae10167b8d51",
+    "android/src/com/rbxnative/androidport/StudioAiRetry.java": "2faee36dce190dc5bcfe71ef2bc4fe1b6f4fa86a2d36357200f6d0c299ea0203",
+    "android/src/com/rbxnative/androidport/StudioAiTheme.java": "c370a42644b0a2dd8f3036ee542e963aedfabd9bd20bf2b64c7b908b751f8fb9",
+    "android/src/dev/gpui/mobile/GpuiActivity.java": "13f38bcfb807763f45cca75419dae4a7ad08f973f2bb4831908f44bd2950d0a1",
+    "android/src/dev/gpui/mobile/GpuiImeView.java": "843837a2708e55353ab913c0b2e26dbe9e540ab200e15dcea4b6e2aa30e508bc",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiClipboard.java": "5a96022358e49ddac81178e56c60ec4800d1782eaa0ebca7d0728331cca2d166",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiFilePicker.java": "594dc317ed38d347821c56c94791847c8ebb481c3f044a8fda966c337b0d3256",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPickerActivity.java": "e6c2654110c81bb7abea029bee0fb3a0852f438327146b244c94254e606d2f79",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiDeepLink.java": "0788a2dcbadafa5d03f7c0230a9977ece2880814d073b849c890fad87fb9eeac",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiPlatformView.java": "47c72f462bf1b5ab3126d195f5521cb605ab54b66825005c19f142d22e564da2",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiVideoPlayer.java": "f203f88ba766eea6a2fef5217c89648373060afae2063a951b8765c45ce2b28c",
+    "upstream/gpui-mobile/example/android/gradle/app/src/main/java/dev/gpui/mobile/GpuiCamera.java": "e979d4d056ae4ca7f2e91602a8b7bc4c0f53c03a226f15d1dd36d232029e1cd7"
+  }
+}

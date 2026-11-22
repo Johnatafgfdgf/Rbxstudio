@@ -1,0 +1,412 @@
+
+2026-11-22T16:41:26.1682555Z ##[group]Run python3 scripts/check_android_java.py
+2026-11-22T16:41:26.1682924Z [36;1mpython3 scripts/check_android_java.py[0m
+2026-11-22T16:41:26.1706880Z shell: /usr/bin/bash -e {0}
+2026-11-22T16:41:26.1707119Z env:
+2026-11-22T16:41:26.1707447Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:26.1707863Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:26.1708194Z   CARGO_HOME: /home/runner/.cargo
+2026-11-22T16:41:26.1708467Z   CARGO_INCREMENTAL: 0
+2026-11-22T16:41:26.1708679Z   CARGO_TERM_COLOR: always
+2026-11-22T16:41:26.1708957Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-11-22T16:41:26.1709227Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-11-22T16:41:26.1709511Z   JSON_JAR: /home/runner/work/_temp/json.jar
+2026-11-22T16:41:26.1709925Z ##[endgroup]
+2026-11-22T16:41:29.4772362Z Note: Some input files use or override a deprecated API.
+2026-11-22T16:41:29.4773332Z Note: Recompile with -Xlint:deprecation for details.
+2026-11-22T16:41:29.4993054Z Compiled all 53 shipped Android Java files
+2026-11-22T16:41:29.5073991Z ##[group]Run python3 scripts/run_ai_regressions.py target/ai-regressions
+2026-11-22T16:41:29.5074568Z [36;1mpython3 scripts/run_ai_regressions.py target/ai-regressions[0m
+2026-11-22T16:41:29.5101178Z shell: /usr/bin/bash -e {0}
+2026-11-22T16:41:29.5101468Z env:
+2026-11-22T16:41:29.5101798Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:29.5102261Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:29.5102631Z   CARGO_HOME: /home/runner/.cargo
+2026-11-22T16:41:29.5102890Z   CARGO_INCREMENTAL: 0
+2026-11-22T16:41:29.5103131Z   CARGO_TERM_COLOR: always
+2026-11-22T16:41:29.5103389Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-11-22T16:41:29.5103688Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-11-22T16:41:29.5104021Z   JSON_JAR: /home/runner/work/_temp/json.jar
+2026-11-22T16:41:29.5104324Z ##[endgroup]
+2026-11-22T16:41:43.3721312Z {
+2026-11-22T16:41:43.3741801Z   "scope": "Deterministic Java/unit/static transport regressions; no live API or Android runtime",
+2026-11-22T16:41:43.3742415Z   "passed": 29,
+2026-11-22T16:41:43.3742774Z   "total": 29,
+2026-11-22T16:41:43.3743038Z   "tests": [
+2026-11-22T16:41:43.3743302Z     {
+2026-11-22T16:41:43.3743629Z       "test": "test_ai_agent_java.py",
+2026-11-22T16:41:43.3744023Z       "passed": true,
+2026-11-22T16:41:43.3744335Z       "exit_code": 0
+2026-11-22T16:41:43.3744596Z     },
+2026-11-22T16:41:43.3744862Z     {
+2026-11-22T16:41:43.3745177Z       "test": "test_ai_android_touch_java.py",
+2026-11-22T16:41:43.3745518Z       "passed": true,
+2026-11-22T16:41:43.3745838Z       "exit_code": 0
+2026-11-22T16:41:43.3746093Z     },
+2026-11-22T16:41:43.3746346Z     {
+2026-11-22T16:41:43.3746690Z       "test": "test_ai_asset_inspector.py",
+2026-11-22T16:41:43.3746975Z       "passed": true,
+2026-11-22T16:41:43.3747226Z       "exit_code": 0
+2026-11-22T16:41:43.3747436Z     },
+2026-11-22T16:41:43.3747643Z     {
+2026-11-22T16:41:43.3747898Z       "test": "test_ai_connections_java.py",
+2026-11-22T16:41:43.3748164Z       "passed": true,
+2026-11-22T16:41:43.3748394Z       "exit_code": 0
+2026-11-22T16:41:43.3748612Z     },
+2026-11-22T16:41:43.3748811Z     {
+2026-11-22T16:41:43.3749075Z       "test": "test_ai_decal_face_correction_java.py",
+2026-11-22T16:41:43.3749367Z       "passed": true,
+2026-11-22T16:41:43.3749605Z       "exit_code": 0
+2026-11-22T16:41:43.3750041Z     },
+2026-11-22T16:41:43.3750281Z     {
+2026-11-22T16:41:43.3750544Z       "test": "test_ai_decal_play_evidence_java.py",
+2026-11-22T16:41:43.3750824Z       "passed": true,
+2026-11-22T16:41:43.3751064Z       "exit_code": 0
+2026-11-22T16:41:43.3751260Z     },
+2026-11-22T16:41:43.3751449Z     {
+2026-11-22T16:41:43.3751715Z       "test": "test_ai_decal_visual_review_java.py",
+2026-11-22T16:41:43.3752000Z       "passed": true,
+2026-11-22T16:41:43.3752263Z       "exit_code": 0
+2026-11-22T16:41:43.3752460Z     },
+2026-11-22T16:41:43.3752652Z     {
+2026-11-22T16:41:43.3752910Z       "test": "test_ai_lighting_java.py",
+2026-11-22T16:41:43.3753177Z       "passed": true,
+2026-11-22T16:41:43.3753404Z       "exit_code": 0
+2026-11-22T16:41:43.3753611Z     },
+2026-11-22T16:41:43.3753805Z     {
+2026-11-22T16:41:43.3754041Z       "test": "test_ai_part_matrix.py",
+2026-11-22T16:41:43.3754328Z       "passed": true,
+2026-11-22T16:41:43.3754550Z       "exit_code": 0
+2026-11-22T16:41:43.3754760Z     },
+2026-11-22T16:41:43.3754959Z     {
+2026-11-22T16:41:43.3755208Z       "test": "test_ai_part_style_java.py",
+2026-11-22T16:41:43.3755476Z       "passed": true,
+2026-11-22T16:41:43.3755689Z       "exit_code": 0
+2026-11-22T16:41:43.3755905Z     },
+2026-11-22T16:41:43.3756130Z     {
+2026-11-22T16:41:43.3756373Z       "test": "test_ai_plan_guards.py",
+2026-11-22T16:41:43.3756636Z       "passed": true,
+2026-11-22T16:41:43.3757085Z       "exit_code": 0
+2026-11-22T16:41:43.3757331Z     },
+2026-11-22T16:41:43.3757515Z     {
+2026-11-22T16:41:43.3757763Z       "test": "test_ai_play_activation_java.py",
+2026-11-22T16:41:43.3758155Z       "passed": true,
+2026-11-22T16:41:43.3758381Z       "exit_code": 0
+2026-11-22T16:41:43.3758624Z     },
+2026-11-22T16:41:43.3758805Z     {
+2026-11-22T16:41:43.3759044Z       "test": "test_ai_play_equip_java.py",
+2026-11-22T16:41:43.3759318Z       "passed": true,
+2026-11-22T16:41:43.3759538Z       "exit_code": 0
+2026-11-22T16:41:43.3760137Z     },
+2026-11-22T16:41:43.3760330Z     {
+2026-11-22T16:41:43.3760562Z       "test": "test_ai_play_frame_java.py",
+2026-11-22T16:41:43.3760876Z       "passed": true,
+2026-11-22T16:41:43.3761104Z       "exit_code": 0
+2026-11-22T16:41:43.3761326Z     },
+2026-11-22T16:41:43.3761514Z     {
+2026-11-22T16:41:43.3761739Z       "test": "test_ai_play_probe_java.py",
+2026-11-22T16:41:43.3762020Z       "passed": true,
+2026-11-22T16:41:43.3762235Z       "exit_code": 0
+2026-11-22T16:41:43.3762453Z     },
+2026-11-22T16:41:43.3762643Z     {
+2026-11-22T16:41:43.3762891Z       "test": "test_ai_play_scene_java.py",
+2026-11-22T16:41:43.3763172Z       "passed": true,
+2026-11-22T16:41:43.3763398Z       "exit_code": 0
+2026-11-22T16:41:43.3763614Z     },
+2026-11-22T16:41:43.3763798Z     {
+2026-11-22T16:41:43.3764028Z       "test": "test_ai_play_smoke_java.py",
+2026-11-22T16:41:43.3764297Z       "passed": true,
+2026-11-22T16:41:43.3764523Z       "exit_code": 0
+2026-11-22T16:41:43.3764854Z     },
+2026-11-22T16:41:43.3765053Z     {
+2026-11-22T16:41:43.3765312Z       "test": "test_ai_polyhaven_catalog_java.py",
+2026-11-22T16:41:43.3765617Z       "passed": true,
+2026-11-22T16:41:43.3765852Z       "exit_code": 0
+2026-11-22T16:41:43.3766077Z     },
+2026-11-22T16:41:43.3766284Z     {
+2026-11-22T16:41:43.3766550Z       "test": "test_ai_polyhaven_integrity_java.py",
+2026-11-22T16:41:43.3766870Z       "passed": true,
+2026-11-22T16:41:43.3767113Z       "exit_code": 0
+2026-11-22T16:41:43.3767303Z     },
+2026-11-22T16:41:43.3767594Z     {
+2026-11-22T16:41:43.3767871Z       "test": "test_ai_roblox_decal_placement_java.py",
+2026-11-22T16:41:43.3768169Z       "passed": true,
+2026-11-22T16:41:43.3768409Z       "exit_code": 0
+2026-11-22T16:41:43.3768640Z     },
+2026-11-22T16:41:43.3768873Z     {
+2026-11-22T16:41:43.3769125Z       "test": "test_ai_roblox_decal_upload_java.py",
+2026-11-22T16:41:43.3769406Z       "passed": true,
+2026-11-22T16:41:43.3769654Z       "exit_code": 0
+2026-11-22T16:41:43.3770010Z     },
+2026-11-22T16:41:43.3770210Z     {
+2026-11-22T16:41:43.3770441Z       "test": "test_ai_tool_gui_java.py",
+2026-11-22T16:41:43.3770696Z       "passed": true,
+2026-11-22T16:41:43.3770949Z       "exit_code": 0
+2026-11-22T16:41:43.3771194Z     },
+2026-11-22T16:41:43.3771384Z     {
+2026-11-22T16:41:43.3771636Z       "test": "test_ai_visual_compare_java.py",
+2026-11-22T16:41:43.3771903Z       "passed": true,
+2026-11-22T16:41:43.3772164Z       "exit_code": 0
+2026-11-22T16:41:43.3772363Z     },
+2026-11-22T16:41:43.3772551Z     {
+2026-11-22T16:41:43.3772818Z       "test": "test_ai_visual_review_java.py",
+2026-11-22T16:41:43.3773105Z       "passed": true,
+2026-11-22T16:41:43.3773382Z       "exit_code": 0
+2026-11-22T16:41:43.3773585Z     },
+2026-11-22T16:41:43.3773770Z     {
+2026-11-22T16:41:43.3774025Z       "test": "test_developer_engine_java.py",
+2026-11-22T16:41:43.3774334Z       "passed": true,
+2026-11-22T16:41:43.3774636Z       "exit_code": 0
+2026-11-22T16:41:43.3775026Z     },
+2026-11-22T16:41:43.3775257Z     {
+2026-11-22T16:41:43.3775561Z       "test": "test_inserted_model_audit_java.py",
+2026-11-22T16:41:43.3775893Z       "passed": true,
+2026-11-22T16:41:43.3776202Z       "exit_code": 0
+2026-11-22T16:41:43.3776444Z     },
+2026-11-22T16:41:43.3776723Z     {
+2026-11-22T16:41:43.3777005Z       "test": "test_mcp_receipt.py",
+2026-11-22T16:41:43.3777327Z       "passed": true,
+2026-11-22T16:41:43.3777707Z       "exit_code": 0
+2026-11-22T16:41:43.3777925Z     },
+2026-11-22T16:41:43.3778163Z     {
+2026-11-22T16:41:43.3778601Z       "test": "test_model_dependencies_java.py",
+2026-11-22T16:41:43.3778989Z       "passed": true,
+2026-11-22T16:41:43.3779283Z       "exit_code": 0
+2026-11-22T16:41:43.3779476Z     },
+2026-11-22T16:41:43.3779917Z     {
+2026-11-22T16:41:43.3780210Z       "test": "test_toolbox_source_scanner.py",
+2026-11-22T16:41:43.3780497Z       "passed": true,
+2026-11-22T16:41:43.3780752Z       "exit_code": 0
+2026-11-22T16:41:43.3780955Z     }
+2026-11-22T16:41:43.3781181Z   ]
+2026-11-22T16:41:43.3781380Z }
+2026-11-22T16:41:43.3805720Z ##[group]Run python3 scripts/test_ai_project_native.py
+2026-11-22T16:41:43.3806105Z [36;1mpython3 scripts/test_ai_project_native.py[0m
+2026-11-22T16:41:43.3831549Z shell: /usr/bin/bash -e {0}
+2026-11-22T16:41:43.3831822Z env:
+2026-11-22T16:41:43.3832135Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:43.3832561Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-22T16:41:43.3832915Z   CARGO_HOME: /home/runner/.cargo
+2026-11-22T16:41:43.3833198Z   CARGO_INCREMENTAL: 0
+2026-11-22T16:41:43.3833421Z   CARGO_TERM_COLOR: always
+2026-11-22T16:41:43.3833667Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-11-22T16:41:43.3833995Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-11-22T16:41:43.3834264Z   JSON_JAR: /home/runner/work/_temp/json.jar
+2026-11-22T16:41:43.3834549Z ##[endgroup]
+2026-11-22T16:41:44.7038976Z Eight procedural compilers, recovery, retrieval, memory, resource guards and 10000 popup bounds passed.
+2026-11-22T16:41:46.4210719Z [1m[92m    Updating[0m crates.io index
+2026-11-22T16:41:46.6408531Z [1m[92m     Locking[0m 116 packages to highest compatible versions
+2026-11-22T16:41:46.6423002Z [1m[92m      Adding[0m generic-array v0.14.7 [1m[33m(available: v0.14.9)[0m
+2026-11-22T16:41:46.6556766Z [1m[92m Downloading[0m crates ...
+2026-11-22T16:41:46.7123120Z [1m[92m  Downloaded[0m generic-array v0.14.7
+2026-11-22T16:41:46.7209526Z [1m[92m  Downloaded[0m itoa v1.0.19
+2026-11-22T16:41:46.7251569Z [1m[92m  Downloaded[0m adler2 v2.0.1
+2026-11-22T16:41:46.7258235Z [1m[92m  Downloaded[0m block-buffer v0.10.4
+2026-11-22T16:41:46.7261389Z [1m[92m  Downloaded[0m cfg-if v1.0.5
+2026-11-22T16:41:46.7266901Z [1m[92m  Downloaded[0m equivalent v1.0.3
+2026-11-22T16:41:46.7270508Z [1m[92m  Downloaded[0m utf8-zero v0.8.1
+2026-11-22T16:41:46.7286764Z [1m[92m  Downloaded[0m crypto-common v0.1.7
+2026-11-22T16:41:46.7319544Z [1m[92m  Downloaded[0m jobserver v0.1.35
+2026-11-22T16:41:46.7329010Z [1m[92m  Downloaded[0m version_check v0.9.5
+2026-11-22T16:41:46.7340409Z [1m[92m  Downloaded[0m autocfg v1.5.1
+2026-11-22T16:41:46.7348176Z [1m[92m  Downloaded[0m either v1.19.0
+2026-11-22T16:41:46.7354465Z [1m[92m  Downloaded[0m lock_api v0.4.14
+2026-11-22T16:41:46.7360715Z [1m[92m  Downloaded[0m digest v0.10.7
+2026-11-22T16:41:46.7386766Z [1m[92m  Downloaded[0m zeroize v1.9.2
+2026-11-22T16:41:46.7396299Z [1m[92m  Downloaded[0m getrandom v0.2.17
+2026-11-22T16:41:46.7410349Z [1m[92m  Downloaded[0m subtle v2.6.1
+2026-11-22T16:41:46.7415884Z [1m[92m  Downloaded[0m percent-encoding v2.3.2
+2026-11-22T16:41:46.7419991Z [1m[92m  Downloaded[0m rustc-hash v2.1.3
+2026-11-22T16:41:46.7426191Z [1m[92m  Downloaded[0m md-5 v0.10.6
+2026-11-22T16:41:46.7432567Z [1m[92m  Downloaded[0m zmij v1.0.23
+2026-11-22T16:41:46.7439489Z [1m[92m  Downloaded[0m httparse v1.10.1
+2026-11-22T16:41:46.7451564Z [1m[92m  Downloaded[0m serde_spanned v1.1.3
+2026-11-22T16:41:46.7458458Z [1m[92m  Downloaded[0m scopeguard v1.2.0
+2026-11-22T16:41:46.7465534Z [1m[92m  Downloaded[0m thiserror-impl v2.0.21
+2026-11-22T16:41:46.7471776Z [1m[92m  Downloaded[0m thiserror v2.0.21
+2026-11-22T16:41:46.7495478Z [1m[92m  Downloaded[0m toml_datetime v0.7.5+spec-1.1.0
+2026-11-22T16:41:46.7501856Z [1m[92m  Downloaded[0m pkg-config v0.3.34
+2026-11-22T16:41:46.7507733Z [1m[92m  Downloaded[0m shlex v2.0.1
+2026-11-22T16:41:46.7513711Z [1m[92m  Downloaded[0m toml_writer v1.2.0+spec-1.1.0
+2026-11-22T16:41:46.7520064Z [1m[92m  Downloaded[0m untrusted v0.9.0
+2026-11-22T16:41:46.7526927Z [1m[92m  Downloaded[0m find-msvc-tools v0.1.15
+2026-11-22T16:41:46.7534370Z [1m[92m  Downloaded[0m getrandom v0.4.3
+2026-11-22T16:41:46.7549928Z [1m[92m  Downloaded[0m crc32fast v1.5.5
+2026-11-22T16:41:46.7560846Z [1m[92m  Downloaded[0m simd-adler32 v0.3.10
+2026-11-22T16:41:46.7571162Z [1m[92m  Downloaded[0m mlua-sys v0.13.0
+2026-11-22T16:41:46.7588088Z [1m[92m  Downloaded[0m parking_lot v0.12.5
+2026-11-22T16:41:46.7598354Z [1m[92m  Downloaded[0m rustls-pki-types v1.16.0
+2026-11-22T16:41:46.7609388Z [1m[92m  Downloaded[0m once_cell v1.21.4
+2026-11-22T16:41:46.7619929Z [1m[92m  Downloaded[0m smallvec v1.16.6
+2026-11-22T16:41:46.7626455Z [1m[92m  Downloaded[0m base64 v0.22.1
+2026-11-22T16:41:46.7646750Z [1m[92m  Downloaded[0m quote v1.0.47
+2026-11-22T16:41:46.7657454Z [1m[92m  Downloaded[0m log v0.4.35
+2026-11-22T16:41:46.7669123Z [1m[92m  Downloaded[0m twox-hash v2.1.5
+2026-11-22T16:41:46.7678905Z [1m[92m  Downloaded[0m flate2 v1.1.11
+2026-11-22T16:41:46.7700544Z [1m[92m  Downloaded[0m proc-macro2 v1.0.107
+2026-11-22T16:41:46.7713546Z [1m[92m  Downloaded[0m toml v0.9.12+spec-1.1.0
+2026-11-22T16:41:46.7730481Z [1m[92m  Downloaded[0m unicode-ident v1.0.27
+2026-11-22T16:41:46.7742428Z [1m[92m  Downloaded[0m ureq-proto v0.7.1
+2026-11-22T16:41:46.7761128Z [1m[92m  Downloaded[0m uuid v1.29.3
+2026-11-22T16:41:46.7776761Z [1m[92m  Downloaded[0m bytes v1.12.2
+2026-11-22T16:41:46.7792046Z [1m[92m  Downloaded[0m lz4_flex v0.14.2
+2026-11-22T16:41:46.7801334Z [1m[92m  Downloaded[0m num-traits v0.2.19
+2026-11-22T16:41:46.7811514Z [1m[92m  Downloaded[0m indexmap v2.14.2
+2026-11-22T16:41:46.7830998Z [1m[92m  Downloaded[0m serde_core v1.0.229
+2026-11-22T16:41:46.7843422Z [1m[92m  Downloaded[0m toml_parser v1.1.6+spec-1.1.0
+2026-11-22T16:41:46.7854003Z [1m[92m  Downloaded[0m parking_lot_core v0.9.12
+2026-11-22T16:41:46.7863206Z [1m[92m  Downloaded[0m serde_derive v1.0.229
+2026-11-22T16:41:46.7876292Z [1m[92m  Downloaded[0m miniz_oxide v0.9.1
+2026-11-22T16:41:46.7888377Z [1m[92m  Downloaded[0m base64 v0.23.1
+2026-11-22T16:41:46.7905446Z [1m[92m  Downloaded[0m http v1.5.0
+2026-11-22T16:41:46.7922784Z [1m[92m  Downloaded[0m serde v1.0.229
+2026-11-22T16:41:46.7938688Z [1m[92m  Downloaded[0m memchr v2.8.3
+2026-11-22T16:41:46.7962848Z [1m[92m  Downloaded[0m hashbrown v0.17.2
+2026-11-22T16:41:46.7990428Z [1m[92m  Downloaded[0m rustls-webpki v0.103.17
+2026-11-22T16:41:46.8006067Z [1m[92m  Downloaded[0m ruzstd v0.9.1
+2026-11-22T16:41:46.8030223Z [1m[92m  Downloaded[0m typenum v1.20.1
+2026-11-22T16:41:46.8046507Z [1m[92m  Downloaded[0m unicode-segmentation v1.13.3
+2026-11-22T16:41:46.8062133Z [1m[92m  Downloaded[0m cc v1.11.3
+2026-11-22T16:41:46.8084254Z [1m[92m  Downloaded[0m serde_json v1.0.154
+2026-11-22T16:41:46.8115763Z [1m[92m  Downloaded[0m webpki-roots v1.0.12
+2026-11-22T16:41:46.8133469Z [1m[92m  Downloaded[0m winnow v0.7.15
+2026-11-22T16:41:46.8174945Z [1m[92m  Downloaded[0m winnow v1.0.5
+2026-11-22T16:41:46.8216443Z [1m[92m  Downloaded[0m zlib-rs v0.6.8
+2026-11-22T16:41:46.8242016Z [1m[92m  Downloaded[0m ureq v3.5.2
+2026-11-22T16:41:46.8272820Z [1m[92m  Downloaded[0m quick-xml v0.41.0
+2026-11-22T16:41:46.8304115Z [1m[92m  Downloaded[0m mlua v0.12.2
+2026-11-22T16:41:46.8373444Z [1m[92m  Downloaded[0m syn v3.0.10
+2026-11-22T16:41:46.8429922Z [1m[92m  Downloaded[0m bstr v1.14.0
+2026-11-22T16:41:46.8474724Z [1m[92m  Downloaded[0m rustls v0.23.46
+2026-11-22T16:41:46.8536050Z [1m[92m  Downloaded[0m luau0-src v0.22.0+luau740
+2026-11-22T16:41:46.8651388Z [1m[92m  Downloaded[0m libc v0.2.191
+2026-11-22T16:41:46.8837284Z [1m[92m  Downloaded[0m ring v0.17.14
+2026-11-22T16:41:46.9567847Z [1m[92m   Compiling[0m libc v0.2.191
+2026-11-22T16:41:46.9569056Z [1m[92m   Compiling[0m cfg-if v1.0.5
+2026-11-22T16:41:48.8726175Z [1m[92m   Compiling[0m shlex v2.0.1
+2026-11-22T16:41:50.7825374Z [1m[92m   Compiling[0m proc-macro2 v1.0.107
+2026-11-22T16:41:53.1771040Z [1m[92m   Compiling[0m find-msvc-tools v0.1.15
+2026-11-22T16:41:53.7312510Z [1m[92m   Compiling[0m quote v1.0.47
+2026-11-22T16:41:53.7978886Z [1m[92m   Compiling[0m unicode-ident v1.0.27
+2026-11-22T16:41:54.2390689Z [1m[92m   Compiling[0m jobserver v0.1.35
+2026-11-22T16:41:54.2596159Z [1m[92m   Compiling[0m serde_core v1.0.229
+2026-11-22T16:41:54.3395384Z [1m[92m   Compiling[0m cc v1.11.3
+2026-11-22T16:41:54.3978345Z [1m[92m   Compiling[0m syn v3.0.10
+2026-11-22T16:41:55.3104252Z [1m[92m   Compiling[0m version_check v0.9.5
+2026-11-22T16:41:55.4341668Z [1m[92m   Compiling[0m generic-array v0.14.7
+2026-11-22T16:41:55.5532392Z [1m[92m   Compiling[0m memchr v2.8.3
+2026-11-22T16:41:56.1180596Z [1m[92m   Compiling[0m typenum v1.20.1
+2026-11-22T16:41:56.4199433Z [1m[92m   Compiling[0m itoa v1.0.19
+2026-11-22T16:41:56.5309003Z [1m[92m   Compiling[0m thiserror v2.0.21
+2026-11-22T16:41:56.6519385Z [1m[92m   Compiling[0m thiserror-impl v2.0.21
+2026-11-22T16:41:56.8018474Z [1m[92m   Compiling[0m ring v0.17.14
+2026-11-22T16:41:56.9720299Z [1m[92m   Compiling[0m zmij v1.0.23
+2026-11-22T16:41:57.3128874Z [1m[92m   Compiling[0m serde v1.0.229
+2026-11-22T16:41:57.3933348Z [1m[92m   Compiling[0m zeroize v1.9.2
+2026-11-22T16:41:57.4649540Z [1m[92m   Compiling[0m serde_json v1.0.154
+2026-11-22T16:41:57.5144551Z [1m[92m   Compiling[0m rustls-pki-types v1.16.0
+2026-11-22T16:41:58.1827456Z [1m[92m   Compiling[0m crypto-common v0.1.7
+2026-11-22T16:41:58.2137879Z [1m[92m   Compiling[0m block-buffer v0.10.4
+2026-11-22T16:41:58.2519375Z [1m[92m   Compiling[0m serde_derive v1.0.229
+2026-11-22T16:41:59.5818237Z [1m[92m   Compiling[0m luau0-src v0.22.0+luau740
+2026-11-22T16:41:59.6736253Z [1m[92m   Compiling[0m getrandom v0.2.17
+2026-11-22T16:41:59.7367228Z [1m[92m   Compiling[0m pkg-config v0.3.34
+2026-11-22T16:41:59.9430200Z [1m[92m   Compiling[0m untrusted v0.9.0
+2026-11-22T16:41:59.9767548Z [1m[92m   Compiling[0m parking_lot_core v0.9.12
+2026-11-22T16:42:00.0365391Z [1m[92m   Compiling[0m autocfg v1.5.1
+2026-11-22T16:42:00.1868947Z [1m[92m   Compiling[0m crc32fast v1.5.5
+2026-11-22T16:42:00.2534637Z [1m[92m   Compiling[0m httparse v1.10.1
+2026-11-22T16:42:00.3623464Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-11-22T16:42:00.4082104Z [1m[92m   Compiling[0m mlua-sys v0.13.0
+2026-11-22T16:42:00.7181881Z [1m[92m   Compiling[0m digest v0.10.7
+2026-11-22T16:42:01.3731569Z [1m[92m   Compiling[0m rbx_dom v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_dom)
+2026-11-22T16:42:02.4628382Z [1m[92m   Compiling[0m adler2 v2.0.1
+2026-11-22T16:42:02.5000671Z [1m[92m   Compiling[0m simd-adler32 v0.3.10
+2026-11-22T16:42:02.6029145Z [1m[92m   Compiling[0m rustls v0.23.46
+2026-11-22T16:42:02.6441361Z [1m[92m   Compiling[0m bytes v1.12.2
+2026-11-22T16:42:02.9565956Z [1m[92m   Compiling[0m scopeguard v1.2.0
+2026-11-22T16:42:02.9794109Z [1m[92m   Compiling[0m getrandom v0.4.3
+2026-11-22T16:42:03.0375421Z [1m[92m   Compiling[0m log v0.4.35
+2026-11-22T16:42:03.1013391Z [1m[92m   Compiling[0m smallvec v1.16.6
+2026-11-22T16:42:03.2911168Z [1m[92m   Compiling[0m lock_api v0.4.14
+2026-11-22T16:42:03.4112719Z [1m[92m   Compiling[0m http v1.5.0
+2026-11-22T16:42:03.9220984Z [1m[92m   Compiling[0m miniz_oxide v0.9.1
+2026-11-22T16:42:04.2542697Z [1m[92m   Compiling[0m rbx_reflection v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_reflection)
+2026-11-22T16:42:05.2584494Z [1m[92m   Compiling[0m md-5 v0.10.6
+2026-11-22T16:42:08.3704084Z [1m[92m   Compiling[0m rustls-webpki v0.103.17
+2026-11-22T16:42:09.5453062Z [1m[92m   Compiling[0m base64 v0.23.1
+2026-11-22T16:42:09.7079976Z [1m[92m   Compiling[0m twox-hash v2.1.5
+2026-11-22T16:42:09.7492923Z [1m[92m   Compiling[0m winnow v1.0.5
+2026-11-22T16:42:09.9167196Z [1m[92m   Compiling[0m once_cell v1.21.4
+2026-11-22T16:42:09.9985829Z [1m[92m   Compiling[0m subtle v2.6.1
+2026-11-22T16:42:13.5879118Z [1m[92m   Compiling[0m toml_parser v1.1.6+spec-1.1.0
+2026-11-22T16:42:13.9488348Z [1m[92m   Compiling[0m ruzstd v0.9.1
+2026-11-22T16:42:14.7224220Z [1m[92m   Compiling[0m ureq-proto v0.7.1
+2026-11-22T16:42:15.2268089Z [1m[92m   Compiling[0m flate2 v1.1.11
+2026-11-22T16:42:15.7309451Z [1m[92m   Compiling[0m parking_lot v0.12.5
+2026-11-22T16:42:15.9874532Z [1m[92m   Compiling[0m webpki-roots v1.0.12
+2026-11-22T16:42:16.0204933Z [1m[92m   Compiling[0m serde_spanned v1.1.3
+2026-11-22T16:42:16.0611196Z [1m[92m   Compiling[0m toml_datetime v0.7.5+spec-1.1.0
+2026-11-22T16:42:16.1855989Z [1m[92m   Compiling[0m bstr v1.14.0
+2026-11-22T16:42:16.4221286Z [1m[92m   Compiling[0m quick-xml v0.41.0
+2026-11-22T16:42:16.9817919Z [1m[92m   Compiling[0m utf8-zero v0.8.1
+2026-11-22T16:42:17.0365825Z [1m[92m   Compiling[0m percent-encoding v2.3.2
+2026-11-22T16:42:17.1031635Z [1m[92m   Compiling[0m toml_writer v1.2.0+spec-1.1.0
+2026-11-22T16:42:17.1806829Z [1m[92m   Compiling[0m lz4_flex v0.14.2
+2026-11-22T16:42:17.2931023Z [1m[92m   Compiling[0m winnow v0.7.15
+2026-11-22T16:42:18.0393452Z [1m[92m   Compiling[0m base64 v0.22.1
+2026-11-22T16:42:18.1866577Z [1m[92m   Compiling[0m either v1.19.0
+2026-11-22T16:42:18.2724230Z [1m[92m   Compiling[0m rustc-hash v2.1.3
+2026-11-22T16:42:18.3044846Z [1m[92m   Compiling[0m rbx_xml v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_xml)
+2026-11-22T16:42:18.7603185Z [1m[92m   Compiling[0m toml v0.9.12+spec-1.1.0
+2026-11-22T16:42:19.7018146Z [1m[92m   Compiling[0m rbx_binary v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_binary)
+2026-11-22T16:42:20.9704935Z [1m[92m   Compiling[0m ureq v3.5.2
+2026-11-22T16:42:22.2470263Z [1m[92m   Compiling[0m uuid v1.29.3
+2026-11-22T16:42:22.4341080Z [1m[92m   Compiling[0m unicode-segmentation v1.13.3
+2026-11-22T16:42:22.6283910Z [1m[92m   Compiling[0m rbx_terrain v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_terrain)
+2026-11-22T16:42:29.0625685Z [1m[92m   Compiling[0m mlua v0.12.2
+2026-11-22T16:42:30.2600671Z [1m[92m   Compiling[0m rbx_lua v0.1.0 (/home/runner/work/Rbxstudio/Rbxstudio/upstream/rbx-native/crates/rbx_lua)
+2026-11-22T16:42:32.4817257Z [1m[92m   Compiling[0m rbx-agent-dom-regression v0.0.0 (/tmp/rbx-native-agent-_e2sl474)
+2026-11-22T16:42:37.6722859Z [1m[33mwarning[0m[1m: unused variable: `world`[0m
+2026-11-22T16:42:37.6723430Z   [1m[94m--> [0msrc/lib.rs:22:13
+2026-11-22T16:42:37.6723754Z    [1m[94m|[0m
+2026-11-22T16:42:37.6724316Z [1m[94m22[0m [1m[94m|[0m         let world=dom.new_instance("Workspace","Workspace",None);
+2026-11-22T16:42:37.6725359Z    [1m[94m|[0m             [1m[33m^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_world`[0m
+2026-11-22T16:42:37.6725944Z    [1m[94m|[0m
+2026-11-22T16:42:37.6726539Z    [1m[94m= [0m[1mnote[0m: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+2026-11-22T16:42:37.6726934Z
+2026-11-22T16:42:38.4925516Z [1m[33mwarning[0m: `rbx-agent-dom-regression` (lib test) generated 1 warning (run `cargo fix --lib -p rbx-agent-dom-regression --tests` to apply 1 suggestion)
+2026-11-22T16:42:38.4933452Z [1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 53.13s
+2026-11-22T16:42:38.5103680Z [1m[92m     Running[0m unittests src/lib.rs (target/agent-native-tests/debug/build/rbx-agent-dom-regression/e8e45fb5e59a6237/out/rbx_agent_dom_regression-e8e45fb5e59a6237)
+2026-11-22T16:42:38.5205612Z
+2026-11-22T16:42:38.5206262Z running 20 tests
+2026-11-22T16:42:38.6260202Z test generated_regressions::animation ... ok
+2026-11-22T16:42:38.6290765Z test generated_regressions::editable_visual_builder ... ok
+2026-11-22T16:42:38.6291245Z test generated_regressions::camera ... ok
+2026-11-22T16:42:38.6291834Z test generated_regressions::legacy_gui_aliases_write_the_actual_serialized_properties ... ok
+2026-11-22T16:42:38.6292387Z test generated_regressions::building ... ok
+2026-11-22T16:42:38.6294407Z test generated_regressions::gui_literals_source_property_and_empty_source_replacement_are_real ... ok
+2026-11-22T16:42:38.6300744Z test generated_regressions::layered_vfx ... ok
+2026-11-22T16:42:38.6310526Z test generated_regressions::spatial_audio ... ok
+2026-11-22T16:42:38.6314516Z test generated_regressions::task_snapshot_reopens_and_refreshes_the_same_dom ... ok
+2026-11-22T16:42:38.6330709Z test terrain::tests::unreadable_bytes_are_reported_not_replaced ... ok
+2026-11-22T16:42:38.6360500Z test terrain::tests::writes_round_trip_as_binary_strings ... ok
+2026-11-22T16:42:38.6383398Z test generated_regressions::ui_with_callback ... ok
+2026-11-22T16:42:38.6400568Z test tests::contextual_effect_arguments_are_preserved ... ok
+2026-11-22T16:42:38.6410706Z test tests::failed_script_batch_is_atomic_before_install ... ok
+2026-11-22T16:42:38.6411303Z test tests::animation_and_terrain_edits_are_persisted ... ok
+2026-11-22T16:42:38.6411844Z test tests::untrusted_asset_is_inspected_before_grafting ... ok
+2026-11-22T16:42:38.6412461Z test tests::inventory_cross_service_roundtrip_and_existing_object_ids ... ok
+2026-11-22T16:42:38.6413092Z test tests::virtual_spatial_properties_preserve_the_other_half_of_cframe ... ok
+2026-11-22T16:42:38.6413607Z test generated_regressions::scatter ... ok
+2026-11-22T16:42:38.7654646Z test generated_regressions::terrain ... ok
+2026-11-22T16:42:38.7654908Z
+2026-11-22T16:42:38.7655278Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+2026-11-22T16:42:38.7655596Z
+2026-11-22T16:42:38.7670536Z [1m[92m   Doc-tests[0m rbx_agent_dom_regression
+2026-11-22T16:42:39.3032277Z
+2026-11-22T16:42:39.3032722Z running 0 tests
+2026-11-22T16:42:39.3032878Z
+2026-11-22T16:42:39.3037510Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-22T16:42:39.3037873Z
+2026-11-22T16:42:39.3257863Z

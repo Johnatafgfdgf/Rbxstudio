@@ -5,6 +5,12 @@
   "previous_final_apk_recovered": false,
   "late_code_fixes_reapplied": true,
   "prior_uncommitted_capture_and_handoff_traces_recovered": false,
-  "new_native_build": "in_progress",
-  "scope": "No claim that lost artifacts were recovered."
+  "new_native_build": "passed_in_prior_session_preserved_apk",
+  "scope": "No claim that lost artifacts were recovered.",
+  "final_code_recovered_from_checkpoint": 5,
+  "preserved_apk_sha256": "8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06",
+  "post_checkpoint_commit_1dedef6_recovered": false,
+  "latest_local_captures_recovered": false,
+  "new_ci_captures_available": true,
+  "closing_code_commit": "5bdafed67d16bbca039136fc1b8e292502dd1fc6"
 }
