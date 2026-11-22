@@ -151,49 +151,19 @@ final class StudioAiScriptPolicy {
       if (old != null && !old.equals(kind)) ambiguous.add(variable);
     }
     Map<String, JSONObject> schemas = new HashMap<>();
-    Set<String> derived =
-        new HashSet<>(
-            Arrays.asList(
-                "Name",
-                "Parent",
-                "Position",
-                "Orientation",
-                "Rotation",
-                "WorldPosition",
-                "WorldCFrame",
-                "WorldOrientation"));
+    // Generic runtime property check for statically inferred Instance.new classes.
+    // The editor exposes native DOM properties; CFrame-backed spatial aliases are
+    // accepted only for classes whose reflected schema actually supports CFrame.
+    // Unknown dynamic variables stay unclassified: never pretend regex is a Luau type checker.
     for (Map.Entry<String, String> entry : classes.entrySet()) {
       if (ambiguous.contains(entry.getKey())) continue;
-      // A ParticleEmitter emits from its BasePart/Attachment parent; it cannot be moved.
-      if ("ParticleEmitter".equals(entry.getValue())) {
-        Matcher parents = Pattern.compile(
-            "\\b" + Pattern.quote(entry.getKey()) + "\\.Parent\\s*=\\s*([A-Za-z_][A-Za-z0-9_]*)\\b")
-            .matcher(executable);
-        while (parents.find()) {
-          String variable = parents.group(1);
-          String kind = classes.get(variable);
-          if (kind != null && !ambiguous.contains(variable)
-              && !Arrays.asList("Attachment", "Part", "MeshPart", "WedgePart",
-                  "CornerWedgePart", "UnionOperation", "TrussPart", "SpawnLocation",
-                  "Seat", "VehicleSeat", "Terrain").contains(kind))
-            throw new StudioAiAgent.Refusal(
-                "ParticleEmitter.Parent não pode ser " + kind
-                + ". Use Attachment ou BasePart como emissor espacial.");
-        }
-      }
       Matcher assignments =
           Pattern.compile(
                   "\\b" + Pattern.quote(entry.getKey()) + "\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=(?!=)")
               .matcher(executable);
       while (assignments.find()) {
         String property = assignments.group(1);
-        if ("ParticleEmitter".equals(entry.getValue())
-            && Arrays.asList("Position", "WorldPosition", "CFrame", "WorldCFrame")
-                .contains(property))
-          throw new StudioAiAgent.Refusal(
-              "ParticleEmitter." + property
-              + " não existe na API Roblox. Mova o Attachment ou BasePart pai.");
-        if (derived.contains(property)) continue;
+        if ("Name".equals(property) || "Parent".equals(property)) continue;
         JSONObject schema = schemas.get(entry.getValue());
         if (schema == null) {
           if (schemas.size() >= 12)
@@ -206,13 +176,16 @@ final class StudioAiScriptPolicy {
           schemas.put(entry.getValue(), schema);
         }
         JSONObject properties = schema.optJSONObject("properties");
-        if (properties != null && !properties.has(property))
+        boolean reflected = properties != null && properties.has(property);
+        boolean spatialAlias = Arrays.asList("Position", "Orientation", "Rotation",
+            "WorldPosition", "WorldCFrame", "WorldOrientation").contains(property);
+        boolean cframeBacked = properties != null
+            && (properties.has("CFrame") || properties.has("WorldCFrame"));
+        if (!reflected && !(spatialAlias && cframeBacked))
           throw new StudioAiAgent.Refusal(
-              entry.getValue()
-                  + "."
-                  + property
-                  + " não foi confirmado pelo schema do editor. Consulte editor_schema e adapte o"
-                  + " código.");
+              entry.getValue() + "." + property
+              + " não foi confirmado para esta classe pelo schema do editor. "
+              + "Inspecione a documentação oficial Roblox e a classe real antes de corrigir o código.");
       }
     }
   }
