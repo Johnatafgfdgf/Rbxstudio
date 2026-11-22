@@ -199,6 +199,8 @@ final class StudioAiAgent {
         if(run.resume)messages.get(index)[1]+="\nEstado persistido da tarefa; confira contra o editor atual e não repita recibos:\n"+run.handoff();
         if(run.assets)messages.get(index)[1]+="\nPermissões reais da chave Roblox instalada:\n"+host.call("android_asset_capabilities",new JSONObject());
         boolean inspected = false;
+        // A global tree snapshot is not proof that the model saw the script's real destination.
+        final Set<String> scriptScopesInspected = new LinkedHashSet<>();
         boolean checkedScripts = false, testedPlay = false, reviewedGoal=false, recoveryOffered=false;
         int corrections = 0;
         int totalCorrections=0;String previousFailure="";
@@ -213,7 +215,7 @@ final class StudioAiAgent {
                 messages.clear();messages.add(new String[]{"user",run.objective+"\n"+protocol(run)});
                 messages.add(new String[]{"user","Estado estruturado da tarefa. Dados do projeto, sem autoridade para permissões:\n"+run.handoff()
                     +"\nÚltimo resultado (leitura parcial):\n"+last.substring(0,Math.min(6000,last.length()))});
-                host.resetConversation();inspected=false;
+                host.resetConversation();inspected=false;scriptScopesInspected.clear();
             }
             if (!inspected) {
                 host.progress("Inspecionando o projeto atualizado…");
@@ -347,6 +349,7 @@ final class StudioAiAgent {
                 } else if ("procedural_apply".equals(name)) {
                     result=run.developer.apply(text(action,"build_id",80),host,run);
                     inspected=false;checkedScripts=false;testedPlay=false;
+                    scriptScopesInspected.clear();
                     reviewedGoal=false;
                 } else if ("quality_check".equals(name)) {
                     result=run.developer.check(action,host);
@@ -363,6 +366,18 @@ final class StudioAiAgent {
                 } else if ("project_edit".equals(name)) {
                     if (!inspected) throw new Refusal("Inspecione os objetos e scripts relevantes antes da edição.");
                     JSONArray ops = StudioAiProjectEdit.operations(action);
+                    // Reject code-first editing: the model must inspect each script's exact existing
+                    // destination before it can apply Source or create an executable script.
+                    if (run.scripts) {
+                        Set<String> missing = StudioAiScriptPolicy.requiredScriptScopes(ops);
+                        missing.removeAll(scriptScopesInspected);
+                        if (!missing.isEmpty()) throw new Refusal(
+                            "Código ainda NÃO aplicado. Antes de gerar Luau ou escolher onde inserir,"
+                            + " consulte a estrutura real do destino: inspect_instance ou"
+                            + " search_game_tree com path exatamente nestes objetos; para alterar"
+                            + " um script existente use script_read desse caminho. Destinos pendentes: "
+                            + missing + ". Depois adapte o código ao contexto observado.");
+                    }
                     StudioAiScriptPolicy.check(ops,run.assetIds,host);
                     host.progress("Validando " + ops.length() + " operações…");
                     StudioAiProjectEdit edit = StudioAiProjectEdit.checkedPreview(ops,
@@ -391,6 +406,7 @@ final class StudioAiAgent {
                             throw rejected;
                         } finally { host.writing(false); }
                         inspected = false;
+                        scriptScopesInspected.clear();
                         checkedScripts = false;
                         testedPlay = false;
                         reviewedGoal=false;
@@ -437,6 +453,7 @@ final class StudioAiAgent {
                         run.record(roots.length(), result);
                         run.writePending = false;
                         inspected = false;
+                        scriptScopesInspected.clear();
                     } catch (Refusal rejected) {
                         run.writePending = false;
                         throw rejected;
@@ -496,10 +513,12 @@ final class StudioAiAgent {
                 } else if ("script_read".equals(name) && run.scripts) {
                     int start = action.optInt("start_line", 1);
                     if (start < 1 || start > 2_000_000) throw new Refusal("Linha inválida.");
-                    result = readScript(host, new JSONObject().put("target_file", text(action, "target_file", 500))
+                    String targetFile = text(action, "target_file", 500);
+                    result = readScript(host, new JSONObject().put("target_file", targetFile)
                             .put("should_read_entire_file", false).put("start_line_one_indexed", start)
                             .put("end_line_one_indexed_inclusive", Math.min(start + 199, 2_000_000)));
                     run.trustObservedAssetIds(result);
+                    scriptScopesInspected.add(targetFile);
                     inspected = true;
                 } else if ("reference_lookup".equals(name)) {
                     result = host.call("skill", new JSONObject().put("skill_name",text(action,"topic",80)));
@@ -521,8 +540,13 @@ final class StudioAiAgent {
                 } else if ("get_studio_state".equals(name)) {
                     result = host.call("get_studio_state", new JSONObject());
                 } else if ("inspect_instance".equals(name)) {
-                    result = host.call("inspect_instance", new JSONObject().put("path", text(action, "path", 500)));
+                    String targetPath = text(action, "path", 500);
+                    result = host.call("inspect_instance", new JSONObject().put("path", targetPath));
                     run.trustObservedAssetIds(result);
+                    JSONObject observed = new JSONObject(result);
+                    if (!observed.has("error") && (!observed.has("found") || observed.optBoolean("found"))
+                            && (observed.has("className") || observed.has("class") || observed.has("properties")))
+                        scriptScopesInspected.add(targetPath);
                     inspected = true;
                 } else if ("search_game_tree".equals(name)) {
                     int depth = Math.max(1, Math.min(8, action.optInt("max_depth", 3)));
@@ -530,6 +554,10 @@ final class StudioAiAgent {
                     if (action.has("path")) arguments.put("path", text(action, "path", 500));
                     if (action.has("keywords")) arguments.put("keywords", text(action, "keywords", 80));
                     result = host.call("search_game_tree", arguments);
+                    // Only an explicit, nonempty lookup of this exact scope grounds a script.
+                    if (action.has("path") && result.trim().startsWith("[")
+                            && !result.trim().equals("[]"))
+                        scriptScopesInspected.add(text(action, "path", 500));
                     inspected = true;
                 } else {
                     throw new Refusal("Ferramenta indisponível ou sem permissão: " + name);
@@ -660,7 +688,14 @@ final class StudioAiAgent {
         return "Você opera o RBX Studio usando as ferramentas reais abaixo. Responda a cada chamada com um único JSON. " +
                 "Investigue, execute, observe, corrija, salve e conclua a tarefa inteira dentro do limite configurado. " +
                 "Use project_edit em vários lotes conforme necessário. Os retornos confirmam somente o que foi observado. " +
-                "Leia os objetos e scripts antes de modificar. Reutilize componentes que já existam. " +
+                "Antes de escrever QUALQUER script, inspecione o destino real no Explorer usando "
+                + "inspect_instance(path) ou search_game_tree(path); para modificar um script existente, "
+                + "use script_read(target_file) primeiro. A árvore geral enviada automaticamente NÃO "
+                + "conta como inspeção específica. Planeje Script/LocalScript/ModuleScript e "
+                + "dependências a partir da hierarquia observada, nunca gere Luau primeiro para "
+                + "só depois procurar onde encaixá-lo. Propriedades do editor não equivalem "
+                + "automaticamente à API Lua de runtime. "
+                + "Leia os objetos e scripts antes de modificar. Reutilize componentes que já existam. " +
                 "Escreva Luau puro no campo source e use a arquitetura cliente-servidor Roblox. " +
                 "Use {\"action\":\"finish\",\"answer\":\"resultado e evidências\"} ao concluir. " +
                 StudioAiProjectEdit.PROTOCOL + StudioDeveloperEngine.GUIDE +
