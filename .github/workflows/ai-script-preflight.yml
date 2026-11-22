@@ -1,0 +1,33 @@
+name: Script context preflight contracts
+
+on:
+  pull_request:
+    paths:
+      - 'android/src/com/rbxnative/androidport/StudioAiAgent.java'
+      - 'android/src/com/rbxnative/androidport/StudioAiScriptPolicy.java'
+      - 'tests/StudioAiAgentTest.java'
+      - '.github/workflows/ai-script-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-script-context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Fetch org.json for deterministic Java contracts
+        shell: bash
+        run: |
+          curl -fsSL --retry 3 \
+            https://repo.maven.apache.org/maven2/org/json/json/20250517/json-20250517.jar \
+            -o "$RUNNER_TEMP/json.jar"
+          echo "JSON_JAR=$RUNNER_TEMP/json.jar" >> "$GITHUB_ENV"
+      - name: Run agent orchestration and script preflight tests
+        run: python3 scripts/test_ai_agent_java.py
