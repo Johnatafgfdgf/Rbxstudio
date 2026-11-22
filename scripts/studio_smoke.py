@@ -105,9 +105,98 @@ def dismiss_fullscreen_hint():
         adb('shell', 'input', 'tap', '890', '247')
         time.sleep(2)
 
+def capture_mobile_chrome(frame, pid):
+    from io import BytesIO
+    from PIL import Image, ImageChops
+
+    left, top, right, bottom = frame
+    width = right - left
+    scale = int(adb('shell', 'wm', 'density').split()[-1]) / 160
+
+    def capture(file_name):
+        png = adb('exec-out', 'screencap', '-p', binary=True)
+        (OUT / file_name).write_bytes(png)
+        return Image.open(BytesIO(png)).convert('RGB')
+
+    def tap(x, y):
+        adb('shell', 'input', 'tap', str(x), str(y))
+        time.sleep(1.3)
+        healthy(logs())
+        if adb('shell', 'pidof', PACKAGE).strip() != pid:
+            raise RuntimeError('The editor exited during the menu probe')
+
+    scene = capture('mobile-scene.png')
+    y = top + round(11 * scale)
+    runs = []
+    begin = None
+    # Each rounded button is filled in this lane. Detect the actual gaps so
+    # translation and font metrics do not have to match a fixed X coordinate.
+    for x in range(left, right):
+        red, green, blue = scene.getpixel((x, y))
+        filled = green >= 34 and blue >= 44 and blue > red + 10
+        if filled and begin is None:
+            begin = x
+        if not filled and begin is not None:
+            if x - begin >= round(36 * scale):
+                runs.append((begin, x))
+            begin = None
+    if len(runs) < 3:
+        raise RuntimeError('Menu, Ferramentas and Painéis could not be located in the captured toolbar')
+    row_y = top + round(26 * scale)
+    touches = []
+    for name, (begin, end) in zip(('menu', 'tools', 'panels'), runs[:3], strict=True):
+        x = (begin + end) // 2
+        tap(x, row_y)
+        opened = capture(f'mobile-{name}.png')
+        bounds = (left, top + round(52 * scale), right, min(bottom, top + round(310 * scale)))
+        difference = ImageChops.difference(scene.crop(bounds), opened.crop(bounds))
+        changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+        touches.append({'button': name, 'tap': [x, row_y], 'changed_pixels': changed})
+        if changed < width:
+            raise RuntimeError(f'{name} did not visibly open after tapping the toolbar')
+        if name == 'panels':
+            tap(x + round(12 * scale), top + round(82 * scale))
+            explorer = capture('mobile-explorer.png')
+            if os.environ.get('STUDIO_APK_VERSION') == '0.6.11':
+                tap(x, row_y)
+                tap(x + round(12 * scale), top + round(127 * scale))
+                stacked = capture('mobile-explorer-properties.png')
+                dock_bounds = (right - round(width * 0.35), top + round(105 * scale), right, bottom)
+                difference = ImageChops.difference(explorer.crop(dock_bounds), stacked.crop(dock_bounds))
+                changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+                if changed < 1000:
+                    raise RuntimeError('Showing Properties did not change the Explorer dock')
+                before_camera = logs().count('RBX_ANDROID_TOUCH_LOOK')
+                adb('shell', 'input', 'swipe', str(left + round(width * 0.32)),
+                    str(top + round((bottom - top) * 0.52)), str(left + round(width * 0.47)),
+                    str(top + round((bottom - top) * 0.64)), '680')
+                time.sleep(2)
+                capture('mobile-camera-with-panels.png')
+                if logs().count('RBX_ANDROID_TOUCH_LOOK') <= before_camera:
+                    raise RuntimeError('The scene did not receive the camera gesture with panels open')
+                touches.append({'button': 'Explorer + Properties and scene drag', 'changed_pixels': changed})
+        else:
+            tap(x, row_y)
+    # Fourth leading button is the IA control in 0.6.11. Capture the
+    # actual native panel rather than a design preview; no network or
+    # external AI client is required for this smoke check.
+    if len(runs) >= 4 and os.environ.get('STUDIO_APK_VERSION') == '0.6.11':
+        x = (runs[3][0] + runs[3][1]) // 2
+        before = capture('mobile-before-ai.png')
+        tap(x, row_y)
+        opened = capture('mobile-ai-panel.png')
+        bounds = (left, top + round(52 * scale), right, bottom)
+        diff = ImageChops.difference(before.crop(bounds), opened.crop(bounds))
+        changed = sum(1 for pixel in diff.getdata() if max(pixel) > 24)
+        touches.append({'button': 'assistant IA', 'changed_pixels': changed})
+        if changed < width:
+            raise RuntimeError('The IA button did not visibly open its mobile panel')
+        tap(x, row_y)
+    (OUT / 'mobile-menu-touches.json').write_text(json.dumps(touches, indent=2) + '\n')
+
 try:
     version = os.environ.get('STUDIO_APK_VERSION', '0.6.7')
-    apk = ROOT / f'dist/rbx-native-android-{version}-x86_64-debug.apk'
+    apk = ROOT / f'dist/{"rbx-studio-android" if version == "0.6.11" else "rbx-native-android"}-{version}-x86_64-debug.apk'
     subprocess.run(['adb', 'install', '-r', str(apk)], check=True, timeout=240)
     test_quality = os.environ.get('STUDIO_GRAPHICS_QUALITY')
     settings = {}
@@ -184,13 +273,40 @@ try:
             adb('shell', 'input', 'tap', '430', '535')
             time.sleep(2)
     if os.environ.get('STUDIO_SKIP_SETUP') == '1':
-        # Position observed in the real POCO-geometry onboarding capture.
-        adb('shell', 'input', 'tap', '430', '535')
+        inspect_mobile = os.environ.get('STUDIO_CAPTURE_MOBILE_MENUS') == '1'
+        if inspect_mobile:
+            # Capture real native pixels before the tap; a successful adb
+            # command alone does not establish a screen transition.
+            wizard_before = adb('exec-out', 'screencap', '-p', binary=True)
+            (OUT / 'before-skip.png').write_bytes(wizard_before)
+        # The real 0.6.11 native capture places a 48px X in the upper-right
+        # corner of onboarding (center 1235,40 at the controlled 1280x576
+        # emulator geometry). In the Android wizard this X now calls
+        # skip_key() and opens Home without requiring a Roblox credential.
+        # The old (430,535) was a feature card, not the Skip button.
+        adb('shell', 'input', 'tap', '1235', '40')
         time.sleep(4)
         healthy(logs())
         if adb('shell', 'pidof', PACKAGE).strip() != original_pid:
             raise RuntimeError('The original editor exited while leaving onboarding')
-        (OUT / 'after-skip.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
+        home_capture = adb('exec-out', 'screencap', '-p', binary=True)
+        (OUT / 'after-skip.png').write_bytes(home_capture)
+        if inspect_mobile:
+            from io import BytesIO
+            from PIL import Image, ImageChops
+            before = Image.open(BytesIO(wizard_before)).convert('RGB')
+            after = Image.open(BytesIO(home_capture)).convert('RGB')
+            if before.size != after.size:
+                raise RuntimeError('Android geometry changed while closing onboarding')
+            # The wizard has a row of setup steps. Home has different controls.
+            bounds = (0, 0, min(920, before.width), min(75, before.height))
+            difference = ImageChops.difference(before.crop(bounds), after.crop(bounds))
+            changed = sum(1 for pixel in difference.getdata() if max(pixel) > 24)
+            (OUT / 'onboarding-navigation.json').write_text(json.dumps(
+                {'wizard_closed': changed >= 2500, 'top_strip_changed_pixels': changed,
+                 'checked_region': bounds}) + '\n')
+            if changed < 2500:
+                raise RuntimeError('Onboarding did not navigate to Home: native screen unchanged')
         dismiss_fullscreen_hint()
         # New place was observed at (120,145) on the actual Home capture.
         window = adb('shell', 'dumpsys', 'window', 'windows')
@@ -199,7 +315,15 @@ try:
         if frame is None: raise RuntimeError('The original native window bounds are missing')
         left, top, right, bottom = map(int, frame.groups())
         (OUT / 'native-content-frame.txt').write_text(str((left, top, right, bottom)))
-        adb('shell', 'input', 'tap', str(left + 120), str(top + 145))
+        inspect_mobile = os.environ.get('STUDIO_CAPTURE_MOBILE_MENUS') == '1'
+        if inspect_mobile:
+            # "Novo jogo" was visible at (1159, 152) on the preceding
+            # native Home capture with the same logical landscape size.
+            x = left + round((right - left) * 1159 / 1280)
+            y = top + round((bottom - top) * 152 / 576)
+            adb('shell', 'input', 'tap', str(x), str(y))
+        else:
+            adb('shell', 'input', 'tap', str(left + 120), str(top + 145))
         # The original editor creates a second GPU device and its real scene
         # pipelines here; SwiftShader can take longer than a UI transition.
         require_editor = os.environ.get('STUDIO_REQUIRE_EDITOR') == '1'
@@ -220,6 +344,8 @@ try:
             raise RuntimeError('The original loader did not apply the requested initial quality')
         if 'rbxview:' not in logs():
             raise RuntimeError('New place never initialized its original viewer; the UI may be blocked')
+        if inspect_mobile:
+            capture_mobile_chrome((left, top, right, bottom), original_pid)
         if os.environ.get('STUDIO_TEST_CAMERA') == '1':
             adb('shell', 'input', 'touchscreen', 'swipe', '590', '269', '705', '296', '1800')
             time.sleep(5)

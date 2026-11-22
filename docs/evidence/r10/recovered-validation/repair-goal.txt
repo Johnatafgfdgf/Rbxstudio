@@ -1,0 +1,1 @@
+Localize o erro de sintaxe no projeto, consulte o diagnóstico real, leia o script, corrija preservando sua finalidade simples, repita o diagnóstico e salve. Não apague o script nem deixe Source vazio. Informe o alcance real da validação.

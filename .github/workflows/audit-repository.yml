@@ -1,0 +1,30 @@
+name: Audit RBX Studio source and legacy identity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [verify/android-menus]
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Inventory all tracked project and third-party files
+        run: python3 scripts/audit_repository.py
+      - name: Guard current Android UI strings
+        run: python3 scripts/check_studio_branding.py
+      - name: Upload evidence and path-level findings
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rbxstudio-source-audit
+          path: dist/source-audit/
+          if-no-files-found: error
+          retention-days: 14

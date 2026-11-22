@@ -1,0 +1,7 @@
+{
+  "scope": "Production connection registry and credential backend using real Android Keystore, synthetic secrets, app process restart, CRUD and task-state storage. No live provider or user keys.",
+  "write": "passed",
+  "restart_read": "passed",
+  "edit_delete": "passed",
+  "plaintext_absence": "passed"
+}

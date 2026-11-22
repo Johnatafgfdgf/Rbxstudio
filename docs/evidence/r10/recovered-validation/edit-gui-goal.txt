@@ -1,0 +1,1 @@
+Localize a GUI existente. Preserve a mesma ScreenGui e seus objetos principais: mude o título para Controle da Estação, deixe o fundo azul escuro e acrescente um botão que alterna mostrar/ocultar apenas o título. Adapte o LocalScript sem quebrar os outros botões, confira caminhos, sintaxe e salve. Não crie outra ScreenGui. Não afirme interação testada sem Play.

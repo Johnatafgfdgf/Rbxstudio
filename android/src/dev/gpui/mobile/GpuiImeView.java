@@ -144,6 +144,20 @@ final class GpuiImeView extends View {
                     event.getMetaState(), event.getUnicodeChar());
         }
 
+        @Override public boolean performContextMenuAction(int action) {
+            int code;
+            switch(action) {
+                case android.R.id.selectAll: code=KeyEvent.KEYCODE_A;break;
+                case android.R.id.copy: code=KeyEvent.KEYCODE_C;break;
+                case android.R.id.cut: code=KeyEvent.KEYCODE_X;break;
+                case android.R.id.paste:
+                case android.R.id.pasteAsPlainText: code=KeyEvent.KEYCODE_V;break;
+                default:return super.performContextMenuAction(action);
+            }
+            return session==id && keyIme(id,code,KeyEvent.ACTION_DOWN,KeyEvent.META_CTRL_ON,0)
+                    && keyIme(id,code,KeyEvent.ACTION_UP,KeyEvent.META_CTRL_ON,0);
+        }
+
         @Override public boolean performEditorAction(int action) {
             return sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
                     && sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
@@ -152,13 +166,13 @@ final class GpuiImeView extends View {
         @Override public CharSequence getTextBeforeCursor(int length, int flags) {
             Snapshot snapshot = new Snapshot(id, length, 0);
             if (snapshot.text == null) return null;
-            return snapshot.text.substring(0, snapshot.selectionStart - snapshot.offset);
+            return snapshot.text.substring(0, Math.min(snapshot.selectionStart,snapshot.selectionEnd) - snapshot.offset);
         }
 
         @Override public CharSequence getTextAfterCursor(int length, int flags) {
             Snapshot snapshot = new Snapshot(id, 0, length);
             if (snapshot.text == null) return null;
-            return snapshot.text.substring(snapshot.selectionEnd - snapshot.offset);
+            return snapshot.text.substring(Math.max(snapshot.selectionStart,snapshot.selectionEnd) - snapshot.offset);
         }
 
         @Override public CharSequence getSelectedText(int flags) {

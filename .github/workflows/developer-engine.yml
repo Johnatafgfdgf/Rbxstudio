@@ -1,0 +1,54 @@
+name: Developer Intelligence Engine contracts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['work/ai-agent-r10', 'work/ai-agent-r9', 'work/ai-autonomous-read-v1']
+    paths: ['android/src/**', 'tests/**', 'scripts/**', 'patches/**', '.github/workflows/developer-engine.yml']
+  pull_request:
+    paths: ['android/src/**', 'tests/**', 'scripts/**', 'patches/**']
+
+permissions:
+  contents: read
+concurrency:
+  group: developer-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install official SDK and JSON test dependency
+        run: |
+          sdkmanager 'platforms;android-35'
+          curl --fail --location --silent --show-error https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar --output "$RUNNER_TEMP/json.jar"
+          printf '3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed  %s\n' "$RUNNER_TEMP/json.jar" | sha256sum --check
+          echo "JSON_JAR=$RUNNER_TEMP/json.jar" >> "$GITHUB_ENV"
+      - name: Prepare pinned editor adapters
+        run: python3 scripts/prepare.py
+      - name: Compile every shipped Android Java source
+        run: python3 scripts/check_android_java.py
+      - name: Run deterministic regressions
+        run: python3 scripts/run_ai_regressions.py target/ai-regressions
+      - name: Exercise real DOM, compiler and Roblox save round trips
+        run: python3 scripts/test_ai_project_native.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: developer-engine-contract-results
+          path: target/ai-regressions
+
+# Live API tests require an explicit local key-file and are never dispatched automatically.

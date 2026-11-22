@@ -1,0 +1,8 @@
+{
+  "scope": "Production Java Activity in Android 29 software emulator using a UI-only APK; no native viewport, MCP, Play or user keys",
+  "plus_landscape": "passed",
+  "scroll_to_last_item": "passed",
+  "keyboard": "captured",
+  "plus_portrait": "passed",
+  "android_keystore_restart": "passed"
+}

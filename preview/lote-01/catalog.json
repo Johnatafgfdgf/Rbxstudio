@@ -1,0 +1,80 @@
+{
+  "tools": {
+    "Home": [
+      [["Part", "box", "Part"], ["Script", "file-code", "Script"], ["UI", "app-window", "UI"], ["Toolbox", "package", "Toolbox"]],
+      [["Terrain Editor", "mountain", "Terrain Editor"]],
+      [["Game Settings", "settings", "Game Settings"], ["Data Stores", "database", "Data Stores"]]
+    ],
+    "Avatar": [
+      [["Settings", "person-standing", null]],
+      [["Rig Builder", "users", null], ["Animation", "film", null], ["Accessory", "package", null], ["Avatar Setup", "settings", null]],
+      [["Check Item", "shield-check", null], ["Upload Item", "cloud-upload", null], ["Face Preview", "scan-face", null]]
+    ],
+    "UI": [
+      [["UI", "app-window", "UI"]],
+      [["Anchor", "anchor", null, true], ["Align", "align-horizontal-justify-center", null, true], ["Auto Scale", "scaling", null, true]]
+    ],
+    "Script": [
+      [["Find", "search", null, true], ["Replace", "type", null, true], ["Format", "code", null, true], ["Analysis", "bug", "Script Analysis"]]
+    ],
+    "Model": [
+      [["Group", "group", null, true], ["Ungroup", "ungroup", null, true], ["Material", "layers", null, true], ["Color", "droplet", null, true], ["Lock", "lock", null, true], ["Anchor", "anchor", null, true]],
+      [["Edit Pivot", "locate-fixed", null, true], ["Snap", "magnet", null], ["Reset", "rotate-ccw", null, true]],
+      [["Sun", "sun", null], ["Moon", "moon", null], ["Sky", "cloud-sun", null], ["Face", "spotlight", null], ["Shadow", "contrast", null], ["Glint", "sparkle", null]],
+      [["Import", "import", "Import"]]
+    ],
+    "Test": [
+      [["Play", "play", "Play"], ["Configurar Play", "settings", null], ["Run", "square-play", null, true], ["Pause", "pause", null, true], ["Stop", "square", null, true], ["Invite", "users", null, true], ["Client", "globe", null, true], ["Network", "wifi", null], ["Device", "smartphone", null], ["Team Test", "users", null, true], ["Controller", "gamepad-2", null], ["Play local", "square-play", null]],
+      [["Settings", "settings", null], ["Show UI", "eye", null]]
+    ],
+    "Plugins": [
+      [["Manage", "settings", null], ["Folder", "folder-open", null], ["Reload", "rotate-ccw", null]]
+    ]
+  },
+  "inserts": {
+    "Import": [["Model", null, "Model"], ["Mesh", null, "Mesh"], ["Image", null, "Image"]]
+  },
+  "panelExamples": {
+    "Input Actions": [
+      ["0 contexts · 0 actions", [["button", "Check"], ["button", "New InputContext"]]],
+      ["No input contexts yet", [["status", "An InputContext groups actions and the bindings that trigger them."]]]
+    ],
+    "Layers": [
+      ["Layers", [["button", "+ Layer"], ["button", "Assign selection"], ["status", "No layers yet"]]],
+      ["Notes", [["button", "Pin note"], ["status", "No notes"]]]
+    ],
+    "Security Audit": [
+      ["Security Audit", [["status", "Nenhum problema no projeto de exemplo."], ["button", "Re-run"]]]
+    ],
+    "Collaborators": [
+      ["Collaborators", [["switch", "Share my presence"], ["button", "Advanced ▸"]]]
+    ],
+    "Script Analysis": [
+      ["Script Analysis", [["status", "No problems found"]]]
+    ],
+    "Call Stack": [
+      ["Call Stack", [["status", "Values show while a debugged script is paused"]]]
+    ],
+    "Tests": [
+      ["No tests found", [["switch", "Rerun on save"], ["button", "Run all", "play"]]]
+    ],
+    "Argon": [
+      ["Argon", [["field", "Host", "127.0.0.1"], ["field", "Port", "8000"], ["button", "Connect"]]]
+    ],
+    "Wally": [
+      ["", [["field", "Search packages"], ["choice", "Home"], ["choice", "Installed"], ["choice", "Updates"]]]
+    ],
+    "Plugin Widgets": [
+      ["", [["status", "No plugin widget is open."]]]
+    ],
+    "Loren": [
+      ["Loren", [["status", "Este projeto ainda não contém Services ou Controllers do Loren. O modelo Loren project fica em Início › Novo."]]]
+    ],
+    "Avatar Settings": [
+      ["Avatar", [["choice", "General"], ["choice", "Body"], ["choice", "Clothing"], ["choice", "Accessories"], ["choice", "Movement"]]]
+    ],
+    "Localization": [
+      ["Localization", [["choice", "Overflow 0"], ["choice", "Strings 0"]]]
+    ]
+  }
+}

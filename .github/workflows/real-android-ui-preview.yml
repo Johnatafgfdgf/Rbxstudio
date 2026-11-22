@@ -3,26 +3,62 @@ name: Rbx Studio - real Android UI screenshots
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, verify/android-menus]
     paths:
       - .github/workflows/real-android-ui-preview.yml
       - android/**
       - native/**
       - studio/**
+      - core/**
+      - player/**
+      - geometry/**
       - patches/**
       - platform/**
       - scripts/studio_smoke.py
       - scripts/package_apk.py
+      - scripts/check_studio_branding.py
+      - scripts/check_ai_hub.py
+      - scripts/check_studio_apk.py
       - scripts/cargo_android.py
       - scripts/check_preparation.py
       - scripts/prepare.py
+      - tests/mobile_ai_permissions.rs
       - Cargo.toml
       - Cargo.lock
+      - .gitmodules
 
 permissions:
   contents: read
 
 jobs:
+  signing-tools:
+    name: Provide SDK tools for local APK verification
+    if: github.ref_name == 'verify/android-menus'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Collect official Android build tools
+        run: |
+          sdkmanager 'build-tools;35.0.0'
+          mkdir -p signing-tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt" signing-tools/
+          cd signing-tools
+          sha256sum apksigner.jar zipalign aapt > sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-sdk-35-local-verification
+          path: signing-tools
+          retention-days: 7
+
   real-native-ui:
     name: Build genuine GPUI Android app and capture its pixels
     runs-on: ubuntu-24.04
@@ -32,7 +68,7 @@ jobs:
       PORT_ARCH: x86_64-linux-android
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
-      STUDIO_APK_VERSION: '0.6.10'
+      STUDIO_APK_VERSION: '0.6.11'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,10 +94,36 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Verify project and patch integrity
         run: python3 scripts/check_preparation.py
+      - name: Verify active Android Studio branding
+        run: python3 scripts/check_studio_branding.py
+      - name: Verify real AI hub safety and API contracts
+        run: python3 scripts/check_ai_hub.py
+      - name: Verify MCP agent approval policy
+        run: |
+          rustc --edition=2021 --test tests/mobile_ai_permissions.rs -o /tmp/rbx-mobile-agent-policy
+          /tmp/rbx-mobile-agent-policy
       - name: Compile genuine GPUI Studio and local player
         run: python3 scripts/cargo_android.py build --locked -p rbx_android_studio -p rbx_android_player
+      - name: Restore private persistent signing key (optional)
+        env:
+          RBX_STUDIO_KEYSTORE_B64: ${{ secrets.RBX_STUDIO_ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$RBX_STUDIO_KEYSTORE_B64" ]; then
+            mkdir -p "$RUNNER_TEMP/rbxstudio-private"
+            printf '%s' "$RBX_STUDIO_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/rbxstudio-private/signing.jks"
+            chmod 600 "$RUNNER_TEMP/rbxstudio-private/signing.jks"
+            echo "PORT_SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/rbxstudio-private/signing.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No persistent signing key configured. This test APK may not upgrade an existing installation; export projects before uninstalling."
+          fi
       - name: Package genuine Android APK
+        env:
+          PORT_SIGNING_STORE_PASS: ${{ secrets.RBX_STUDIO_ANDROID_STORE_PASS }}
+          PORT_SIGNING_KEY_PASS: ${{ secrets.RBX_STUDIO_ANDROID_KEY_PASS }}
+          PORT_SIGNING_KEY_ALIAS: ${{ secrets.RBX_STUDIO_ANDROID_KEY_ALIAS }}
         run: python3 scripts/package_apk.py
+      - name: Inspect built APK for old UI classes and branding
+        run: python3 scripts/check_studio_apk.py
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -75,9 +137,10 @@ jobs:
           STUDIO_SKIP_RESUME: '1'
           STUDIO_SKIP_SETUP: '1'
           STUDIO_REQUIRE_EDITOR: '1'
-          STUDIO_INSPECT_VIEWPORT: '1'
+          STUDIO_INSPECT_VIEWPORT: ${{ github.ref_name == 'verify/android-menus' && '0' || '1' }}
           STUDIO_COMPACT_LAYOUT: '1'
-          STUDIO_APK_VERSION: '0.6.10'
+          STUDIO_CAPTURE_MOBILE_MENUS: ${{ github.ref_name == 'verify/android-menus' && '1' || '0' }}
+          STUDIO_APK_VERSION: '0.6.11'
         with:
           api-level: 35
           target: default

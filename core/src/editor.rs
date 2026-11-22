@@ -46,7 +46,7 @@ impl Editor {
             path,
             selection: Vec::new(),
             logs: Vec::new(),
-            status: "rbx-native · núcleo Rust".into(),
+            status: "Rbx Studio · editor Rust".into(),
             tool: "select".into(),
             local: false,
             snap: 1.0,

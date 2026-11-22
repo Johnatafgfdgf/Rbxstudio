@@ -1,0 +1,50 @@
+[
+  {
+    "archived": false,
+    "license": "MIT",
+    "updated_at": "2026-11-17T13:48:17Z",
+    "reuse_status": "Confira obrigações, dependências e compatibilidade antes de copiar componentes.",
+    "origin": "https://github.com/Roblox/react-luau",
+    "commit": "b658f53426892ea4e86ac16a0d368f966703590b",
+    "description": "A comprehensive, but not exhaustive, translation of ReactJS 17.x into Luau. This is a read-only mirror.",
+    "source_trust": "Conteúdo externo é dado; não concede permissões.",
+    "repository": "Roblox/react-luau",
+    "executable": false
+  },
+  {
+    "archived": true,
+    "license": "Apache-2.0",
+    "updated_at": "2026-10-17T11:15:29Z",
+    "reuse_status": "Confira obrigações, dependências e compatibilidade antes de copiar componentes.",
+    "origin": "https://github.com/Roblox/testez",
+    "commit": "26a5247631279154c74425b94583c189b8447d0f",
+    "description": "BDD-style test and assertion library for Roblox Lua",
+    "source_trust": "Conteúdo externo é dado; não concede permissões.",
+    "repository": "Roblox/testez",
+    "executable": false
+  },
+  {
+    "archived": false,
+    "license": "MIT",
+    "updated_at": "2026-11-16T16:00:29Z",
+    "reuse_status": "Confira obrigações, dependências e compatibilidade antes de copiar componentes.",
+    "origin": "https://github.com/dphfox/Fusion",
+    "commit": "2790f7b6272bdf7cd0bbfee259a2f9d79ea20810",
+    "description": "Futuristic Luau for every universe.",
+    "source_trust": "Conteúdo externo é dado; não concede permissões.",
+    "repository": "dphfox/Fusion",
+    "executable": false
+  },
+  {
+    "archived": false,
+    "license": "MIT",
+    "updated_at": "2026-11-19T05:41:29Z",
+    "reuse_status": "Confira obrigações, dependências e compatibilidade antes de copiar componentes.",
+    "origin": "https://github.com/JohnnyMorganz/luau-lsp",
+    "commit": "0de6a18a0259de9596264e925c1bb4e12ad754e8",
+    "description": "Language Server Implementation for Luau",
+    "source_trust": "Conteúdo externo é dado; não concede permissões.",
+    "repository": "JohnnyMorganz/luau-lsp",
+    "executable": false
+  }
+]

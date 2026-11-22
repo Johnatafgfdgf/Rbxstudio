@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-22",
+  "recovered_github_commit": "5c865cd3187fdbeb0eab06d26aad07b83fdb7eeb",
+  "recovered_checkpoint": "RBX-Studio-R10-Checkpoint.bundle version 1",
+  "previous_final_apk_recovered": false,
+  "late_code_fixes_reapplied": true,
+  "prior_uncommitted_capture_and_handoff_traces_recovered": false,
+  "new_native_build": "passed_in_prior_session_preserved_apk",
+  "scope": "No claim that lost artifacts were recovered.",
+  "final_code_recovered_from_checkpoint": 5,
+  "preserved_apk_sha256": "8f4f3bb090a5c93c811085bc885e22cf3ed5f749e700cc7ca5b2de3f5120ac06",
+  "post_checkpoint_commit_1dedef6_recovered": false,
+  "latest_local_captures_recovered": false,
+  "new_ci_captures_available": true,
+  "closing_code_commit": "5bdafed67d16bbca039136fc1b8e292502dd1fc6"
+}

@@ -1,0 +1,147 @@
+{
+  "scope": "Deterministic Java/unit/static transport regressions; no live API or Android runtime",
+  "passed": 28,
+  "total": 28,
+  "tests": [
+    {
+      "test": "test_ai_agent_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_android_touch_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_asset_inspector.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_decal_face_correction_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_decal_play_evidence_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_decal_visual_review_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_lighting_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_part_matrix.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_part_style_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_plan_guards.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_activation_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_equip_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_frame_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_probe_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_scene_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_play_smoke_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_polyhaven_catalog_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_polyhaven_integrity_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_roblox_decal_placement_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_roblox_decal_upload_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_tool_gui_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_visual_compare_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_ai_visual_review_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_developer_engine_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_inserted_model_audit_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_mcp_receipt.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_model_dependencies_java.py",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "test_toolbox_source_scanner.py",
+      "passed": true,
+      "exit_code": 0
+    }
+  ]
+}

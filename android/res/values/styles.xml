@@ -7,4 +7,14 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">never</item>
     </style>
+    <style name="StudioAiOverlayTheme" parent="StudioTheme">
+        <item name="android:colorAccent">#42DBEF</item>
+        <item name="android:colorBackgroundFloating">#19263C</item>
+        <item name="android:textColorPrimary">#F2F7FF</item>
+        <item name="android:textColorSecondary">#ADBED2</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
 </resources>

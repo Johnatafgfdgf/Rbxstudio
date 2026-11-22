@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="16" android:versionName="0.6.10">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="26" android:versionName="0.6.11-r10">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
     <queries><package android:name="com.roblox.client" /></queries>
@@ -8,6 +8,7 @@
             <meta-data android:name="android.app.lib_name" android:value="rbx_android_studio" />
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
+        <activity android:name="com.rbxnative.androidport.StudioAiHub" android:exported="false" android:theme="@style/StudioAiOverlayTheme" android:taskAffinity="" android:launchMode="singleTask" android:excludeFromRecents="true" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density" android:windowSoftInputMode="adjustResize" />
         <activity android:name="dev.gpui.mobile.GpuiPickerActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name="com.rbxnative.androidport.RookPlayerActivity" android:process=":rook" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density" android:windowSoftInputMode="adjustResize">
             <meta-data android:name="android.app.lib_name" android:value="rbx_android_player" />

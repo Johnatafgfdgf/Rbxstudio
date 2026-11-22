@@ -1,0 +1,74 @@
+name: RBX Studio AI native UI visual check
+
+on:
+  push:
+    branches: [work/ai-autonomous-read-v1]
+    paths:
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - android/src/com/rbxnative/androidport/StudioAiTheme.java
+      - scripts/build_ai_theme_preview.py
+      - scripts/check_ai_theme_emulator.py
+      - .github/workflows/ai-theme-android-visual-check.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rbxstudio-ai-ui-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-ai-visual:
+    name: Real Android Activity screenshot, not a mockup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: rbxstudio-0.6.11-arm64-v8a-separate-install
+          run-id: '44260391138'
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Setup Java and Android build tools
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile the current native AI Java UI around existing native Studio libraries
+        run: python3 scripts/build_ai_theme_preview.py
+      - name: Enable hardware virtualization
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Render real Android StudioAiHub screen and collect hierarchy
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 3072M
+          ram-size: 2048M
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -partition-size 3072
+          disable-animations: true
+          script: python3 scripts/check_ai_theme_emulator.py
+      - name: Archive actual native Activity screenshot and control bounds
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-theme-android-real-screenshot
+          path: |
+            dist/ai-ui-native-preview/ai-theme-emulator.png
+            dist/ai-ui-native-preview/ui-hierarchy.xml
+            dist/ai-ui-native-preview/ui-report.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -6,7 +6,7 @@ mod platform;
 #[cfg(target_os = "android")]
 #[no_mangle]
 fn android_main(app: android_activity::AndroidApp) {
-    use std::{io::Write, sync::{Arc, Mutex}, time::{Duration, Instant}};
+    use std::{io::Write, sync::{Arc, Mutex, atomic::{AtomicU32, Ordering}}, time::{Duration, Instant}};
     use serde_json::json;
     android_logger::init_once(android_logger::Config::default()
         .with_tag("RookPlayer").with_max_level(log::LevelFilter::Info));
@@ -45,6 +45,25 @@ fn android_main(app: android_activity::AndroidApp) {
                 }
             }
         })));
+        // This consent is consumed by the Activity for this single Play only.
+        let observe_native_touch = platform::touch_probe_active();
+        // Opt-in signal observation is independent of the aggregate input
+        // counters. The default is disabled and all reports remain local.
+        if observe_native_touch && platform::gui_probe_active() {
+            let reports = Arc::new(AtomicU32::new(0));
+            rook_engine::touch_probe::install(Some(Arc::new(move |path, queued, attempted, completed, unresolved, failed, errors, journal_changes, handler_dom_changes, handlers_with_changes| {
+                let seen = reports.fetch_add(1, Ordering::Relaxed);
+                if seen < 200 {
+                    platform::report_touch_gui_activated(path, queued, attempted,
+                        completed, unresolved, failed, errors, journal_changes,
+                        handler_dom_changes, handlers_with_changes);
+                }
+                // Stop all optional GUI observations at the session limit.
+                if seen >= 199 {
+                    rook_engine::touch_probe::install(None);
+                }
+            })));
+        }
         let ready_state = state.clone();
         let brand_icon = std::fs::read(session.join("menu.png")).unwrap_or_default();
         let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -73,10 +92,13 @@ fn android_main(app: android_activity::AndroidApp) {
                 if std::fs::write(&temp, value.to_string()).is_ok() { let _ = std::fs::rename(temp, ready_state.as_ref()); }
                 let _ = platform::ready();
                 log::info!("ROOK_FIRST_FRAME_PRESENTED");
+            }, observe_native_touch, move |down, up, cancel| {
+                platform::report_native_touch_counts(down, up, cancel);
             })
         })).unwrap_or_else(|panic| Err(anyhow::anyhow!("Falha no player: {}",
             panic.downcast_ref::<String>().map(String::as_str)
                 .or_else(|| panic.downcast_ref::<&str>().copied()).unwrap_or("pânico nativo"))));
+        rook_engine::touch_probe::install(None);
         rook_engine::console::flush();
         match &run {
             Ok(()) => write_state("stopped", None),

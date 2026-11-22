@@ -1,0 +1,141 @@
+name: RBX Studio AI Hub native Java verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [verify/android-menus, work/ai-autonomous-read-v1]
+    paths:
+      - .github/workflows/ai-hub-android-java.yml
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - android/src/com/rbxnative/androidport/StudioServices.java
+      - android/src/com/rbxnative/androidport/RookPlayerActivity.java
+      - android/src/com/rbxnative/androidport/StudioTouchDiagnostics.java
+      - player/src/lib.rs
+      - android/src/com/rbxnative/androidport/StudioAiHub.java
+      - player/src/platform.rs
+      - patches/rook--android-port.patch
+      - android/StudioManifest.xml
+      - scripts/check_ai_hub.py
+      - scripts/test_mcp_receipt.py
+      - scripts/test_ai_part_matrix.py
+      - scripts/test_ai_plan_guards.py
+      - scripts/test_toolbox_source_scanner.py
+      - scripts/test_inserted_model_audit_java.py
+      - scripts/test_model_dependencies_java.py
+      - scripts/test_ai_lighting_java.py
+      - scripts/test_ai_part_style_java.py
+      - scripts/test_ai_play_probe_java.py
+      - scripts/test_ai_play_smoke_java.py
+      - scripts/test_ai_play_scene_java.py
+      - scripts/test_ai_tool_gui_java.py
+      - scripts/test_ai_play_equip_java.py
+      - scripts/test_ai_play_activation_java.py
+      - scripts/test_ai_android_touch_java.py
+      - scripts/test_ai_asset_inspector.py
+      - scripts/test_ai_polyhaven_catalog_java.py
+      - scripts/test_ai_polyhaven_integrity_java.py
+      - scripts/test_ai_roblox_decal_upload_java.py
+      - android/src/com/rbxnative/androidport/StudioRobloxImageUpload.java
+      - android/src/com/rbxnative/androidport/StudioRobloxDecalPlacement.java
+      - scripts/test_ai_roblox_decal_placement_java.py
+      - scripts/test_ai_decal_play_evidence_java.py
+      - android/src/com/rbxnative/androidport/StudioDecalPlayEvidence.java
+      - android/src/com/rbxnative/androidport/StudioDecalVisualReview.java
+      - android/src/com/rbxnative/androidport/StudioAiTheme.java
+      - android/src/com/rbxnative/androidport/StudioDecalFaceCorrection.java
+      - scripts/test_ai_decal_face_correction_java.py
+      - scripts/test_ai_decal_visual_review_java.py
+      - android/src/com/rbxnative/androidport/StudioPolyHavenIntegrity.java
+      - android/src/com/rbxnative/androidport/StudioPolyHavenCatalog.java
+      - android/src/com/rbxnative/androidport/StudioAssetInspector.java
+      - android/src/com/rbxnative/androidport/StudioVisualReview.java
+      - scripts/test_ai_visual_review_java.py
+      - android/src/com/rbxnative/androidport/StudioVisualCompare.java
+      - scripts/test_ai_visual_compare_java.py
+      - android/src/com/rbxnative/androidport/StudioPlayFrameRules.java
+      - android/src/com/rbxnative/androidport/StudioPlayFrameEvidence.java
+      - scripts/test_ai_play_frame_java.py
+
+# New commits supersede older builds of this same workflow/branch.
+concurrency:
+  group: rbxstudio-ai-java-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-ai-hub:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Prepare pinned editor adapters
+        run: python3 scripts/prepare.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install official Android SDK platform
+        run: sdkmanager 'platforms;android-35'
+      - name: Verify static safety and provider contracts
+        run: python3 scripts/check_ai_hub.py
+      - name: Assert MCP write success and failure receipts in real Java
+        run: python3 scripts/test_mcp_receipt.py
+      - name: Validate real Java Part XYZ rotation read-back calculations
+        run: python3 scripts/test_ai_part_matrix.py
+      - name: Execute real Java guarded plan type matrix
+        run: python3 scripts/test_ai_plan_guards.py
+      - name: Test real Java Toolbox static source scanner
+        run: python3 scripts/test_toolbox_source_scanner.py
+      - name: Validate actual Java MCP Model audit parsing and scope
+        run: python3 scripts/test_inserted_model_audit_java.py
+      - name: Test production Java Model dependency scanner
+        run: python3 scripts/test_model_dependencies_java.py
+      - name: Validate real Java Lighting write and MCP receipt
+        run: python3 scripts/test_ai_lighting_java.py
+      - name: Validate real Java Part material and physics editing
+        run: python3 scripts/test_ai_part_style_java.py
+      - name: Validate real Java MCP Play state and bounded Output report
+        run: python3 scripts/test_ai_play_probe_java.py
+      - name: Validate real Java local Play smoke receipts and bounded status
+        run: python3 scripts/test_ai_play_smoke_java.py
+      - name: Validate real Java Player Backpack PlayerGui Humanoid Play scene
+        run: python3 scripts/test_ai_play_scene_java.py
+      - name: Validate actual Java Client Tool and GuiButton readiness
+        run: python3 scripts/test_ai_tool_gui_java.py
+      - name: Verify actual Java Client EquipTool and independent MCP read-back
+        run: python3 scripts/test_ai_play_equip_java.py
+      - name: Verify real Java optional Tool.Activated API event and strict Client receipt
+        run: python3 scripts/test_ai_play_activation_java.py
+      - name: Validate Android Rook real touch evidence and Play publication guard
+        run: python3 scripts/test_ai_android_touch_java.py
+      - name: Test real Java local VFX/audio resource inspection
+        run: python3 scripts/test_ai_asset_inspector.py
+      - name: Execute production Java Poly Haven read-only source and URL safety tests
+        run: python3 scripts/test_ai_polyhaven_catalog_java.py
+      - name: Verify actual Java user-selected Poly Haven file size and checksums
+        run: python3 scripts/test_ai_polyhaven_integrity_java.py
+      - name: Verify actual Java Open Cloud decal upload guards and consent flow
+        run: python3 scripts/test_ai_roblox_decal_upload_java.py
+      - name: Test real Java fixed Decal creation guards and MCP approval wiring
+        run: python3 scripts/test_ai_roblox_decal_placement_java.py
+      - name: Validate real Decal Play Output evidence and user opt-in
+        run: python3 scripts/test_ai_decal_play_evidence_java.py
+      - name: Validate production Decal PixelCopy context and consented visual review
+        run: python3 scripts/test_ai_decal_visual_review_java.py
+      - name: Run real Phase17 visual suggestion and bounded Face correction regressions
+        run: python3 scripts/test_ai_decal_face_correction_java.py
+      - name: Validate real multimodal image payloads and opt-in review contract
+        run: python3 scripts/test_ai_visual_review_java.py
+      - name: Verify real Java before-and-after pixel metrics and consented comparison
+        run: python3 scripts/test_ai_visual_compare_java.py
+      - name: Test actual Rook Play frame receipt rules and explicit user consent
+        run: python3 scripts/test_ai_play_frame_java.py
+      - name: Compile real native Android AI Hub and Keystore service
+        run: python3 scripts/check_android_java.py

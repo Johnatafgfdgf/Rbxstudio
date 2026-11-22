@@ -1,0 +1,22 @@
+[
+  {
+    "test": "medieval-ui",
+    "model": "gemini-3.5-flash-lite",
+    "exit_code": 1
+  },
+  {
+    "test": "rain-simple",
+    "model": "gemini-3.1-flash-lite",
+    "exit_code": 0
+  },
+  {
+    "test": "rain-cinematic",
+    "model": "gemini-3.5-flash-lite",
+    "exit_code": 0
+  },
+  {
+    "test": "rain-local",
+    "model": "gemini-3.1-flash-lite",
+    "exit_code": 1
+  }
+]
