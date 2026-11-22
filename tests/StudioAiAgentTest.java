@@ -150,7 +150,7 @@ public final class StudioAiAgentTest {
         // Invalid Luau runtime properties must be rejected even though the editor's spatial
         // aliases intentionally skip generic reflection for BaseParts.
         String invalidEmitterPosition = "local e = Instance.new('ParticleEmitter')\ne.Position = Vector3.new(0,50,0)";
-        String invalidFolderPosition = "local f = Instance.new('Folder')\\nf.Position = Vector3.new(0,0,0)";
+        String invalidFolderPosition = "local f = Instance.new('Folder')\nf.Position = Vector3.new(0,0,0)";
         for (String sourceCode : new String[]{invalidEmitterPosition, invalidFolderPosition}) {
             JSONArray ops=new JSONArray().put(new JSONObject().put("op","create")
                 .put("class","LocalScript").put("parent","StarterPlayer.StarterPlayerScripts")
