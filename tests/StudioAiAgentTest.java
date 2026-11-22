@@ -14,6 +14,7 @@ public final class StudioAiAgentTest {
         int index, applied, saved, previews;
         boolean loseWriteReply, rejectFirst, approved, diagnosticErrors;
         String goal,checkpoint="";
+        final java.util.Set<String> missingPaths=new java.util.HashSet<>();
         public String loadTask(){return checkpoint;}
         public void saveTask(String data){checkpoint=data;}
         Session(String... sequence) {
@@ -26,6 +27,7 @@ public final class StudioAiAgentTest {
         }
         public String call(String tool, JSONObject args) throws Exception {
             calls.add(tool);
+            if("inspect_instance".equals(tool)&&missingPaths.contains(args.optString("path")))throw new IOException("Instance not found");
             if (StudioAiProjectEdit.CONTEXT.equals(tool)) return "{\"revision\":\"1:2\",\"roots\":[]}";
             if (StudioAiProjectEdit.PREVIEW.equals(tool)) {
                 previews++;
@@ -99,6 +101,16 @@ public final class StudioAiAgentTest {
     }
 
     public static void main(String[] args) throws Exception {
+        Session references=new Session();references.missingPaths.add("StarterGui.Shop.Panel.Missing");
+        String source="     1→local gui = script.Parent\n     2→local frame = gui:WaitForChild(\"Panel\") :: Frame\n     3→local button = frame:WaitForChild(\"Missing\") :: TextButton\n     4→local playerGui = player:WaitForChild(\"PlayerGui\")\n     5→-- local ignored = gui:WaitForChild(\"Comment\")";
+        JSONArray unresolved=StudioAiScriptPolicy.missingLocalReferences("StarterGui.Shop.Controller",source,references);
+        yes(unresolved.length()==1&&unresolved.getString(0).contains("StarterGui.Shop.Panel.Missing"));
+        references.missingPaths.clear();yes(StudioAiScriptPolicy.missingLocalReferences("StarterGui.Shop.Controller",source,references).length()==0);
+        yes(StudioAiToolProtocol.needsPlainFallback(1,new JSONObject("{\"candidates\":[{\"finishReason\":\"MALFORMED_FUNCTION_CALL\"}]}")));
+        yes(!StudioAiToolProtocol.needsPlainFallback(1,new JSONObject("{\"candidates\":[{\"finishReason\":\"SAFETY\"}]}")));
+        StudioAiProjectEdit unchanged=StudioAiProjectEdit.checkedPreview(new JSONObject(EDIT).getJSONArray("operations"),"{\"revision\":\"1:2\",\"review\":false,\"operations\":[\"create Workspace.Generated\"]}");
+        unchanged.checkedReceipt("{\"applied\":true,\"changed\":false,\"operations\":[\"create Workspace.Generated\"]}");
+        yes(unchanged.appliedCount==0);StudioAiAgent.Run noMutation=new StudioAiAgent.Run(8,true,false,false,false,"no change");noMutation.record(0,"unchanged");yes(noMutation.operations==0&&noMutation.batches==0);
         Session automatic=new Session(EDIT,EDIT,DONE);
         StudioAiAgent.Run automaticRun=new StudioAiAgent.Run(8,true,false,false,false,"duas edições sem inspeção manual");
         execute(automatic,"duas edições sem inspeção manual",automaticRun);

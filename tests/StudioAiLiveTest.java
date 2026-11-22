@@ -15,6 +15,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
   private final BufferedReader output;
   private StudioAiToolProtocol wire = new StudioAiToolProtocol();
   private int requests, inTokens, outTokens, retries,rateRetries;
+  private boolean plainTools;
   private final JSONArray trace = new JSONArray();
 
   StudioAiLiveTest(String secret, String model, String file) throws Exception {
@@ -34,6 +35,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
   }
 
   public String model(List<String[]> messages, int budget) throws Exception {
+    if (requests >= Integer.parseInt(System.getenv().getOrDefault("RBX_LIVE_STOP_AFTER_REQUESTS","999")))throw new IOException("Interrupção controlada do teste de retomada");
     if (requests >= budget) throw new IOException("Live test request budget reached");
     long pacing=Long.parseLong(System.getenv().getOrDefault("RBX_LIVE_PACING_MS","6000"));
     if(requests>0)Thread.sleep(Math.max(0,Math.min(pacing,10000)));
@@ -51,7 +53,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
             .put("contents", contents)
             .put("generationConfig", new JSONObject().put("maxOutputTokens", 6000));
     StudioAiConversation.configure(1, body);
-    wire.configure(1, body);
+    if(!plainTools)wire.configure(1, body);
     HttpURLConnection c =
         (HttpURLConnection)
             new URL(
@@ -97,7 +99,10 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
       inTokens += usage.optInt("promptTokenCount");
       outTokens += usage.optInt("candidatesTokenCount");
     }
-    String result = wire.extract(1, response, messages.size());
+    if(!plainTools&&StudioAiToolProtocol.needsPlainFallback(1,response)&&requests<budget){
+      plainTools=true;wire=new StudioAiToolProtocol();trace.put(new JSONObject().put("format_fallback",true));return model(messages,budget);
+    }
+    String result = plainTools?null:wire.extract(1, response, messages.size());
     if (result == null) {
       StringBuilder text = new StringBuilder();
       JSONArray parts =
@@ -142,6 +147,10 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
 
   public void writing(boolean active) {}
 
+  @Override public void resetConversation() { wire=new StudioAiToolProtocol(); }
+  public String loadTask()throws Exception {String path=System.getenv("RBX_LIVE_TASK_STATE");return path!=null&&Files.exists(Path.of(path))?Files.readString(Path.of(path)):"";}
+  public void saveTask(String data)throws Exception {String path=System.getenv("RBX_LIVE_TASK_STATE");if(path!=null)Files.writeString(Path.of(path),data);}
+
   public void capture(List<String[]> m) throws IOException {
     throw new IOException("No renderer in headless test");
   }
@@ -161,6 +170,7 @@ public final class StudioAiLiveTest implements StudioAiAgent.Host, AutoCloseable
       List<String[]> messages = new ArrayList<>();
       messages.add(new String[] {"user", goal});
       StudioAiAgent.Run run = new StudioAiAgent.Run(Integer.parseInt(System.getenv().getOrDefault("RBX_LIVE_BUDGET","24")), true, false, false, false, goal);
+      run.resume=Boolean.parseBoolean(System.getenv().getOrDefault("RBX_LIVE_RESUME","false"));
       String answer = "", error = "";
       try {
         answer = StudioAiAgent.run(h, run, messages);

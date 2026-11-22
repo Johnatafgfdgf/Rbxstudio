@@ -64,9 +64,7 @@ final class StudioAiAgent {
             while(explicit.find()&&assetIds.size()<40)assetIds.add(explicit.group(1));
         }
         synchronized void record(int count, String message) {
-            batches++;
-            operations += count;
-            saved = false;
+            if(count>0){batches++;operations += count;saved = false;}
             receipts.add(message.substring(0, Math.min(1200, message.length())));
         }
         synchronized void externalReceipt(String receipt) { receipts.add(receipt); }
@@ -250,6 +248,8 @@ final class StudioAiAgent {
                                     .put("start_line_one_indexed",1).put("end_line_one_indexed_inclusive",200));
                                 JSONArray found=StudioAiScriptPolicy.reviewSignals(actual);
                                 for(int i=0;i<found.length();i++)risks.put(path+": "+found.getString(i));
+                                JSONArray missing=StudioAiScriptPolicy.missingLocalReferences(path,actual,host);
+                                for(int i=0;i<missing.length();i++)risks.put(path+": "+missing.getString(i));
                             }
                             if(risks.length()>0){observe(messages,action,"Há riscos estáticos concretos pendentes; a tarefa NÃO foi concluída. Corrija e verifique novamente. Estes sinais não são certificação de segurança: "+risks);continue;}
                         }
@@ -346,7 +346,7 @@ final class StudioAiAgent {
                         try {
                             result = edit.checkedReceipt(host.call(StudioAiProjectEdit.APPLY,
                                     edit.arguments(run.scripts, edit.review)));
-                            run.record(edit.count, result);
+                            run.record(edit.appliedCount, result);
                             run.trackScripts(ops);
                             run.writePending = false;
                             run.pending=null;

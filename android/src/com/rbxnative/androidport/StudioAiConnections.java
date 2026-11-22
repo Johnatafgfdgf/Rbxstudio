@@ -26,11 +26,12 @@ final class StudioAiConnections {
         for(JSONObject e:list(provider))if(e.optBoolean("enabled"))return e;
         return null;
     }
-    synchronized JSONObject get(String id)throws Exception{
+    private JSONObject stored(String id)throws Exception{
         JSONArray entries=index.getJSONArray("entries");for(int i=0;i<entries.length();i++)if(entries.getJSONObject(i).getString("id").equals(id))return entries.getJSONObject(i);
         throw new IOException("Conexão não encontrada.");
     }
-    synchronized String secret(String id)throws Exception{return store.read(KEYS+get(id).getString("id"));}
+    synchronized JSONObject get(String id)throws Exception{return new JSONObject(stored(id).toString());}
+    synchronized String secret(String id)throws Exception{return store.read(KEYS+stored(id).getString("id"));}
     synchronized String add(int provider,String name,String secret)throws Exception{
         if(index.getJSONArray("entries").length()>=32)throw new IOException("Limite local de 32 conexões atingido.");
         if(provider<0||provider>3)throw new IOException("Provedor inválido.");validateSecret(secret);name=validateName(name);
@@ -39,26 +40,26 @@ final class StudioAiConnections {
         store.write(KEYS+id,secret);index.getJSONArray("entries").put(e);select(id);return id;
     }
     synchronized void update(String id,String name,String secret,boolean enabled,boolean fallback,boolean paid,String quotaGroup)throws Exception{
-        JSONObject e=get(id);name=validateName(name);
+        JSONObject e=stored(id);name=validateName(name);
         if(quotaGroup==null||!quotaGroup.matches("[A-Za-z0-9_.:-]{0,100}"))throw new IOException("Grupo de cota inválido.");
         if(secret!=null&&!secret.isEmpty()){validateSecret(secret);store.write(KEYS+id,secret);e.remove("catalog");e.put("status","Chave alterada; teste novamente");}
         e.put("name",name).put("enabled",enabled).put("fallback",fallback).put("paid",paid).put("quota_group",quotaGroup);persist();
     }
-    synchronized void select(String id)throws Exception{JSONObject e=get(id);if(!e.optBoolean("enabled"))throw new IOException("Ative a conexão primeiro.");index.getJSONObject("selected").put(String.valueOf(e.getInt("provider")),id);persist();}
+    synchronized void select(String id)throws Exception{JSONObject e=stored(id);if(!e.optBoolean("enabled"))throw new IOException("Ative a conexão primeiro.");index.getJSONObject("selected").put(String.valueOf(e.getInt("provider")),id);persist();}
     synchronized void remove(String id)throws Exception{
         get(id);store.remove(KEYS+id);JSONArray entries=index.getJSONArray("entries"),keep=new JSONArray();
         for(int i=0;i<entries.length();i++)if(!entries.getJSONObject(i).getString("id").equals(id))keep.put(entries.getJSONObject(i));
         index.put("entries",keep);persist();
     }
     synchronized void model(String id,String model)throws Exception{
-        if(!model.matches("[a-zA-Z0-9_./:-]{1,180}"))throw new IOException("Modelo inválido.");get(id).put("model",model);persist();
+        if(!model.matches("[a-zA-Z0-9_./:-]{1,180}"))throw new IOException("Modelo inválido.");stored(id).put("model",model);persist();
     }
-    synchronized void catalog(String id,JSONArray models)throws Exception{get(id).put("catalog",models).put("status","Catálogo consultado").put("tested_at",System.currentTimeMillis());persist();}
-    synchronized void status(String id,String value,long cooldown)throws Exception{get(id).put("status",value).put("cooldown_until",cooldown);persist();}
+    synchronized void catalog(String id,JSONArray models)throws Exception{stored(id).put("catalog",new JSONArray(models.toString())).put("status","Catálogo consultado").put("tested_at",System.currentTimeMillis());persist();}
+    synchronized void status(String id,String value,long cooldown)throws Exception{stored(id).put("status",value).put("cooldown_until",cooldown);persist();}
     synchronized boolean migrated(int provider){return index.optBoolean("migrated_"+provider);}
     synchronized void migrated(int provider,boolean done)throws Exception{index.put("migrated_"+provider,done);persist();}
     synchronized void prioritize(String id)throws Exception{
-        JSONObject e=get(id);for(JSONObject other:list(e.getInt("provider")))get(other.getString("id")).put("priority",other.optInt("priority")+1);e.put("priority",0);persist();
+        JSONObject e=stored(id);for(JSONObject other:list(e.getInt("provider")))stored(other.getString("id")).put("priority",other.optInt("priority")+1);e.put("priority",0);persist();
     }
     /** 429 does not switch to another key of the same/unknown quota scope. This is not a quota bypass. */
     synchronized List<JSONObject> eligible(String current,int status,boolean hasImages,long now,Set<String> tried)throws Exception{
@@ -69,7 +70,7 @@ final class StudioAiConnections {
             if(p==active.getInt("provider")&&status==429){String a=active.optString("quota_group"),b=e.optString("quota_group");if(a.isEmpty()||b.isEmpty()||a.equals(b))continue;}
             JSONArray catalog=e.optJSONArray("catalog");JSONObject item=null;
             if(catalog!=null)for(int i=0;i<catalog.length();i++)if(catalog.getJSONObject(i).optString("id").equals(model))item=catalog.getJSONObject(i);
-            if(item==null||(!e.optBoolean("paid")&&item.optInt("tier")<2)||hasImages&&!item.optBoolean("vision"))continue;
+            if(item==null||(!e.optBoolean("paid")&&item.optInt("tier")<3)||hasImages&&!item.optBoolean("vision"))continue;
             result.add(e);
         }
         result.sort(Comparator.comparingInt(e->e.optInt("priority",100)));return result;

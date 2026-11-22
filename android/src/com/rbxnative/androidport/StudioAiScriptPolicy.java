@@ -21,6 +21,32 @@ final class StudioAiScriptPolicy {
     return issues;
   }
 
+  /** Literal local references only; runtime-created objects remain unknown. */
+  static JSONArray missingLocalReferences(String scriptPath,String code,StudioAiAgent.Host host)throws Exception {
+    JSONArray issues=new JSONArray();Map<String,String> aliases=new HashMap<>();aliases.put("script",scriptPath);
+    String clean=mask(code.replaceAll("(?m)^\\s*\\d+→", ""),false);
+    Pattern assign=Pattern.compile("^\\s*(?:local\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\.Parent)*)(.*)$");
+    Pattern child=Pattern.compile("^\\s*:\\s*(?:WaitForChild|FindFirstChild)\\s*\\(\\s*['\"]([^'\"\\\\\\r\\n]{1,80})['\"]\\s*(?:,\\s*[0-9.]+\\s*)?\\)");
+    Set<String> checked=new HashSet<>();int reads=0;
+    for(String line:clean.split("\\n")) {
+      Matcher a=assign.matcher(line);if(!a.matches())continue;
+      String binding=a.group(1),base=a.group(2),tail=a.group(3);String[] parts=base.split("\\.");String path=aliases.get(parts[0]);
+      if(path==null){aliases.remove(binding);continue;}
+      for(int i=1;i<parts.length&&path!=null;i++){int dot=path.lastIndexOf('.');path=dot<0?null:path.substring(0,dot);}
+      if(path==null){aliases.remove(binding);continue;}
+      for(;;){Matcher c=child.matcher(tail);if(!c.find())break;path+="."+c.group(1);tail=tail.substring(c.end());
+        if(checked.add(path)&&reads++<24) {
+          try {
+            JSONObject info=new JSONObject(host.call("inspect_instance",new JSONObject().put("path",path)));
+            if(info.has("error")||info.has("found")&&!info.optBoolean("found"))issues.put("Referência local ausente no editor: "+path);
+          } catch(Exception missing) {issues.put("Não foi possível confirmar a referência local "+path+". Inspecione a hierarquia e corrija o caminho ou crie o filho antes de concluir.");}
+        }
+      }
+      if(tail.trim().isEmpty()||tail.trim().startsWith("::"))aliases.put(binding,path);else aliases.remove(binding);
+    }
+    return issues;
+  }
+
   static void check(JSONArray operations, Set<String> ids, StudioAiAgent.Host host)
       throws Exception {
     for (int i = 0; i < operations.length(); i++) {

@@ -319,7 +319,7 @@ final class StudioDeveloperEngine {
         String receipt =
             edit.checkedReceipt(
                 host.call(StudioAiProjectEdit.APPLY, edit.arguments(run.scripts, edit.review)));
-        run.record(edit.count, receipt);
+        run.record(edit.appliedCount, receipt);
         run.writePending = false;
         build.next += batch.length();
         run.trackScripts(batch);run.pending=null;

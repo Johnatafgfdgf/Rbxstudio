@@ -50,6 +50,7 @@ final class StudioAiProjectEdit {
     final boolean review;
     boolean highImpact=true;
     final int count;
+    int appliedCount;
 
     private StudioAiProjectEdit(JSONArray operations, String revision, String details, boolean review) {
         this.operations = operations;
@@ -90,7 +91,8 @@ final class StudioAiProjectEdit {
         if (!Boolean.TRUE.equals(value.opt("applied")) || !(value.opt("changed") instanceof Boolean)
                 || !details.equals(report(value, count)))
             throw new IOException("O editor devolveu um resultado diferente da prévia.");
-        return value.getBoolean("changed")
+        appliedCount=value.getBoolean("changed")?count:0;
+        return appliedCount>0
                 ? (count == 1 ? "1 operação aplicada no mapa." : count + " operações aplicadas no mapa.") +
                     "\n" + details
                 : "O mapa já estava com os valores solicitados.";

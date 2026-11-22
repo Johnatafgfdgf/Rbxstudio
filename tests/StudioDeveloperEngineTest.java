@@ -271,6 +271,10 @@ public final class StudioDeveloperEngineTest {
     JSONObject other=new JSONObject(visual.toString());other.getJSONObject("theme").put("surface","8,30,70");
     yes(!visualOps.toString().equals(StudioProceduralCompiler.compile("ui",other).toString()));
     yes(StudioAiVisualBuilder.review(visual).has("scope"));
+    JSONObject misplaced=new JSONObject(visual.toString());misplaced.getJSONArray("elements").put(new JSONObject().put("class","UICorner").put("name","WrongCorner"));
+    boolean rejectedParent=false;try{StudioAiVisualBuilder.compile(misplaced);}catch(StudioAiAgent.Refusal expected){rejectedParent=expected.getMessage().contains("children");}yes(rejectedParent);
+    JSONObject nested=new JSONObject(visual.toString());nested.getJSONArray("elements").getJSONObject(0).getJSONArray("children").put(new JSONObject().put("class","UICorner").put("name","PanelCorner"));
+    yes(StudioAiVisualBuilder.compile(nested).toString().contains("StarterGui.MercadoPersonalizado.Panel"));
 
     JSONObject n =
         StudioAiToolProtocol.normalize(

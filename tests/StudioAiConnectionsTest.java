@@ -12,15 +12,18 @@ public final class StudioAiConnectionsTest {
     public static void main(String[] args)throws Exception{
         Store store=new Store();StudioAiConnections a=new StudioAiConnections(store);
         String one=a.add(1,"Gemini — Chave 1","test-invalid-secret-one"),two=a.add(1,"Gemini — Chave 2","test-invalid-secret-two"),third=a.add(3,"OpenRouter","test-invalid-secret-three");
-        a.update(one,"Principal",null,true,false,false,"project-a");a.update(two,"Reserva",null,true,true,false,"project-a");a.update(third,"Outro provedor",null,true,true,false,"");
+        a.update(one,"Principal",null,true,false,false,"project-a");a.update(two,"Reserva",null,true,true,true,"project-a");a.update(third,"Outro provedor",null,true,true,false,"");
         a.model(two,"gemini-test");a.model(third,"free-model:free");
         a.catalog(two,new JSONArray().put(new JSONObject().put("id","gemini-test").put("tier",2)));
         a.catalog(third,new JSONArray().put(new JSONObject().put("id","free-model:free").put("tier",3)));
         a.select(one);
         yes(a.eligible(one,429,false,0,new HashSet<>()).size()==1); // Same project quota must not rotate to key 2.
         yes(a.eligible(one,503,false,0,new HashSet<>()).size()==2);
+        a.update(two,"Reserva",null,true,true,false,"project-a");yes(a.eligible(one,503,false,0,new HashSet<>()).size()==1);
+        a.update(two,"Reserva",null,true,true,true,"project-a");
+        JSONObject detached=a.get(two);detached.put("model","tampered");yes(a.get(two).getString("model").equals("gemini-test"));
         yes(a.eligible(one,503,true,0,new HashSet<>()).isEmpty()); // No invented vision capability.
-        a.update(two,"Reserva",null,true,true,false,"project-b");yes(a.eligible(one,429,false,0,new HashSet<>()).size()==2);
+        a.update(two,"Reserva",null,true,true,true,"project-b");yes(a.eligible(one,429,false,0,new HashSet<>()).size()==2);
         yes(!store.values.get(StudioAiConnections.INDEX).contains("test-invalid-secret"));
         StudioAiConnections b=new StudioAiConnections(store);yes(b.list(1).size()==2&&b.selected(1).getString("id").equals(one));
         yes(b.secret(two).equals("test-invalid-secret-two"));

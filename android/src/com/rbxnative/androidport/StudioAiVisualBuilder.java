@@ -28,7 +28,7 @@ final class StudioAiVisualBuilder {
                 .put("name",new JSONObject().put("type","string"))
                 .put("properties",new JSONObject().put("type","object").put("additionalProperties",true))
                 .put("on_activate",new JSONObject().put("type","string"));
-            if(element!=null)fields.put("children",new JSONObject().put("type","array").put("items",element));
+            if(element!=null)fields.put("children",new JSONObject().put("type","array").put("description","Componentes filhos reais deste objeto. Use esta árvore para painéis, botões e seus modificadores; irmãos não são filhos.").put("items",element));
             element=new JSONObject().put("type","object").put("properties",fields).put("required",new JSONArray(Arrays.asList("class","name")));
         }
         return element;
@@ -48,6 +48,12 @@ final class StudioAiVisualBuilder {
             if(e.has("children")&&!(e.opt("children") instanceof JSONArray))throw new StudioAiAgent.Refusal("children deve ser uma lista de componentes JSON.");
             if(e.has("properties")&&!(e.opt("properties") instanceof JSONObject))throw new StudioAiAgent.Refusal("properties deve ser objeto JSON.");
             if(name.equals("InteractionBindings")||!names.add(name)||!CLASSES.contains(kind))throw new StudioAiAgent.Refusal("Classe ou nome de componente inválido: "+name);
+            if(kind.startsWith("UI")) {
+                String parentClass = parent.equals(root) ? "ScreenGui" : "";
+                for(Node node:nodes)if(node.path.equals(parent)){parentClass=node.kind;break;}
+                if(parentClass.equals("ScreenGui")||parentClass.startsWith("UI"))
+                    throw new StudioAiAgent.Refusal(kind+" precisa ser filho de um GuiObject (Frame, botão ou label). Declare-o em children do componente; não como irmão do painel.");
+            }
             JSONObject props=e.optJSONObject("properties")==null?new JSONObject():new JSONObject(e.getJSONObject("properties").toString());
             String path=parent+"."+name;
             if(kind.startsWith("Text")){
@@ -94,7 +100,7 @@ final class StudioAiVisualBuilder {
             if(n.kind.startsWith("Text")&&n.props.optDouble("TextSize",16)<14)issues.put(n.path+": texto menor que 14 px.");
             if(n.kind.startsWith("Text")&&n.props.has("TextColor3")&&n.props.has("BackgroundColor3")&&n.props.optDouble("BackgroundTransparency",0)==0){
                 double[] a=numbers(n.props.optString("TextColor3"),3),c=numbers(n.props.optString("BackgroundColor3"),3);
-                if(a!=null&&c!=null){double la=luminance(a),lc=luminance(c),contrast=(Math.max(la,lc)+.05)/(Math.min(la,lc)+.05);if(contrast<4.5)issues.put(n.path+": contraste calculado "+String.format(Locale.ROOT,"%.2f",contrast)+"; verificar tamanho e legibilidade.");}
+                if(a!=null&&c!=null){double la=luminance(a,n.props.optString("TextColor3").startsWith("Color3.new(")),lc=luminance(c,n.props.optString("BackgroundColor3").startsWith("Color3.new(")),contrast=(Math.max(la,lc)+.05)/(Math.min(la,lc)+.05);if(contrast<4.5)issues.put(n.path+": contraste calculado "+String.format(Locale.ROOT,"%.2f",contrast)+"; verificar tamanho e legibilidade.");}
             }
             if(n.kind.endsWith("Button")&&Boolean.FALSE!=n.props.opt("Visible")){
                 List<double[]> previous=siblings.computeIfAbsent(n.parent,k->new ArrayList<>());
@@ -109,7 +115,7 @@ final class StudioAiVisualBuilder {
         String[] parts=s.split(",");if(parts.length!=count)return null;double[] n=new double[count];
         try{for(int i=0;i<count;i++){n[i]=Double.parseDouble(parts[i].trim());if(!Double.isFinite(n[i]))return null;}return n;}catch(Exception invalid){return null;}
     }
-    private static double luminance(double[] rgb){double sum=0;double[] weights={.2126,.7152,.0722};for(int i=0;i<3;i++){double c=Math.max(0,Math.min(255,rgb[i]))/255;sum+=weights[i]*(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4));}return sum;}
+    private static double luminance(double[] rgb,boolean normalized){double sum=0;double[] weights={.2126,.7152,.0722};for(int i=0;i<3;i++){double c=Math.max(0,Math.min(1,normalized?rgb[i]:rgb[i]/255));sum+=weights[i]*(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4));}return sum;}
     private static String name(JSONObject e)throws Exception{
         String n=e.getString("name");if(n.isEmpty()||n.length()>80||n.indexOf('.')>=0||n.chars().anyMatch(Character::isISOControl))throw new StudioAiAgent.Refusal("Nome de componente inválido.");return n;
     }

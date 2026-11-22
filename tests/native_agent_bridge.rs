@@ -5,6 +5,10 @@ pub fn run_bridge(){
  if let Ok(input)=std::env::var("RBX_LIVE_INPUT"){dom=rbx_binary::deserialize(&std::fs::read(input).unwrap()).unwrap();}
  else {let world=dom.new_instance("Workspace","Workspace",None);dom.new_instance("Terrain","Terrain",Some(world));dom.new_instance("Part","Baseplate",Some(world));}
  crate::batch::apply_operations(&mut dom,db,&json!({"operations":[{"op":"ensure_service","class":"StarterGui"},{"op":"ensure_service","class":"StarterPlayerScripts"},{"op":"ensure_service","class":"ServerScriptService"},{"op":"ensure_service","class":"ReplicatedStorage"}]})).unwrap();
+ if std::env::var("RBX_LIVE_INJECT_ERROR").ok().as_deref()==Some("true"){
+  let parent=crate::batch::lookup(&dom,&json!("ServerScriptService")).unwrap();let script=dom.new_instance("Script","BrokenBootstrap",Some(parent));
+  dom.set_property(script,"Source",Variant::String("local value =\nprint(value)".into())).unwrap();
+ }
  let file=std::env::var("RBX_LIVE_PLACE").expect("Set RBX_LIVE_PLACE");
  for line in std::io::stdin().lock().lines(){let request:Value=serde_json::from_str(&line.unwrap()).unwrap();let tool=request["tool"].as_str().unwrap();let args=&request["arguments"];
   let result=(||->Result<Value,String>{let revision=format!("0:{}",dom.mutations());

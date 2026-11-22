@@ -3,7 +3,7 @@ name: Developer Intelligence Engine contracts
 on:
   workflow_dispatch:
   push:
-    branches: ['work/ai-agent-r9', 'work/ai-autonomous-read-v1']
+    branches: ['work/ai-agent-r10', 'work/ai-agent-r9', 'work/ai-autonomous-read-v1']
     paths: ['android/src/**', 'tests/**', 'scripts/**', 'patches/**', '.github/workflows/developer-engine.yml']
   pull_request:
     paths: ['android/src/**', 'tests/**', 'scripts/**', 'patches/**']

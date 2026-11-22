@@ -299,23 +299,28 @@ for required in [
     'renderModelList();',
     'selectedModelId()',
     'selectedBackupModel(model)',
-    'entry.tier >= 2 && !entry.id.equals(primary)',
+    '(acceptedCost || entry.tier >= 3) && !entry.id.equals(primary)',
 ]:
     assert required in java, required
 
-# Fallback is limited to one opt-in, free-tier-marked, same-provider model.
-# 401/403 and malformed requests must never trigger automatic switching.
+# Eligible configured connections share the task budget; unknown costs need
+# consent. Behavioral contracts exercise quota isolation and handoff separately.
+compact = ''.join(java.split())
 for required in [
     'private static final class ApiHttpException extends IOException',
     'code == 402 || code == 404 || code == 429',
     'code == 502 || code == 503',
     'code == 504 || code == 529',
-    'route.switched ||',
+    'route.switched||',
     'route.backup.isEmpty() || route.backup.equals(route.active)',
-    'route.requests >= maxRequests',
+    'route.requests>=maxRequests',
     'route.requests++',
-    'route.switched = true',
-    'route.active = backup',
+    'route.switched=true',
+    'route.active=route.backup',
+    'route.task.writePending',
+    'route.task.handoff()',
+    'connections.eligible(',
+    'StudioAiRetry.provider(',
     'requestModelWithFreeFallback(p, key, route,',
     'turns, allowProposals || editorStep, epoch, agentCallLimit)',
     'turns, false, epoch, 2)',
@@ -323,9 +328,12 @@ for required in [
     'throw new ApiHttpException(code',
     'if (code == 401 || code == 403) throw new ApiHttpException',
     'if (code == 402) throw new ApiHttpException',
-    'if (code == 429) throw new ApiHttpException',
+    'if (code == 429)',
 ]:
-    assert required in java, required
+    assert ''.join(required.split()) in compact, required
+connections = (ROOT / 'android/src/com/rbxnative/androidport/StudioAiConnections.java').read_text()
+for required in ['status==429', 'a.isEmpty()||b.isEmpty()||a.equals(b)', '!e.optBoolean("paid")&&item.optInt("tier")<3']:
+    assert required in connections, required
 assert java.count('new ModelRoute(model, selectedBackupModel(model))') == 1
 assert 'requestModelWithFreeFallback(p, key, route,' in java
 assert 'case "multi_edit"' not in java
@@ -726,8 +734,9 @@ assert java.index('if (!verified || rememberVerified == null || !rememberVerifie
 assert 'MAX_PROJECT_MEMORY = 16' in java
 request_method = java[java.index('private JSONObject requestModelWithFreeFallback('):
                       java.index('private static String messageUrl(')]
-assert 'if (epoch != requestEpoch) throw new IOException("Cancelado");' in request_method
-assert request_method.index('if (epoch != requestEpoch)') < request_method.index('route.requests++;')
+request_method = ''.join(request_method.split())
+assert 'if(epoch!=requestEpoch)thrownewIOException("Cancelado");' in request_method
+assert request_method.index('if(epoch!=requestEpoch)') < request_method.index('route.requests++;')
 # A consent withdrawal also invalidates any ongoing model read and prevents
 # a late editor response from repopulating revoked context.
 for required in [

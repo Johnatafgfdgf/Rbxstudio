@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="26" android:versionName="0.6.11">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rbxnative.androidport" android:versionCode="26" android:versionName="0.6.11-r10">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
     <queries><package android:name="com.roblox.client" /></queries>

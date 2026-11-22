@@ -25,6 +25,15 @@ final class StudioAiToolProtocol {
 
   private final List<Exchange> exchanges = new ArrayList<>();
 
+  static boolean needsPlainFallback(int provider,JSONObject response){
+    if(provider!=1)return false;
+    JSONArray candidates=response.optJSONArray("candidates");
+    if(candidates==null||candidates.length()==0)return false;
+    JSONObject candidate=candidates.optJSONObject(0);
+    String reason=candidate==null?"":candidate.optString("finishReason");
+    return "MALFORMED_FUNCTION_CALL".equals(reason)||"UNEXPECTED_TOOL_CALL".equals(reason);
+  }
+
   private static JSONObject type(String t) throws Exception {
     return new JSONObject().put("type", t);
   }

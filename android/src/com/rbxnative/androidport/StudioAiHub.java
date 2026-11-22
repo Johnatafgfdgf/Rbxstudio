@@ -3994,7 +3994,7 @@ public final class StudioAiHub extends Activity {
                 new String[]{"8 chamadas", "16 chamadas", "24 chamadas", "32 chamadas", "64 chamadas", "96 chamadas", "128 chamadas"}));
         add(root, agentBudget, 8);
         agentBudget.setSelection(Math.min(6, Math.max(0,
-                getSharedPreferences(PREFS, MODE_PRIVATE).getInt("agent_budget_index", 1))));
+                getSharedPreferences(PREFS, MODE_PRIVATE).getInt("agent_budget_index", 4))));
         agentBudget.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
             @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
@@ -4969,7 +4969,8 @@ public final class StudioAiHub extends Activity {
         if (agentMode == null) return;
         boolean enabled = autoInspect.isChecked() && includeProject.isChecked() &&
                 includeCode.isChecked() && proposeEdits.isChecked() && !mcpPairing.isEmpty();
-        agentMode.setText(enabled ? "Agente ativo" : "Ativar agente");
+        String modeText=enabled ? "Agente ativo" : "Ativar agente";
+        if(!android.text.TextUtils.equals(agentMode.getText(),modeText))agentMode.setText(modeText);
         agentMode.setEnabled(!busy);
         if (agentModeRow != null) agentModeRow.setVisibility(enabled || compactChat ? View.GONE : View.VISIBLE);
     }
@@ -5228,8 +5229,9 @@ public final class StudioAiHub extends Activity {
         if (chatModel != null) chatModel.setVisibility(compactChat ? View.GONE : View.VISIBLE);
         if(chatUsage!=null)chatUsage.setVisibility(compactChat?View.GONE:View.VISIBLE);
         if(chatUsageBar!=null)chatUsageBar.setVisibility(compactChat?View.GONE:View.VISIBLE);
-        if (chatStatus != null) chatStatus.setMaxLines(compactChat ? 1 : 2);
-        if (prompt != null) prompt.setMaxLines(compactChat ? 1 : 3);
+        int statusLines=compactChat?1:2,promptLines=compactChat?1:3;
+        if (chatStatus != null && chatStatus.getMaxLines()!=statusLines) chatStatus.setMaxLines(statusLines);
+        if (prompt != null && prompt.getMaxLines()!=promptLines) prompt.setMaxLines(promptLines);
         int nextWidth = Math.min(availableWidth, expandedChat ? dp(740) :
                 Math.max(dp(300), Math.min(dp(460), width * 57 / 100)));
         int nextHeight = Math.min(availableHeight, expandedChat ? availableHeight :
@@ -5988,7 +5990,7 @@ public final class StudioAiHub extends Activity {
         EditText key=field("Nova chave (vazio mantém a atual)",true);add(form,key,6);
         CheckBox enabled=new CheckBox(this);enabled.setText("Conexão ativa");enabled.setChecked(e.optBoolean("enabled"));add(form,enabled,4);
         CheckBox fallback=new CheckBox(this);fallback.setText("Autorizar como reserva e compartilhar contexto da tarefa");fallback.setChecked(e.optBoolean("fallback"));add(form,fallback,4);
-        CheckBox paid=new CheckBox(this);paid.setText("Autorizar uso de modelos pagos desta conexão na reserva");paid.setChecked(e.optBoolean("paid"));add(form,paid,4);
+        CheckBox paid=new CheckBox(this);paid.setText("Aceito possíveis cobranças desta API ao usar a reserva");paid.setChecked(e.optBoolean("paid"));add(form,paid,4);
         EditText quota=field("Projeto/organização da cota (opcional)",false);quota.setText(e.optString("quota_group"));add(form,quota,6);
         add(form,text("Chaves do mesmo projeto podem compartilhar limites. Não altere o grupo para contornar cotas. O saldo só será mostrado quando informado pela API.",12,false),6);
         ScrollView scroll=new ScrollView(this);scroll.addView(form);
@@ -6002,6 +6004,7 @@ public final class StudioAiHub extends Activity {
         try {
             JSONObject selected=connections==null?null:connections.selected(provider);
             if(selected!=null)connections.remove(selected.getString("id"));
+            StudioServices.credential(this,"delete",service(provider),"","");
             renderConnections();
             apiKey.setText("");
             if (provider == 1) geminiUnavailable.clear();
@@ -6198,13 +6201,20 @@ public final class StudioAiHub extends Activity {
 
     private String selectedBackupModel(String primary) {
         if (autoFallback == null || !autoFallback.isChecked()) return "";
+        boolean acceptedCost = false;
+        try { JSONObject connection = connections == null ? null : connections.selected(provider);
+            acceptedCost = connection != null && connection.optBoolean("paid");
+        } catch (Exception ignored) {}
         int index = backupPicker == null ? -1 : backupPicker.getSelectedItemPosition();
         if (index > 0 && index < backupIds.size()) {
             String chosen = backupIds.get(index);
-            if (!chosen.equals(primary) && (provider != 1 || !geminiUnavailable.contains(chosen))) return chosen;
+            for (ModelEntry entry : discoveredModels) {
+                if (entry.id.equals(chosen) && (acceptedCost || entry.tier >= 3) &&
+                        !chosen.equals(primary) && (provider != 1 || !geminiUnavailable.contains(chosen))) return chosen;
+            }
         }
         for (ModelEntry entry : discoveredModels) {
-            if (entry.tier >= 2 && !entry.id.equals(primary) &&
+            if ((acceptedCost || entry.tier >= 3) && !entry.id.equals(primary) &&
                     (provider != 1 || !geminiUnavailable.contains(entry.id))) return entry.id;
         }
         return "";
@@ -9852,6 +9862,11 @@ public final class StudioAiHub extends Activity {
                         messages.get(route.viewportTurn)[1] = "O provedor recusou a imagem. Use inspeção do editor.";
                     } else throw failure;
                     response = requestModelWithFreeFallback(p,key,route,messages,true,epoch,budget);
+                }
+                if(!route.plainTools && StudioAiToolProtocol.needsPlainFallback(route.providerId<0?p:route.providerId,response) && route.requests<budget){
+                    route.plainTools=true;route.wire=new StudioAiToolProtocol();
+                    progress("Ajustando uma chamada malformada do provedor…");
+                    response=requestModelWithFreeFallback(p,key,route,messages,true,epoch,budget);
                 }
                 String call = route.plainTools ? null : route.wire.extract(route.providerId<0?p:route.providerId,response,messages.size());
                 return call == null ? extractText(route.providerId<0?p:route.providerId,response) : call;
